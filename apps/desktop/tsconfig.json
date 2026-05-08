@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "electron-vite/node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*":       ["src/renderer/*"],
+      "@main/*":   ["src/main/*"],
+      "@shared/*": ["src/shared/*"]
+    },
+    "noEmit": true
+  },
+  "include": ["src/**/*", "index.html", "electron.vite.config.ts"]
+}

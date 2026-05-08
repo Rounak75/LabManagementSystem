@@ -1,0 +1,28 @@
+appId: com.golmurijanchghar.lab
+productName: "Golmuri Janch Ghar Lab"
+directories:
+  buildResources: resources
+  output: out/dist
+files:
+  - "out/main/**"
+  - "out/preload/**"
+  - "out/renderer/**"
+  - "package.json"
+extraResources:
+  - from: "../../packages/db/prisma/dev.sqlite"
+    to:   "lab.sqlite"
+  - from: "../../packages/db/prisma/schema.prisma"
+    to:   "schema.prisma"
+asarUnpack:
+  - "**/node_modules/@prisma/client/**"
+  - "**/node_modules/.prisma/**"
+  - "**/node_modules/better-sqlite3/**"
+win:
+  target: nsis
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

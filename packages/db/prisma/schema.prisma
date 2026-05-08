@@ -1,0 +1,312 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users (Admin + Staff) ────────────────────────────────────────────────
+model User {
+  id               String   @id @default(uuid())
+  name             String
+  username         String   @unique
+  passwordHash     String
+  role             String // "Admin" | "Staff"
+  isActive         Boolean  @default(true)
+  recoveryCodeHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  patientsCreated Patient[]    @relation("PatientCreatedBy")
+  visits          Visit[]      @relation("VisitStaff")
+  resultsEntered  TestResult[] @relation("ResultEnteredBy")
+  visitsVerified  VisitTest[]  @relation("VisitTestVerifiedBy")
+  auditLogs       AuditLog[]
+}
+
+// ─── Doctors ──────────────────────────────────────────────────────────────
+model Doctor {
+  id        String    @id @default(uuid())
+  name      String
+  clinic    String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  patients Patient[]
+}
+
+// ─── Patients ─────────────────────────────────────────────────────────────
+model Patient {
+  id              String   @id @default(uuid())
+  patientId       String   @unique // LAB-YYYY-NNNNN
+  name            String
+  age             Int
+  sex             String // "Male" | "Female" | "Other"
+  phone           String   @unique
+  address         String?
+  referredById    String?
+  portalAccountId String? // Phase 3: FK to PatientAccount; Phase 1: nullable column only
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  referredBy    Doctor?        @relation(fields: [referredById], references: [id])
+  createdBy     User           @relation("PatientCreatedBy", fields: [createdById], references: [id])
+  visits        Visit[]
+  homeVisits    HomeVisit[]
+  notifications Notification[]
+
+  @@index([phone])
+  @@index([name])
+}
+
+// ─── Visits ───────────────────────────────────────────────────────────────
+model Visit {
+  id        String    @id @default(uuid())
+  visitId   String    @unique // VIS-YYYY-NNNNN
+  patientId String
+  type      String // "WalkIn" | "HomeCollection"
+  visitDate DateTime
+  status    String    @default("Open") // "Open" | "Completed" | "Cancelled"
+  staffId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  staff         User           @relation("VisitStaff", fields: [staffId], references: [id])
+  visitTests    VisitTest[]
+  invoice       Invoice?
+  homeVisits    HomeVisit[]
+  notifications Notification[]
+
+  @@index([patientId])
+  @@index([visitDate])
+}
+
+// ─── Test Catalogue ───────────────────────────────────────────────────────
+model Test {
+  id                        String    @id @default(uuid())
+  name                      String
+  category                  String // "Blood" | "Urine" | "Stool" | "Other"
+  price                     Decimal
+  isOutsourced              Boolean   @default(false)
+  isActive                  Boolean   @default(true)
+  collectionTimeRestriction String? // Phase 5 uses; nullable in Phase 1
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  deletedAt                 DateTime?
+
+  parameters TestParameter[]
+  visitTests VisitTest[]
+}
+
+model TestParameter {
+  id                 String   @id @default(uuid())
+  testId             String
+  name               String
+  unit               String
+  resultType         String   @default("Numeric") // "Numeric" | "Qualitative"
+  refRangeMaleMin    Decimal?
+  refRangeMaleMax    Decimal?
+  refRangeFemaleMin  Decimal?
+  refRangeFemaleMax  Decimal?
+  refRangeChildMin   Decimal?
+  refRangeChildMax   Decimal?
+  qualitativeOptions String? // JSON array as string
+  normalQualitative  String?
+  displayOrder       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  test    Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  results TestResult[]
+}
+
+// ─── Visit-Tests & Results ────────────────────────────────────────────────
+model VisitTest {
+  id                    String    @id @default(uuid())
+  visitId               String
+  testId                String
+  status                String    @default("Collected")
+  outsourcedSentTo      String?
+  outsourcedExternalRef String?
+  outsourcedStatus      String? // null | "Sent" | "Received"
+  outsourcedSentAt      DateTime?
+  outsourcedReceivedAt  DateTime?
+  sampleCollectedAt     DateTime?
+  resultEnteredAt       DateTime?
+  verifiedById          String?
+  verifiedAt            DateTime?
+  isLocked              Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  visit      Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  test       Test         @relation(fields: [testId], references: [id])
+  verifiedBy User?        @relation("VisitTestVerifiedBy", fields: [verifiedById], references: [id])
+  results    TestResult[]
+
+  @@index([visitId])
+}
+
+model TestResult {
+  id          String   @id @default(uuid())
+  visitTestId String
+  parameterId String
+  value       String
+  isAbnormal  Boolean  @default(false)
+  enteredById String
+  enteredAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  visitTest VisitTest     @relation(fields: [visitTestId], references: [id], onDelete: Cascade)
+  parameter TestParameter @relation(fields: [parameterId], references: [id])
+  enteredBy User          @relation("ResultEnteredBy", fields: [enteredById], references: [id])
+
+  @@unique([visitTestId, parameterId])
+}
+
+// ─── Invoices ─────────────────────────────────────────────────────────────
+model Invoice {
+  id              String   @id @default(uuid())
+  visitId         String   @unique
+  subtotal        Decimal
+  discountAmount  Decimal  @default(0)
+  total           Decimal
+  paymentMethod   String? // "Cash" | "Online" | "Mixed"
+  paymentStatus   String   @default("Pending") // "Pending" | "Partial" | "Paid"
+  amountPaid      Decimal  @default(0)
+  razorpayOrderId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+}
+
+// ─── Home Visits (table created Phase 1, UI in Phase 5) ───────────────────
+model HomeVisit {
+  id             String    @id @default(uuid())
+  patientId      String?
+  bookerName     String
+  bookerPhone    String
+  address        String
+  preferredDate  DateTime
+  preferredTime  String
+  testsRequested String
+  assignedToId   String?
+  status         String    @default("Booked")
+  unableReason   String?
+  visitId        String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  patient Patient? @relation(fields: [patientId], references: [id])
+  visit   Visit?   @relation(fields: [visitId], references: [id])
+}
+
+// ─── Notifications (table created Phase 1, used Phase 3+) ─────────────────
+model Notification {
+  id        String    @id @default(uuid())
+  visitId   String
+  patientId String
+  channel   String
+  recipient String
+  purpose   String
+  status    String    @default("Pending")
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  visit   Visit   @relation(fields: [visitId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+}
+
+// ─── Audit Log (recorded in Phase 1, viewer is Phase 2) ───────────────────
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String
+  action       String
+  targetEntity String
+  targetId     String
+  details      String?
+  timestamp    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([timestamp])
+  @@index([targetEntity, targetId])
+}
+
+// ─── Sync Log (Phase 3 sync target — table exists in Phase 1) ─────────────
+model SyncLog {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  lastSyncAt DateTime
+  syncStatus String
+  createdAt  DateTime @default(now())
+}
+
+// ─── Lab Settings (single-row) ────────────────────────────────────────────
+model LabSettings {
+  id                  String    @id @default("singleton")
+  labName             String
+  labAddress          String
+  labPhone            String
+  labEmail            String?
+  labLogo             String?
+  morningOpenTime     String
+  morningCloseTime    String
+  eveningOpenTime     String?
+  eveningCloseTime    String?
+  weeklyHolidays      String    @default("[]") // JSON array as string
+  isOpenToday         Boolean   @default(true)
+  manualClosureReason String?
+  childAgeBoundary    Int       @default(12)
+  pathologistName     String?
+  pathologistQuals    String?
+  defaultTemplateId   String?
+  backupPath          String?
+  backupRetentionDays Int       @default(14)
+  backupTime          String    @default("02:00")
+  lastBackupAt        DateTime?
+  updatedAt           DateTime  @updatedAt
+}
+
+// ─── Report Templates ─────────────────────────────────────────────────────
+model ReportTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  isDefault Boolean  @default(false)
+  config    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Backup Logs ──────────────────────────────────────────────────────────
+model BackupLog {
+  id          String   @id @default(uuid())
+  kind        String
+  destination String
+  sizeBytes   BigInt
+  status      String
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ─── Per-year ID counters ─────────────────────────────────────────────────
+model IdCounter {
+  id        String   @id // e.g. "patient:2026", "visit:2026"
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
+}

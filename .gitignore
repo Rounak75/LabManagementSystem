@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out/
+.turbo/
+*.log
+.env
+.env.local
+*.sqlite
+*.sqlite-journal
+prisma/migrations/migration_lock.toml.bak
+.DS_Store
+Thumbs.db
