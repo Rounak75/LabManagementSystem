@@ -32,10 +32,11 @@ export default function ReportPreview() {
     if (def) setTemplateId(def);
   }, [settings, templates, templateId]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["report", visitId, templateId],
     enabled: !!visitId && !!templateId,
     queryFn: () => call<{ path: string; base64: string }>("reports:generatePdf", { visitId, templateId }),
+    retry: false, // surface PDF errors immediately instead of retrying silently
   });
 
   const print = useMutation({
@@ -68,8 +69,19 @@ export default function ReportPreview() {
           </Button>
         </div>
       </div>
-      {isLoading ? <div className="text-slate-500">Generating PDF…</div> :
-        <iframe title="Report" src={dataUrl} className="flex-1 rounded border" />}
+      {isLoading && <div className="text-slate-500">Generating PDF…</div>}
+      {error && (
+        <div className="rounded border border-rose-200 bg-rose-50 p-4">
+          <div className="font-medium text-rose-800">Couldn't generate the report.</div>
+          <div className="mt-1 text-sm text-rose-700">{error instanceof Error ? error.message : String(error)}</div>
+          <div className="mt-2 text-xs text-rose-600">
+            Try a different template, or check Settings → Lab logo. If the problem continues, restart the app.
+          </div>
+        </div>
+      )}
+      {!isLoading && !error && data && (
+        <iframe title="Report" src={dataUrl} className="flex-1 rounded border" />
+      )}
     </div>
   );
 }

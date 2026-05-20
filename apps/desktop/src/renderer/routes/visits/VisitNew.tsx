@@ -5,7 +5,7 @@ import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import type { TestCategory } from "@lab/types";
+import { TEST_CATEGORIES, type TestCategory } from "@lab/types";
 
 type Patient = { id: string; patientId: string; name: string; phone: string; age: number; sex: string };
 type Test = { id: string; name: string; category: TestCategory; price: string; isOutsourced: boolean };
@@ -141,49 +141,65 @@ export default function VisitNew() {
 
       <Card className="mb-4">
         <h2 className="mb-2 text-sm font-semibold text-slate-700">3. Tests</h2>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {tests.map(t => {
-            const picked = pickedTestIds.includes(t.id);
-            const meta = outsourcedMeta[t.id];
-            const showMissingWarning = submitAttempted && picked && t.isOutsourced && !(meta?.sentTo ?? "").trim();
-            return (
-              <div key={t.id} className={`rounded border p-2 text-sm ${picked ? "border-brand bg-brand/5" : ""}`}>
-                <label className="flex cursor-pointer items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <input type="checkbox" checked={picked} onChange={() => togglePicked(t)} />
-                    <span>
-                      <span className="font-medium">{t.name}</span>{" "}
-                      <span className="text-xs text-slate-500">· {t.category}</span>
-                      {t.isOutsourced && (
-                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-                          Outsourced
+        {TEST_CATEGORIES.map(cat => {
+          const inCat = tests.filter(t => t.category === cat);
+          if (inCat.length === 0) return null;
+          const pickedInCat = inCat.filter(t => pickedTestIds.includes(t.id)).length;
+          return (
+            <details key={cat} open={pickedInCat > 0} className="mb-3 rounded-md border border-slate-200">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <span className="text-slate-400">▶</span>
+                  <span>{cat}</span>
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-600">{inCat.length}</span>
+                  {pickedInCat > 0 && <span className="rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-brand">{pickedInCat} selected</span>}
+                </span>
+              </summary>
+              <div className="grid grid-cols-1 gap-2 border-t border-slate-100 p-3 md:grid-cols-2">
+                {inCat.map(t => {
+                  const picked = pickedTestIds.includes(t.id);
+                  const meta = outsourcedMeta[t.id];
+                  const showMissingWarning = submitAttempted && picked && t.isOutsourced && !(meta?.sentTo ?? "").trim();
+                  return (
+                    <div key={t.id} className={`rounded border p-2 text-sm ${picked ? "border-brand bg-brand/5" : ""}`}>
+                      <label className="flex cursor-pointer items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <input type="checkbox" checked={picked} onChange={() => togglePicked(t)} />
+                          <span>
+                            <span className="font-medium">{t.name}</span>
+                            {t.isOutsourced && (
+                              <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                                Outsourced
+                              </span>
+                            )}
+                          </span>
                         </span>
+                        <span>₹{Number(t.price).toFixed(0)}</span>
+                      </label>
+                      {picked && t.isOutsourced && (
+                        <div className="mt-2 grid grid-cols-1 gap-2 pl-6 md:grid-cols-2">
+                          <Input
+                            label="Sent to"
+                            placeholder="External lab name"
+                            value={meta?.sentTo ?? ""}
+                            onChange={e => updateMeta(t.id, "sentTo", e.target.value)}
+                            error={showMissingWarning ? "Required for outsourced tests" : undefined}
+                          />
+                          <Input
+                            label="External ref (optional)"
+                            placeholder="e.g. LAB-REF-123"
+                            value={meta?.externalRef ?? ""}
+                            onChange={e => updateMeta(t.id, "externalRef", e.target.value)}
+                          />
+                        </div>
                       )}
-                    </span>
-                  </span>
-                  <span>₹{Number(t.price).toFixed(0)}</span>
-                </label>
-                {picked && t.isOutsourced && (
-                  <div className="mt-2 grid grid-cols-1 gap-2 pl-6 md:grid-cols-2">
-                    <Input
-                      label="Sent to"
-                      placeholder="External lab name"
-                      value={meta?.sentTo ?? ""}
-                      onChange={e => updateMeta(t.id, "sentTo", e.target.value)}
-                      error={showMissingWarning ? "Required for outsourced tests" : undefined}
-                    />
-                    <Input
-                      label="External ref (optional)"
-                      placeholder="e.g. LAB-REF-123"
-                      value={meta?.externalRef ?? ""}
-                      onChange={e => updateMeta(t.id, "externalRef", e.target.value)}
-                    />
-                  </div>
-                )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </details>
+          );
+        })}
         <div className="mt-3 text-right text-sm font-medium">Subtotal: ₹{subtotal.toFixed(0)}</div>
       </Card>
 

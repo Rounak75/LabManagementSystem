@@ -13,7 +13,8 @@ export interface AbnormalityInput {
   normalQualitative: string | null;
 }
 
-export function isAbnormal(input: AbnormalityInput): boolean {
+export function isAbnormal(input: AbnormalityInput, override?: boolean | null): boolean {
+  if (override !== undefined && override !== null) return override;
   if (!input.value || input.value.trim() === "") return false;
 
   if (input.resultType === "Qualitative") {

@@ -3,8 +3,11 @@ import { join } from "path";
 import { existsSync, mkdirSync, copyFileSync } from "fs";
 import { execSync } from "child_process";
 import { getPrisma } from "@lab/db";
+import { outboxExtension } from "@main/services/cloud/prisma-hooks";
 
 let initialized = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _extended: any | null = null;
 
 /**
  * Run pending Prisma migrations against the live database.
@@ -60,8 +63,9 @@ export function initDatabase() {
   // Apply any pending migrations before initializing Prisma client
   runMigrations(dbUrl);
 
-  getPrisma(dbUrl);
+  const base = getPrisma(dbUrl);
+  _extended = base.$extends(outboxExtension);
   initialized = true;
 }
 
-export const prisma = () => getPrisma();
+export const prisma = () => (_extended ?? getPrisma()) as ReturnType<typeof getPrisma>;

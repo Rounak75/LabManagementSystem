@@ -9,24 +9,51 @@ export interface UserRow {
   username: string;
   role: string;
   isActive: boolean;
+  canCollectSamples: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export async function listUsers(): Promise<UserRow[]> {
   return prisma().user.findMany({
-    select: { id: true, name: true, username: true, role: true, isActive: true, createdAt: true, updatedAt: true },
-    orderBy: { createdAt: "asc" }
+    select: {
+      id: true, name: true, username: true, role: true, isActive: true,
+      canCollectSamples: true, createdAt: true, updatedAt: true,
+    },
+    orderBy: { createdAt: "asc" },
   });
 }
 
-export async function createUserAdmin(p: { name: string; username: string; password: string; role: Role }) {
+export async function createUserAdmin(p: {
+  name: string; username: string; password: string; role: Role;
+  canCollectSamples?: boolean;
+}) {
   const passwordHash = await hashPassword(p.password);
   const u = await prisma().user.create({
-    data: { name: p.name, username: p.username, role: p.role, passwordHash, isActive: true }
+    data: {
+      name: p.name,
+      username: p.username,
+      role: p.role,
+      passwordHash,
+      isActive: true,
+      canCollectSamples: !!p.canCollectSamples,
+    },
   });
   await audit("USER_CREATED", "User", u.id, JSON.stringify({ role: p.role }));
   return { id: u.id, name: u.name, username: u.username, role: u.role as Role, isActive: u.isActive };
+}
+
+export async function setUserCanCollectSamples(p: { id: string; canCollectSamples: boolean }) {
+  await prisma().user.update({
+    where: { id: p.id },
+    data: { canCollectSamples: p.canCollectSamples },
+  });
+  await audit(
+    p.canCollectSamples ? "USER_CAN_COLLECT_ENABLED" : "USER_CAN_COLLECT_DISABLED",
+    "User",
+    p.id,
+  );
+  return { ok: true as const };
 }
 
 export async function resetUserPassword(p: { id: string; newPassword: string }) {

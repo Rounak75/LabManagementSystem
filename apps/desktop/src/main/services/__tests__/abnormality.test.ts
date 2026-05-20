@@ -58,4 +58,17 @@ describe("abnormality", () => {
       qualitativeOptions: null, normalQualitative: "Negative"
     })).toBe(false);
   });
+  it("override=true wins over computed (value is in range but override forces abnormal)", () => {
+    expect(isAbnormal(numericMaleCholesterol("180"), true)).toBe(true);
+  });
+  it("override=false wins over computed (value is out of range but override forces normal)", () => {
+    expect(isAbnormal(numericMaleCholesterol("260"), false)).toBe(false);
+  });
+  it("override=null falls through to auto-detection", () => {
+    expect(isAbnormal(numericMaleCholesterol("260"), null)).toBe(true);
+    expect(isAbnormal(numericMaleCholesterol("180"), null)).toBe(false);
+  });
+  it("override=undefined falls through to auto-detection", () => {
+    expect(isAbnormal(numericMaleCholesterol("260"), undefined)).toBe(true);
+  });
 });

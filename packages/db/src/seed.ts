@@ -51,7 +51,15 @@ async function main() {
       eveningOpenTime: "18:00",
       eveningCloseTime: "20:00",
       weeklyHolidays: JSON.stringify(["Sunday-Evening"]),
-      childAgeBoundary: 12
+      childAgeBoundary: 12,
+      notificationsEnabled: false,
+      smsProvider: "Test",
+      emailEnabled: false,
+      emailSmtpHost: "smtp.gmail.com",
+      emailSmtpPort: 587,
+      emailFromName: "Golmuri Janch Ghar",
+      razorpayMode: "Off",
+      cloudSyncEnabled: false
     }
   });
 

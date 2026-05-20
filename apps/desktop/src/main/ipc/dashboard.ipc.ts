@@ -1,6 +1,6 @@
 import { register } from "@main/ipc";
 import { prisma } from "@main/db";
-import { requireSession } from "@main/session";
+import { requireSession, requireAdmin } from "@main/session";
 
 register("dashboard:stats", async () => {
   const me = requireSession();
@@ -57,4 +57,24 @@ register("dashboard:stats", async () => {
   };
 
   return { today, money, backlog };
+});
+
+register("dashboard:paymentLinksStats", async () => {
+  requireAdmin();
+
+  const activeWhere = {
+    razorpayPaymentLinkId: { not: null as null },
+    paymentStatus: { not: "Paid" as const },
+    paymentLinkStatus: "Created" as const,
+  };
+
+  const [activeCount, activeAgg, failedCount] = await Promise.all([
+    prisma().invoice.count({ where: activeWhere }),
+    prisma().invoice.aggregate({ where: activeWhere, _sum: { total: true } }),
+    prisma().invoice.count({ where: { paymentLinkStatus: "PollFailed" } }),
+  ]);
+
+  const activeOutstandingTotal = Number(activeAgg._sum.total?.toString() ?? "0");
+
+  return { activeCount, activeOutstandingTotal, failedCount };
 });

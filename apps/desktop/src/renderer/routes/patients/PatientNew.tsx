@@ -15,7 +15,7 @@ export default function PatientNew() {
   const [duplicate, setDuplicate] = useState<{ id: string; patientId: string; name: string } | null>(null);
   const { data: doctors = [] } = useQuery({ queryKey: ["doctors"], queryFn: () => call<Doctor[]>("doctors:list") });
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: { name: "", age: 0, sex: "Male", phone: "", address: "", referredById: "doctor-self" }
+    defaultValues: { name: "", age: 0, sex: "Male", phone: "", email: "", address: "", referredById: "doctor-self" }
   });
   const phone = watch("phone");
 
@@ -49,6 +49,16 @@ export default function PatientNew() {
             </select>
           </label>
           <Input label="Phone" {...register("phone", { required: true, pattern: /^[0-9+\-\s]{7,}$/ })} error={errors.phone?.message as string} />
+          <Input
+            label="Email (optional — used for digital reports)"
+            type="email"
+            className="col-span-2"
+            placeholder="patient@example.com"
+            {...register("email", {
+              validate: v => !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || "Enter a valid email or leave blank"
+            })}
+            error={errors.email?.message as string}
+          />
           <Input label="Address (optional)" className="col-span-2" {...register("address")} />
           <label className="col-span-2 text-sm"><span className="mb-1 block font-medium">Referred by</span>
             <select className="w-full rounded-md border px-3 py-2" {...register("referredById")}>

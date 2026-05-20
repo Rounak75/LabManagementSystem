@@ -9,13 +9,18 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "desktop": "pnpm --filter @lab/desktop dev",
+    "dev:admin": "pnpm -F @lab/admin dev",
     "db:generate": "pnpm --filter @lab/db prisma:generate",
     "db:migrate": "pnpm --filter @lab/db prisma:migrate",
     "db:seed": "pnpm --filter @lab/db seed"
   },
   "devDependencies": {
+    "supabase": "^2.100.0",
     "turbo": "^2.1.0",
     "typescript": "^5.5.4"
   },
-  "engines": { "node": ">=20.10.0", "pnpm": ">=9.0.0" }
+  "engines": {
+    "node": ">=20.10.0",
+    "pnpm": ">=9.0.0"
+  }
 }

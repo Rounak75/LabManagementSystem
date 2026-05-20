@@ -18,13 +18,15 @@ export type Channel =
   | "patients:create" | "patients:get" | "patients:search" | "patients:history" | "patients:update"
   // visits
   | "visits:create" | "visits:get" | "visits:listForPatient"
+  | "visits:regenerateAccessCode"
   | "visitTests:getOne" | "visitTests:updateStatus" | "visitTests:lock"
+  | "visitTests:unlock"
   // outsourced
   | "outsourced:list" | "outsourced:markReceived"
   // results
   | "results:upsert" | "results:listForVisit"
   // invoices
-  | "invoices:get" | "invoices:applyDiscount" | "invoices:recordCash"
+  | "invoices:get" | "invoices:applyDiscount" | "invoices:recordCash" | "invoices:recordUpi"
   // reports
   | "reports:listReady" | "reports:generatePdf" | "reports:print"
   // staff (admin only)
@@ -32,6 +34,7 @@ export type Channel =
   // users (admin only)
   | "users:list" | "users:create" | "users:resetPassword"
   | "users:setActive" | "users:updateRole" | "users:delete"
+  | "users:setCanCollectSamples"
   // search
   | "search:global"
   // audit
@@ -43,9 +46,32 @@ export type Channel =
   | "backup:runNow" | "backup:list" | "backup:restore"
   // dashboard
   | "dashboard:stats"
+  | "dashboard:paymentLinksStats"
   // templates (admin only)
   | "templates:list" | "templates:save" | "templates:setDefault"
-  | "templates:duplicate" | "templates:delete";
+  | "templates:duplicate" | "templates:delete"
+  // notifications (admin only, except cancel)
+  | "notifications:list" | "notifications:retry" | "notifications:cancel"
+  | "notifications:sendTestSms" | "notifications:sendTestEmail"
+  | "notifications:failedCount"
+  // payments
+  | "payments:createLink" | "payments:createQr" | "payments:cancelQr"
+  | "payments:checkNow" | "payments:testConnection"
+  // cloud sync (admin only, except getStatus which any session can read)
+  | "cloud:getStatus" | "cloud:testConnection"
+  | "cloud:listOutbox" | "cloud:retryOutbox" | "cloud:cancelOutbox"
+  | "cloud:runBackfillNow" | "cloud:checkNow"
+  // Phase 3d Plan B — printer calibration (admin only)
+  | "printerCalibration:list" | "printerCalibration:upsert"
+  | "printerCalibration:listSystemPrinters"
+  | "print:alignmentTest"
+  // Phase 3d Plan C — patient dispute (admin only)
+  | "patient:dissociatePhone"
+  // Phase 3d Plan F — bookings inbox (admin)
+  | "bookings:list" | "bookings:approve" | "bookings:decline" | "bookings:assign"
+  | "bookings:listPhlebotomists"
+  // Phase 3d Plan H — lab closures (admin)
+  | "closures:list" | "closures:upsert" | "closures:remove";
 
 export interface FirstRunInput {
   admin:    { name: string; username: string; password: string };
@@ -94,6 +120,9 @@ export interface RemoveLogoResult { ok: true; }
 export interface PatientCreateInput {
   name: string; age: number; sex: Sex; phone: string;
   address?: string; referredById?: string | null;
+  email?: string | null;
+  /** Phase 3d: bypass the soft duplicate-phone warning (household sharing). */
+  allowDuplicatePhone?: boolean;
 }
 
 export interface VisitTestCreateInput {
@@ -110,6 +139,10 @@ export interface VisitCreateInput {
 
 export interface OutsourcedMarkReceivedInput { visitTestId: string; }
 export interface OutsourcedMarkReceivedResult { ok: true; }
+
+/** Task 10 — Admin "Unlock to edit" on a verified VisitTest. */
+export interface VisitTestUnlockInput { visitTestId: string; reason: string; }
+export interface VisitTestUnlockResult { isLocked: false; }
 
 export interface OutsourcedRow {
   id: string;
@@ -130,7 +163,13 @@ export interface OutsourcedRow {
 
 export interface ResultUpsertInput {
   visitTestId: string;
-  values: { parameterId: string; value: string }[];
+  values: {
+    parameterId: string;
+    value: string;
+    notes?: string | null;
+    abnormalOverride?: boolean | null;
+  }[];
+  expectedVersion?: number;
 }
 
 export interface DiscountInput { invoiceId: string; amount: number; isPercent: boolean; }
@@ -199,6 +238,12 @@ export interface UserSetActiveInput   { id: string; isActive: boolean; }
 export interface UserUpdateRoleInput  { id: string; role: Role; }
 export interface UserDeleteInput      { id: string; }
 export interface UserMutationResult   { ok: true; }
+
+export type PaymentLinksStats = {
+  activeCount: number;
+  activeOutstandingTotal: number;
+  failedCount: number;
+};
 
 export type DashboardStats = {
   today: {

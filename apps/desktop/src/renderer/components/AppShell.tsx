@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/stores/auth.store";
 import { Button } from "@/components/ui/Button";
 import { call } from "@/lib/api";
+import { SidebarCloudIcon } from "@/components/SidebarCloudIcon";
 
 const links = [
   { to: "/",            label: "Dashboard" },
@@ -13,9 +14,12 @@ const links = [
   { to: "/outsourced",  label: "Outsourced" },
   { to: "/tests",       label: "Tests",   admin: true },
   { to: "/doctors",     label: "Doctors", admin: true },
-  { to: "/users",       label: "Users", admin: true },
-  { to: "/audit",       label: "Audit log", admin: true },
-  { to: "/templates",   label: "Templates", admin: true },
+  { to: "/users",          label: "Users", admin: true },
+  { to: "/bookings",       label: "Bookings", admin: true },
+  { to: "/audit",          label: "Audit log", admin: true },
+  { to: "/notifications",  label: "Notifications", admin: true },
+  { to: "/sync",           label: "Sync log", admin: true },
+  { to: "/templates",      label: "Templates", admin: true },
   { to: "/settings",    label: "Settings", admin: true }
 ];
 
@@ -35,12 +39,15 @@ export function AppShell({ children }: { children?: ReactNode }) {
           <div className="text-lg font-semibold text-brand">Golmuri Janch Ghar</div>
           <div className="text-xs text-slate-500">{user?.name} · {user?.role}</div>
           {settings && (
-            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-              <span
-                className={`h-2 w-2 rounded-full ${isOpen ? "bg-green-500" : "bg-red-500"}`}
-                aria-hidden="true"
-              />
-              <span>{isOpen ? "Open" : "Closed"}</span>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+                <span
+                  className={`h-2 w-2 rounded-full ${isOpen ? "bg-green-500" : "bg-red-500"}`}
+                  aria-hidden="true"
+                />
+                <span>{isOpen ? "Open" : "Closed"}</span>
+              </div>
+              <SidebarCloudIcon />
             </div>
           )}
         </div>

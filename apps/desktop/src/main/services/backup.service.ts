@@ -2,6 +2,7 @@ import { app } from "electron";
 import { join } from "path";
 import { mkdirSync, statSync, readdirSync, unlinkSync, existsSync } from "fs";
 import { prisma } from "@main/db";
+import { paymentDueScan, homeVisitReminderScan } from "@main/services/notifications/triggers";
 
 function backupDir(): string {
   const dir = join(app.getPath("userData"), "backups");
@@ -101,6 +102,18 @@ export function startScheduler() {
         lastDayRan = today;
         await runBackup({ kind: "auto", secondaryPath: settings.backupPath });
         pruneOld(settings.backupRetentionDays);
+        try {
+          const n = await paymentDueScan();
+          if (n > 0) console.log(`[notifications] paymentDueScan enqueued ${n}`);
+        } catch (err) {
+          console.error("[notifications] paymentDueScan failed", err);
+        }
+        try {
+          const n = await homeVisitReminderScan();
+          if (n > 0) console.log(`[notifications] homeVisitReminderScan enqueued ${n}`);
+        } catch (err) {
+          console.error("[notifications] homeVisitReminderScan failed", err);
+        }
       }
     } catch {
       // never crash the app from the scheduler

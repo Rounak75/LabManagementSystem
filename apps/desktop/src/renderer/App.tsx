@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/stores/auth.store";
 import { call } from "@/lib/api";
+import { evictOldDrafts } from "@/lib/draft";
 import Login from "./routes/Login";
 import Recover from "./routes/Recover";
 import FirstRunWizard from "./routes/FirstRunWizard";
 import Dashboard from "./routes/Dashboard";
 import { RequireRole } from "./components/RequireRole";
 import { AppShell } from "./components/AppShell";
+import { Toaster } from "@/components/ui/Toast";
 import PatientSearch from "./routes/patients/PatientSearch";
 import PatientNew from "./routes/patients/PatientNew";
 import PatientDetail from "./routes/patients/PatientDetail";
@@ -23,12 +25,17 @@ import DoctorDirectory from "./routes/doctors/DoctorDirectory";
 import LabSettings from "./routes/settings/LabSettings";
 import UserManagement from "./routes/users/UserManagement";
 import AuditLog from "./routes/audit/AuditLog";
+import NotificationsLog from "./routes/notifications/NotificationsLog";
+import SyncLog from "./routes/sync/SyncLog";
 import TemplateList from "./routes/templates/TemplateList";
 import TemplateEditor from "./routes/templates/TemplateEditor";
+import BookingsPage from "./routes/bookings/BookingsPage";
 
 export default function App() {
   const { user, loading, bootstrap } = useAuth();
   const [firstRun, setFirstRun] = useState<boolean | null>(null);
+
+  useEffect(() => { evictOldDrafts(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -40,12 +47,18 @@ export default function App() {
   }, []);
 
   if (loading || firstRun === null) {
-    return <div className="flex h-screen items-center justify-center text-slate-500">Loading…</div>;
+    return (
+      <>
+        <div className="flex h-screen items-center justify-center text-slate-500">Loading…</div>
+        <Toaster />
+      </>
+    );
   }
-  if (firstRun) return <BrowserRouter><Routes><Route path="*" element={<FirstRunWizard />} /></Routes></BrowserRouter>;
+  if (firstRun) return <BrowserRouter><Routes><Route path="*" element={<FirstRunWizard />} /></Routes><Toaster /></BrowserRouter>;
 
   return (
     <BrowserRouter>
+      <Toaster />
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/recover" element={user ? <Navigate to="/" replace /> : <Recover />} />
@@ -65,6 +78,9 @@ export default function App() {
           <Route path="/doctors"  element={<RequireRole role="Admin"><DoctorDirectory /></RequireRole>} />
           <Route path="/users"    element={<RequireRole role="Admin"><UserManagement /></RequireRole>} />
           <Route path="/audit"    element={<RequireRole role="Admin"><AuditLog /></RequireRole>} />
+          <Route path="/bookings"      element={<RequireRole role="Admin"><BookingsPage /></RequireRole>} />
+          <Route path="/notifications" element={<RequireRole role="Admin"><NotificationsLog /></RequireRole>} />
+          <Route path="/sync" element={<RequireRole role="Admin"><SyncLog /></RequireRole>} />
           <Route path="/settings" element={<RequireRole role="Admin"><LabSettings /></RequireRole>} />
           <Route path="/templates"      element={<RequireRole role="Admin"><TemplateList /></RequireRole>} />
           <Route path="/templates/new"  element={<RequireRole role="Admin"><TemplateEditor /></RequireRole>} />

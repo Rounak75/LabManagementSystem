@@ -1,4 +1,51 @@
 import { prisma } from "@main/db";
+import fs from "node:fs";
+import path from "node:path";
+
+/**
+ * Convert a stored logo reference into a base64 `data:` URI.
+ *
+ * The PDF main-process renderer (react-pdf) cannot reliably load `file://`
+ * URLs, so we persist logos as data URIs in the DB. This helper is idempotent:
+ * - null in → null out
+ * - already-data-URI → returned unchanged
+ * - file path that exists → converted to `data:<mime>;base64,…`
+ * - file path that's missing → null (caller decides whether to clear the field)
+ */
+export function migrateLogoToDataUri(stored: string | null): string | null {
+  if (!stored) return null;
+  if (stored.startsWith("data:")) return stored;
+  if (!fs.existsSync(stored)) return null;
+  const ext = path.extname(stored).toLowerCase();
+  const mime = ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/png";
+  const bytes = fs.readFileSync(stored);
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+/**
+ * Idempotent one-time migration: if labSettings.labLogo holds a filesystem
+ * path (legacy format), convert it to a base64 data URI in place. Safe to
+ * call on every boot — after the first successful conversion subsequent
+ * runs are no-ops. If the legacy path no longer exists on disk we leave the
+ * column untouched so the user can re-upload the logo.
+ */
+export async function migrateLogoFieldOnce(): Promise<void> {
+  try {
+    const settings = await prisma().labSettings.findFirst();
+    if (!settings?.labLogo) return;
+    if (settings.labLogo.startsWith("data:")) return;
+    const dataUri = migrateLogoToDataUri(settings.labLogo);
+    if (!dataUri) return; // file missing — leave field as-is so user can re-upload
+    await prisma().labSettings.update({
+      where: { id: settings.id },
+      data: { labLogo: dataUri }
+    });
+    console.log("[migrateLogoFieldOnce] Converted legacy logo path to data URI");
+  } catch (err) {
+    // Migration is best-effort — log but don't crash boot
+    console.error("[migrateLogoFieldOnce] failed:", err);
+  }
+}
 
 export interface ReportData {
   lab: {
@@ -10,7 +57,8 @@ export interface ReportData {
   visit: { visitId: string; visitDate: string };
   groups: { category: string; tests: {
     name: string;
-    parameters: { name: string; value: string; unit: string; range: string; isAbnormal: boolean }[];
+    parameters: { name: string; value: string; unit: string; range: string; isAbnormal: boolean;
+                  resultType: string; qualitativeOptions: string | null; notes: string | null }[];
     outsourcedSentTo: string | null;
   }[] }[];
   generatedAt: string;
@@ -50,7 +98,10 @@ export async function buildReportData(visitId: string): Promise<ReportData> {
         value: r?.value ?? "",
         unit: p.unit,
         range,
-        isAbnormal: !!r?.isAbnormal
+        isAbnormal: !!r?.isAbnormal,
+        resultType: p.resultType,
+        qualitativeOptions: p.qualitativeOptions,
+        notes: (r as any)?.notes ?? null
       };
     });
     grouped.get(cat)!.push({
@@ -68,7 +119,7 @@ export async function buildReportData(visitId: string): Promise<ReportData> {
     patient: {
       id: visit.patient.id, patientId: visit.patient.patientId,
       name: visit.patient.name, age: visit.patient.age, sex: visit.patient.sex,
-      phone: visit.patient.phone, address: visit.patient.address,
+      phone: visit.patient.phone ?? "", address: visit.patient.address,
       referredByName: visit.patient.referredBy?.name ?? "Self"
     },
     visit: { visitId: visit.visitId, visitDate: visit.visitDate.toISOString() },

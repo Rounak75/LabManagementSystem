@@ -60,6 +60,18 @@ function codeToMessage(code: string): string {
     case "USER_HAS_HISTORY": return "This user has activity in the audit log — disable them instead of deleting.";
     case "FILE_TOO_LARGE":  return "File is too large (max 256 KB).";
     case "INVALID_STATE":   return "That action isn't allowed in the current state.";
+    case "STALE_VERSION":   return "Someone else updated these results since you opened the page. Reload and try again.";
+    case "REASON_REQUIRED": return "A reason is required (at least 10 characters).";
+    case "INVOICE_PAID_BEFORE_UNLOCK": return "The invoice is paid — cancel it first before unlocking results.";
+    case "PATIENT_HAS_VISITS": return "Cancel the patient's visits first, then delete the patient.";
+    case "VISIT_HAS_LOCKED_RESULTS": return "This visit has verified results — cannot cancel.";
+    case "VISIT_INVOICE_PAID": return "Invoice is paid — refund the invoice first.";
+    case "VISIT_DELETED":   return "This visit has been cancelled.";
+    case "PARAMETER_HAS_RESULTS": return "Parameter is used by existing results — deactivate instead of removing.";
+    case "EMPTY_PARAMETERS": return "Some parameters have no value.";
+    case "INVALID_PASSWORD": return "Password incorrect.";
+    case "SECRET_UNREADABLE": return "Stored secret can't be read (probably from an old app version). Please re-enter it and click Save.";
+    case "CLOUD_NOT_CONFIGURED": return "Cloud sync isn't fully configured yet. Fill in all three Supabase fields and click Save first.";
     default: return code;
   }
 }

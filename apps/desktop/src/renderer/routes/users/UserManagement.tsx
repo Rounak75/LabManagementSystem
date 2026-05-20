@@ -15,6 +15,7 @@ type UserRow = {
   username: string;
   role: Role;
   isActive: boolean;
+  canCollectSamples: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -88,6 +89,7 @@ export default function UserManagement() {
                 <th className="px-4 py-3">Username</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Collects samples</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -104,6 +106,13 @@ export default function UserManagement() {
                       <span className={u.isActive ? "text-emerald-700" : "text-slate-500"}>
                         {u.isActive ? "Active" : "Disabled"}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <CanCollectToggle
+                        user={u}
+                        onError={(msg) => setPageError(msg)}
+                        onDone={refresh}
+                      />
                     </td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
                     <td className="px-4 py-3 text-right space-x-1">
@@ -183,13 +192,13 @@ export default function UserManagement() {
 }
 
 function AddUserModal({ onClose, onDone, onError }: { onClose: () => void; onDone: () => void; onError: (m: string) => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<{ name: string; username: string; password: string; role: Role }>({
-    defaultValues: { name: "", username: "", password: "", role: "Staff" }
+  type Form = { name: string; username: string; password: string; role: Role; canCollectSamples: boolean };
+  const { register, handleSubmit, formState: { errors } } = useForm<Form>({
+    defaultValues: { name: "", username: "", password: "", role: "Staff", canCollectSamples: false }
   });
   const [formError, setFormError] = useState<string | null>(null);
   const save = useMutation({
-    mutationFn: (v: { name: string; username: string; password: string; role: Role }) =>
-      call("users:create", v),
+    mutationFn: (v: Form) => call("users:create", v),
     onSuccess: onDone,
     onError: (err) => setFormError(friendlyError(err))
   });
@@ -206,6 +215,15 @@ function AddUserModal({ onClose, onDone, onError }: { onClose: () => void; onDon
             <option value="Admin">Admin</option>
           </select>
         </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" {...register("canCollectSamples")} className="mt-0.5" />
+          <span>
+            <span className="font-medium text-slate-700">Can collect samples</span>
+            <span className="block text-xs text-slate-500">
+              Show in the phlebotomist dropdown when approving home-visit bookings.
+            </span>
+          </span>
+        </label>
         {formError && <p className="text-sm text-danger">{formError}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
@@ -215,6 +233,36 @@ function AddUserModal({ onClose, onDone, onError }: { onClose: () => void; onDon
     </Modal>
   );
   void onError; // page-level error not used here; we show inline
+}
+
+function CanCollectToggle({
+  user,
+  onError,
+  onDone,
+}: {
+  user: UserRow;
+  onError: (m: string) => void;
+  onDone: () => void;
+}) {
+  const mut = useMutation({
+    mutationFn: (v: boolean) =>
+      call("users:setCanCollectSamples", { id: user.id, canCollectSamples: v }),
+    onSuccess: onDone,
+    onError: (err) => onError(friendlyError(err)),
+  });
+  return (
+    <label className="inline-flex items-center gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={user.canCollectSamples}
+        disabled={mut.isPending}
+        onChange={(e) => mut.mutate(e.target.checked)}
+      />
+      <span className="text-xs text-slate-500">
+        {user.canCollectSamples ? "Yes" : "No"}
+      </span>
+    </label>
+  );
 }
 
 function ResetPasswordModal({ user, onClose, onDone, onError }: { user: UserRow; onClose: () => void; onDone: () => void; onError: (m: string) => void }) {

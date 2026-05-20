@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Day mode (default) ─────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  --bg: 250 248 244;          /* warm off-white */
+  --elev: 255 255 255;         /* card surface (popped) */
+  --surface: 245 241 234;      /* recessed strip */
+  --line: 222 215 204;         /* hairline */
+  --text: 24 25 28;            /* primary text */
+  --soft: 64 69 75;            /* secondary text */
+  --muted: 110 116 124;        /* tertiary text */
+  --ink: 18 19 22;             /* darkest */
+
+  --brand: 198 38 38;          /* brand red, darker for light bg */
+  --brand-soft: 251 230 226;
+  --brand-fg: 255 255 255;     /* text on brand button */
+
+  --ok: 21 122 78;
+  --ok-soft: 220 240 228;
+  --notice: 161 98 16;
+  --notice-soft: 250 235 207;
+
+  color-scheme: light;
+}
+
+/* ─── Night mode ────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg: 11 13 17;
+  --elev: 24 28 33;
+  --surface: 18 22 27;
+  --line: 38 45 53;
+  --text: 233 236 240;
+  --soft: 178 187 198;
+  --muted: 136 145 156;
+  --ink: 8 10 13;
+
+  --brand: 255 105 105;
+  --brand-soft: 56 22 22;
+  --brand-fg: 11 13 17;
+
+  --ok: 88 207 137;
+  --ok-soft: 24 50 36;
+  --notice: 248 191 70;
+  --notice-soft: 60 42 14;
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+  body {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--text));
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading), Georgia, serif;
+    letter-spacing: -0.012em;
+    font-weight: 600;
+  }
+
+  .num {
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+
+  *:focus-visible {
+    outline: 2px solid rgb(var(--brand));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: rgb(var(--brand) / 0.28);
+    color: rgb(var(--text));
+  }
+}
+
+@layer components {
+  @keyframes ping-soft {
+    0%   { transform: scale(1);   opacity: 0.7; }
+    70%  { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  .dot-pulse { position: relative; }
+  .dot-pulse::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: ping-soft 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  .tap {
+    transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  }
+  .tap:active { transform: translateY(1px); }
+}

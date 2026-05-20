@@ -8,8 +8,12 @@ import type { PatientCreateInput } from "@shared/api";
 register("patients:create", async (input: PatientCreateInput) => {
   const u = requireSession();
   if (!input.name?.trim() || !input.phone?.trim() || !input.age) throw new Error("INVALID_INPUT");
-  const dup = await prisma().patient.findUnique({ where: { phone: input.phone.trim() } });
-  if (dup) throw new Error("DUPLICATE_PHONE");
+  // Phase 3d: phone is no longer unique (household sharing). Caller may opt to
+  // bypass this soft duplicate check by passing `allowDuplicatePhone: true`.
+  if (!input.allowDuplicatePhone) {
+    const dup = await prisma().patient.findFirst({ where: { phone: input.phone.trim(), deletedAt: null } });
+    if (dup) throw new Error("DUPLICATE_PHONE");
+  }
   const patientId = await nextPatientId();
   const p = await prisma().patient.create({
     data: {
@@ -19,6 +23,7 @@ register("patients:create", async (input: PatientCreateInput) => {
       sex: input.sex,
       phone: input.phone.trim(),
       address: input.address?.trim() || null,
+      email: input.email?.trim() || null,
       referredById: input.referredById || "doctor-self",
       createdById: u.id
     }
@@ -74,6 +79,7 @@ register("patients:update", async (input: { id: string } & Partial<PatientCreate
   if (rest.age !== undefined)          data.age = rest.age;
   if (rest.sex !== undefined)          data.sex = rest.sex;
   if (rest.address !== undefined)      data.address = rest.address?.trim() || null;
+  if (rest.email !== undefined)        data.email = rest.email?.trim() || null;
   if (rest.referredById !== undefined) data.referredById = rest.referredById || "doctor-self";
   const p = await prisma().patient.update({ where: { id }, data });
   await audit("UPDATE", "Patient", id);

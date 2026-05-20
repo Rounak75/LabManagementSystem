@@ -493,18 +493,60 @@ A patient with that phone number is already registered. Cancel the form and **se
 
 ---
 
+## Patient portal (Phase 3d)
+
+Patients can now look up their own reports, pay invoices, and ask for a home sample collection from their phone — no need to call or come to the lab.
+
+**Portal URL:** see **Settings → Lab Info → Patient portal URL** in the desktop app (printed on every receipt from now on).
+
+### How patients log in
+
+Each receipt now prints a **6-character access code** at the bottom (like `K9XF-2A`). Patients open the portal URL on their phone, type their **phone number + access code**, and they're in. The code only works for that one visit; the next receipt has a new code.
+
+If a patient loses the receipt, you can show them the code from the desktop app: open the visit detail page → the access code is shown at the top.
+
+### What patients see
+
+- **Their reports** — view in the browser or download as a PDF.
+- **Their invoices** — pay outstanding amounts by UPI (scan the QR code → opens GPay / PhonePe / Paytm with the amount pre-filled).
+- **"Already paid?"** button — they click it after paying. You'll see a **yellow dot** next to that invoice on the desktop, meaning "patient says they paid — check your UPI app to confirm and mark received."
+
+### What the lab does daily
+
+Most of the portal is hands-off. The two new things to watch in the desktop app:
+
+- **`/bookings` page** — when a patient asks for a home visit through the portal, the request lands here as a "Pending" booking. Click **Approve & Assign** (pick a phlebotomist) to convert it to a real Patient + Visit + HomeVisit. Or **Decline** with a reason — the patient gets an email.
+- **Yellow-dot invoices** — patients who clicked "Already paid?" show a yellow dot. Open the invoice, confirm payment in your UPI app, click **Mark UPI received**.
+
+### Settings that affect the portal
+
+- **Settings → Lab Info → Patient portal URL** — paste the live portal URL once after deploy. This prints on receipts.
+- **Settings → Lab Info → Lab UPI VPA + Payee Name** — used for the UPI QR codes patients see. Without these, the pay page can't work.
+- **Settings → Closures** — add a holiday/festival date → patients can't book that date on the portal.
+- **Settings → Users → "Can collect samples"** — only users with this on appear as phlebotomist options when approving a booking.
+- **Tests → edit a test → "Collection time restriction"** — set to "Fasting — morning only" on tests like sugar / lipid panels so the portal only offers patients morning slots when they pick those tests.
+
+---
+
+## For developers / deployers
+
+Operational docs for the portal deploy live at `docs/deployment/portal-vercel-setup.md`:
+- Supabase migration order + verification queries
+- Vercel environment variable table
+- Launch smoke checklist (17 acceptance criteria)
+- Open follow-ups (custom domain, Razorpay flip, DLT clear, etc.)
+
+The desktop app needs no special action on deploy day — once **Settings → Cloud sync** is enabled and pointed at the same Supabase project, the existing 10-second outbox worker pushes everything the portal reads.
+
+---
+
 ## What's next
 
-**Phase 2 is done.** This README covers everything in Phase 2: recovery code, automatic backups, restore, templates, user management, dashboard, outsourced tracking.
+**Phases 1, 2, 2.5, 3a, 3b (UPI direct), 3c, and 3d are shipped.** Outstanding items live as TODOs in the project memory, not as a roadmap. The two known external blockers are:
 
-**Phase 3** will add (no timeline yet):
+- **Razorpay KYC** — when it clears, paste keys into LabSettings and flip `preferredPaymentGateway` to `"Razorpay"`. UPI direct keeps working in parallel.
+- **TRAI DLT for SMS** — when it clears, paste sender ID + template IDs into LabSettings and flip `smsProvider` from `"Off"`/`"Test"` to `"Fast2SMS"`.
 
-- **Cloud sync** — optional backup of the database to the cloud so a dead PC doesn't mean lost data.
-- **Web admin panel** — view stats and manage users from a browser, not just the lab PC.
-- **Patient portal with OTP login** — patients can log in with a one-time code sent to their phone and download their reports themselves.
-- **WhatsApp / SMS / email notifications** — automatic "your report is ready" messages.
-- **Online payments** — patients pay before they arrive, or by UPI link from the report.
-
-Until Phase 3 ships, keep doing the daily backups and keep your USB drive plugged in at night.
+Until then, keep doing the daily backups and keep the USB drive plugged in at night.
 #   L a b M a n a g e m e n t S y s t e m  
  

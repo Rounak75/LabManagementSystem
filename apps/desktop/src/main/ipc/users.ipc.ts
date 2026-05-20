@@ -6,7 +6,8 @@ import {
   resetUserPassword,
   setUserActive,
   updateUserRole,
-  deleteUser
+  deleteUser,
+  setUserCanCollectSamples,
 } from "@main/services/users.service";
 import type { Role } from "@lab/types";
 
@@ -15,9 +16,17 @@ register("users:list", async () => {
   return listUsers();
 });
 
-register("users:create", async (p: { name: string; username: string; password: string; role: Role }) => {
+register("users:create", async (p: {
+  name: string; username: string; password: string; role: Role;
+  canCollectSamples?: boolean;
+}) => {
   requireAdmin();
   return createUserAdmin(p);
+});
+
+register("users:setCanCollectSamples", async (p: { id: string; canCollectSamples: boolean }) => {
+  requireAdmin();
+  return setUserCanCollectSamples(p);
 });
 
 register("users:resetPassword", async (p: { id: string; newPassword: string }) => {

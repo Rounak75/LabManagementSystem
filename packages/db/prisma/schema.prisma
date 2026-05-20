@@ -9,15 +9,19 @@ datasource db {
 
 // ─── Users (Admin + Staff) ────────────────────────────────────────────────
 model User {
-  id               String   @id @default(uuid())
-  name             String
-  username         String   @unique
-  passwordHash     String
-  role             String // "Admin" | "Staff"
-  isActive         Boolean  @default(true)
-  recoveryCodeHash String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(uuid())
+  name              String
+  username          String   @unique
+  passwordHash      String
+  role              String // "Admin" | "Staff"
+  isActive          Boolean  @default(true)
+  recoveryCodeHash  String?
+  phone             String?
+  email             String?
+  canCollectSamples Boolean  @default(false) // Phase 3d/3f: gates phlebotomist dropdown when approving a booking
+  canEnterResults   Boolean  @default(true) // Phase 3e: false to restrict junior staff to patient/visit creation only
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   patientsCreated Patient[]    @relation("PatientCreatedBy")
   visits          Visit[]      @relation("VisitStaff")
@@ -41,41 +45,50 @@ model Doctor {
 
 // ─── Patients ─────────────────────────────────────────────────────────────
 model Patient {
-  id              String   @id @default(uuid())
-  patientId       String   @unique // LAB-YYYY-NNNNN
+  id              String    @id @default(uuid())
+  patientId       String    @unique // LAB-YYYY-NNNNN
   name            String
   age             Int
   sex             String // "Male" | "Female" | "Other"
-  phone           String   @unique
+  phone           String? // Phase 3d: dropped @unique (household sharing); nullable for dispute dissociation
+  email           String?
   address         String?
   referredById    String?
   portalAccountId String? // Phase 3: FK to PatientAccount; Phase 1: nullable column only
   createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
-  referredBy    Doctor?        @relation(fields: [referredById], references: [id])
-  createdBy     User           @relation("PatientCreatedBy", fields: [createdById], references: [id])
+  referredBy    Doctor?         @relation(fields: [referredById], references: [id])
+  createdBy     User            @relation("PatientCreatedBy", fields: [createdById], references: [id])
   visits        Visit[]
   homeVisits    HomeVisit[]
   notifications Notification[]
+  portalAccount PatientAccount?
+  disputes      Dispute[]
 
   @@index([phone])
   @@index([name])
+  @@index([deletedAt])
 }
 
 // ─── Visits ───────────────────────────────────────────────────────────────
 model Visit {
-  id        String    @id @default(uuid())
-  visitId   String    @unique // VIS-YYYY-NNNNN
-  patientId String
-  type      String // "WalkIn" | "HomeCollection"
-  visitDate DateTime
-  status    String    @default("Open") // "Open" | "Completed" | "Cancelled"
-  staffId   String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id                  String    @id @default(uuid())
+  visitId             String    @unique // VIS-YYYY-NNNNN
+  patientId           String
+  type                String // "WalkIn" | "HomeCollection"
+  visitDate           DateTime
+  status              String    @default("Open") // "Open" | "Completed" | "Cancelled"
+  staffId             String
+  // Phase 3d: bcrypt of 6-char A-Z0-9 (excluding 0/O/1/I). Generated at visit creation; null for pre-3d visits.
+  accessCodeHash      String?
+  // Phase 3d Plan B: local-only plaintext for reprinting receipts. NEVER synced to cloud (stripped in prisma-hooks).
+  accessCodePlaintext String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
 
   patient       Patient        @relation(fields: [patientId], references: [id])
   staff         User           @relation("VisitStaff", fields: [staffId], references: [id])
@@ -83,6 +96,7 @@ model Visit {
   invoice       Invoice?
   homeVisits    HomeVisit[]
   notifications Notification[]
+  printJobs     PrintJob[]
 
   @@index([patientId])
   @@index([visitDate])
@@ -120,6 +134,8 @@ model TestParameter {
   qualitativeOptions String? // JSON array as string
   normalQualitative  String?
   displayOrder       Int      @default(0)
+  isActive           Boolean  @default(true)
+  computeRule        String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -155,14 +171,17 @@ model VisitTest {
 }
 
 model TestResult {
-  id          String   @id @default(uuid())
-  visitTestId String
-  parameterId String
-  value       String
-  isAbnormal  Boolean  @default(false)
-  enteredById String
-  enteredAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(uuid())
+  visitTestId      String
+  parameterId      String
+  value            String
+  isAbnormal       Boolean  @default(false)
+  abnormalOverride Boolean?
+  notes            String?
+  version          Int      @default(1)
+  enteredById      String
+  enteredAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   visitTest VisitTest     @relation(fields: [visitTestId], references: [id], onDelete: Cascade)
   parameter TestParameter @relation(fields: [parameterId], references: [id])
@@ -173,19 +192,28 @@ model TestResult {
 
 // ─── Invoices ─────────────────────────────────────────────────────────────
 model Invoice {
-  id              String   @id @default(uuid())
-  visitId         String   @unique
-  subtotal        Decimal
-  discountAmount  Decimal  @default(0)
-  total           Decimal
-  paymentMethod   String? // "Cash" | "Online" | "Mixed"
-  paymentStatus   String   @default("Pending") // "Pending" | "Partial" | "Paid"
-  amountPaid      Decimal  @default(0)
-  razorpayOrderId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                          String    @id @default(uuid())
+  visitId                     String    @unique
+  subtotal                    Decimal
+  discountAmount              Decimal   @default(0)
+  total                       Decimal
+  paymentMethod               String? // "Cash" | "Online" | "Mixed"
+  paymentStatus               String    @default("Pending") // "Pending" | "Partial" | "Paid"
+  amountPaid                  Decimal   @default(0)
+  razorpayOrderId             String?
+  // Phase 3b Razorpay
+  razorpayPaymentLinkId       String?
+  razorpayPaymentLinkShortUrl String?
+  razorpayQrId                String?
+  razorpayQrImageUrl          String?
+  paymentLinkExpiresAt        DateTime?
+  paymentLinkStatus           String? // "Created" | "Paid" | "Expired" | "Cancelled" | "PollFailed"
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([paymentStatus, paymentLinkStatus])
 }
 
 // ─── Home Visits (table created Phase 1, UI in Phase 5) ───────────────────
@@ -213,20 +241,32 @@ model HomeVisit {
 
 // ─── Notifications (table created Phase 1, used Phase 3+) ─────────────────
 model Notification {
-  id        String    @id @default(uuid())
-  visitId   String
-  patientId String
-  channel   String
-  recipient String
-  purpose   String
-  status    String    @default("Pending")
-  sentAt    DateTime?
-  error     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  visitId       String
+  patientId     String
+  channel       String // "SMS" | "Email"
+  recipient     String
+  purpose       String // "ReportReady" | "VisitBooked" | "PaymentDue" | "HomeVisitReminder"
+  status        String    @default("Pending") // "Pending" | "Sending" | "Sent" | "Failed" | "WaitingForPayment"
+  scheduledFor  DateTime?
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  cancelledAt   DateTime?
+  payload       String?
+  subject       String?
+  messageId     String?
+  sentAt        DateTime?
+  error         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   visit   Visit   @relation(fields: [visitId], references: [id])
   patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([status, scheduledFor])
+  @@index([status, nextAttemptAt])
+  @@index([visitId, purpose])
+  @@index([createdAt])
 }
 
 // ─── Audit Log (recorded in Phase 1, viewer is Phase 2) ───────────────────
@@ -279,6 +319,70 @@ model LabSettings {
   backupTime          String    @default("02:00")
   lastBackupAt        DateTime?
   updatedAt           DateTime  @updatedAt
+
+  // Phase 3a notifications
+  notificationsEnabled         Boolean @default(false)
+  smsProvider                  String  @default("Test") // "Test" | "Fast2SMS" | "Off"
+  smsApiKey                    String? // encrypted via safeStorage+AES-256-GCM
+  smsSenderId                  String?
+  smsTemplateReportReady       String?
+  smsTemplateReportReadyUnpaid String?
+  smsTemplateVisitBooked       String?
+  smsTemplatePaymentDue        String?
+  smsTemplateHomeVisitReminder String?
+  emailEnabled                 Boolean @default(false)
+  emailSmtpHost                String? @default("smtp.gmail.com")
+  emailSmtpPort                Int     @default(587)
+  emailSmtpUser                String?
+  emailSmtpPassword            String? // encrypted
+  emailFromName                String  @default("Golmuri Janch Ghar")
+
+  // Phase 3b Razorpay
+  razorpayMode                   String  @default("Off") // "Off" | "Test" | "Live"
+  razorpayKeyId                  String?
+  razorpayKeySecret              String? // encrypted via safeStorage+AES-256-GCM
+  razorpayWebhookSecret          String? // encrypted; used by Phase 3c webhook receiver
+  smsTemplatePaymentLink         String?
+  smsTemplateReportReadyWithLink String?
+
+  // Phase 3c cloud sync
+  cloudSyncEnabled    Boolean   @default(false)
+  supabaseUrl         String?
+  supabaseAnonKey     String?
+  supabaseServiceKey  String? // encrypted
+  backfillCompletedAt DateTime?
+
+  // UPI direct payments (proprietor's personal UPI VPA — no gateway)
+  labUpiVpa       String?
+  labUpiPayeeName String?
+
+  // Phase 3d portal
+  preferredPaymentGateway String  @default("UPI") // "UPI" | "Razorpay" — primary in portal pay UI
+  portalUrl               String? // e.g. "golmurijanchghar.vercel.app/patient" — printed on report footer
+}
+
+model Outbox {
+  id            String    @id @default(uuid())
+  tableName     String
+  operation     String // "create" | "update" | "delete"
+  rowId         String
+  payload       String // JSON snapshot
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  status        String    @default("Pending") // "Pending" | "Sent" | "Failed" | "Cancelled"
+  error         String?
+  createdAt     DateTime  @default(now())
+  sentAt        DateTime?
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@index([tableName, rowId])
+}
+
+model SyncCursor {
+  id           String   @id @default(uuid())
+  source       String   @unique
+  lastSyncedAt DateTime
 }
 
 // ─── Report Templates ─────────────────────────────────────────────────────
@@ -309,4 +413,159 @@ model IdCounter {
   id        String   @id // e.g. "patient:2026", "visit:2026"
   lastValue Int      @default(0)
   updatedAt DateTime @updatedAt
+}
+
+// ─── Phase 3e: cloud-authoritative ID reservations ─────────────────────────
+// Both desktop's id-generator.ts and the reserve-visit-id Edge Function
+// insert here. Unique (prefix, number) makes concurrent inserts race-safe:
+// the loser retries with the next number. IdCounter rows are kept as a
+// non-authoritative cache.
+model IdReservation {
+  id         String    @id @default(uuid())
+  prefix     String // e.g. "VIS-2026-" or "LAB-2026-"
+  number     Int // sequential within prefix
+  reservedBy String? // user id (null for desktop-side allocations to keep migration simple)
+  reservedAt DateTime  @default(now())
+  consumedAt DateTime? // null = reserved but not yet attached to a visit/patient
+  consumedBy String? // user id who consumed it (= same as reservedBy in most cases)
+  source     String    @default("desktop") // "desktop" | "admin"
+
+  @@unique([prefix, number])
+  @@index([prefix, consumedAt])
+}
+
+// ─── Phase 3e: phone-initiated print job queue ─────────────────────────────
+// Inserted by the admin portal when father taps Print on a visit from his
+// phone. Desktop polls every 10s, picks up Queued jobs, runs through the
+// existing print pipeline, then sets status to Done or Failed.
+model PrintJob {
+  id            String    @id @default(uuid())
+  visitId       String
+  visit         Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  requestedById String // user id of the requester (father, usually)
+  requestedAt   DateTime  @default(now())
+  pickedUpAt    DateTime?
+  completedAt   DateTime?
+  status        String    @default("Queued") // "Queued" | "Picked" | "Done" | "Failed"
+  errorMessage  String?
+
+  @@index([status, requestedAt])
+}
+
+// ─── Phase 3e: client-side error capture from the admin portal ─────────────
+// Best-effort POSTs from apps/admin when a browser error fires. Visible to
+// father on the desktop's diagnostics screen. Lives in cloud only — desktop
+// pulls into local SQLite via pull-client-errors.ts (added in Plan G).
+model ClientError {
+  id        String   @id @default(uuid())
+  userId    String? // null if error before login
+  userAgent String
+  url       String
+  message   String
+  stack     String?
+  loggedAt  DateTime @default(now())
+
+  @@index([loggedAt])
+}
+
+// ─── Patient Portal Accounts (Phase 3d) ───────────────────────────────────
+model PatientAccount {
+  id             String    @id @default(uuid())
+  patientId      String    @unique
+  passwordHash   String? // null = access-code-only; set when patient opts in
+  lastLoginAt    DateTime?
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  version        Int       @default(0) // optimistic concurrency for sync
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+}
+
+// ─── Home-visit Bookings (Phase 3d/3f) ────────────────────────────────────
+// Staging: patient submits → staff approves → row converted to Patient + Visit + HomeVisit.
+model Booking {
+  id                 String    @id @default(uuid())
+  bookingId          String    @unique // BKG-YYYY-NNNNN
+  patientPhone       String
+  patientName        String
+  patientEmail       String?
+  address            String
+  pincode            String?
+  testIds            String // JSON array of Test.id strings
+  preferredDate      DateTime
+  preferredSlot      String // "Morning" | "Afternoon" | "Evening"
+  notes              String?
+  status             String    @default("Pending") // "Pending" | "Approved" | "Declined" | "Cancelled" | "Completed"
+  declineReason      String?
+  approvedByUserId   String?
+  approvedAt         DateTime?
+  assignedToUserId   String?
+  resultingVisitId   String?
+  resultingPatientId String?
+  version            Int       @default(0)
+  sourceIp           String?
+  captchaPassed      Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([status, preferredDate])
+  @@index([patientPhone])
+  @@index([createdAt])
+}
+
+// ─── Payment Claims (Phase 3d, "Already paid?" soft signal) ──────────────
+model PaymentClaim {
+  id        String   @id @default(uuid())
+  invoiceId String
+  claimedAt DateTime @default(now())
+  sourceIp  String?
+  expiresAt DateTime // claimedAt + 24h
+
+  @@index([invoiceId, expiresAt])
+}
+
+// ─── Patient Disputes (Phase 3d, "This isn't me" flow) ───────────────────
+model Dispute {
+  id               String    @id @default(uuid())
+  patientId        String
+  reason           String    @default("phone_recycled")
+  status           String    @default("Open") // "Open" | "Resolved" | "Dismissed"
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  resolutionNote   String?
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([patientId])
+}
+
+// ─── Cloud Heartbeat (Phase 3d, drives portal staleness banner) ──────────
+model CloudHeartbeat {
+  id           String   @id @default("singleton")
+  lastPushedAt DateTime
+}
+
+// ─── Printer Calibration (Phase 3d Plan B — local only, NOT synced) ──────
+model PrinterCalibration {
+  id          String   @id @default(uuid())
+  printerName String   @unique
+  xOffsetMm   Float    @default(0)
+  yOffsetMm   Float    @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Lab Closures / Blackouts (Phase 3d Plan H — blocks booking slots) ───
+model LabClosure {
+  id        String   @id @default(uuid())
+  date      DateTime @unique // single-day closure (UTC midnight)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([date])
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import type { TestCategory, ResultType } from "@lab/types";
+import { TEST_CATEGORIES, type TestCategory, type ResultType } from "@lab/types";
 
 type Param = {
   id: string; testId: string; name: string; unit: string; resultType: ResultType;
@@ -15,7 +15,8 @@ type Param = {
   refRangeChildMin: string | null;  refRangeChildMax: string | null;
   qualitativeOptions: string | null; normalQualitative: string | null; displayOrder: number;
 };
-type Test = { id: string; name: string; category: TestCategory; price: string; isOutsourced: boolean; isActive: boolean; parameters: Param[] };
+type CollectionTimeRestriction = "FastingMorningOnly" | "MorningOnly" | "EveningOnly" | null;
+type Test = { id: string; name: string; category: TestCategory; price: string; isOutsourced: boolean; isActive: boolean; collectionTimeRestriction: CollectionTimeRestriction; parameters: Param[] };
 
 export default function TestCatalogue() {
   const qc = useQueryClient();
@@ -29,18 +30,35 @@ export default function TestCatalogue() {
         <h1 className="text-2xl font-semibold">Test catalogue</h1>
         <Button onClick={() => setCreating(true)}>Add test</Button>
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {tests.map(t => (
-          <Card key={t.id}>
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="font-semibold">{t.name}</div>
-                <div className="text-xs text-slate-500">{t.category} · ₹{Number(t.price).toFixed(0)} · {t.parameters.length} param{t.parameters.length === 1 ? "" : "s"}</div>
+      <div className="space-y-3">
+        {TEST_CATEGORIES.map(cat => {
+          const inCat = tests.filter(t => t.category === cat);
+          if (inCat.length === 0) return null;
+          return (
+            <details key={cat} open className="rounded-md border border-slate-200 bg-white">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 transition-transform group-open:rotate-90">▶</span>
+                  <span className="uppercase tracking-wide">{cat}</span>
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{inCat.length}</span>
+                </span>
+              </summary>
+              <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 lg:grid-cols-3">
+                {inCat.map(t => (
+                  <Card key={t.id}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-semibold">{t.name}</div>
+                        <div className="text-xs text-slate-500">₹{Number(t.price).toFixed(0)} · {t.parameters.length} param{t.parameters.length === 1 ? "" : "s"}</div>
+                      </div>
+                      <Button variant="ghost" onClick={() => setOpenTest(t)}>Edit</Button>
+                    </div>
+                  </Card>
+                ))}
               </div>
-              <Button variant="ghost" onClick={() => setOpenTest(t)}>Edit</Button>
-            </div>
-          </Card>
-        ))}
+            </details>
+          );
+        })}
       </div>
       {creating && <TestForm onClose={() => { setCreating(false); qc.invalidateQueries({ queryKey: ["tests"] }); }} />}
       {openTest && <TestEditor test={openTest} onClose={() => { setOpenTest(null); qc.invalidateQueries({ queryKey: ["tests"] }); }} />}
@@ -52,14 +70,22 @@ function TestForm({ test, onClose }: { test?: Test; onClose: () => void }) {
   const editing = !!test;
   const { register, handleSubmit } = useForm({
     defaultValues: {
-      name: test?.name ?? "", category: test?.category ?? "Blood",
-      price: test?.price ?? "0", isOutsourced: test?.isOutsourced ?? false, isActive: test?.isActive ?? true
+      name: test?.name ?? "", category: test?.category ?? "Clinical Biochemistry",
+      price: test?.price ?? "0", isOutsourced: test?.isOutsourced ?? false, isActive: test?.isActive ?? true,
+      collectionTimeRestriction: test?.collectionTimeRestriction ?? ""
     }
   });
   const save = useMutation({
-    mutationFn: (v: any) => editing
-      ? call("tests:update", { id: test!.id, ...v, price: Number(v.price) })
-      : call("tests:create", { ...v, price: Number(v.price) }),
+    mutationFn: (v: any) => {
+      const payload = {
+        ...v,
+        price: Number(v.price),
+        collectionTimeRestriction: v.collectionTimeRestriction || null
+      };
+      return editing
+        ? call("tests:update", { id: test!.id, ...payload })
+        : call("tests:create", payload);
+    },
     onSuccess: onClose
   });
   return (
@@ -69,10 +95,20 @@ function TestForm({ test, onClose }: { test?: Test; onClose: () => void }) {
         <label className="text-sm">
           <span className="mb-1 block font-medium">Category</span>
           <select className="w-full rounded-md border px-3 py-2" {...register("category")}>
-            {["Blood","Urine","Stool","Other"].map(c => <option key={c} value={c}>{c}</option>)}
+            {TEST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
         <Input label="Price (₹)" type="number" step="1" {...register("price")} />
+        <label className="col-span-2 text-sm">
+          <span className="mb-1 block font-medium">Collection time restriction</span>
+          <select className="w-full rounded-md border px-3 py-2" {...register("collectionTimeRestriction")}>
+            <option value="">No restriction</option>
+            <option value="FastingMorningOnly">Fasting — Morning only (8–11am, last meal 8pm previous day)</option>
+            <option value="MorningOnly">Morning only (8–11am)</option>
+            <option value="EveningOnly">Evening only (6–8pm)</option>
+          </select>
+          <span className="mt-1 block text-xs text-slate-500">Shown on the public booking form; restricts which slots a patient can pick when this test is selected.</span>
+        </label>
         <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" {...register("isOutsourced")} /> Outsourced (sent to external lab)</label>
         {editing && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" {...register("isActive")} /> Active</label>}
         <div className="col-span-2 flex justify-end gap-2">

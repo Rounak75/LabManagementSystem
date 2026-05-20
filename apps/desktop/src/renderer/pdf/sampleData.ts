@@ -36,9 +36,9 @@ export const sampleData: ReportData = {
           name: "Complete Blood Count (CBC)",
           outsourcedSentTo: null,
           parameters: [
-            { name: "Hemoglobin",      value: "10.2", unit: "g/dL",     range: "12 – 16",        isAbnormal: true  },
-            { name: "WBC Count",       value: "7.4",  unit: "x10^3/uL", range: "4.0 – 11.0",     isAbnormal: false },
-            { name: "Platelet Count",  value: "510",  unit: "x10^3/uL", range: "150 – 410",      isAbnormal: true  },
+            { name: "Hemoglobin",      value: "10.2", unit: "g/dL",     range: "12 – 16",        isAbnormal: true,  resultType: "Numeric", qualitativeOptions: null, notes: null },
+            { name: "WBC Count",       value: "7.4",  unit: "x10^3/uL", range: "4.0 – 11.0",     isAbnormal: false, resultType: "Numeric", qualitativeOptions: null, notes: null },
+            { name: "Platelet Count",  value: "510",  unit: "x10^3/uL", range: "150 – 410",      isAbnormal: true,  resultType: "Numeric", qualitativeOptions: null, notes: null },
           ],
         },
       ],
@@ -50,8 +50,8 @@ export const sampleData: ReportData = {
           name: "Lipid Profile",
           outsourcedSentTo: null,
           parameters: [
-            { name: "Total Cholesterol", value: "180", unit: "mg/dL", range: "< 200",   isAbnormal: false },
-            { name: "HDL",               value: "32",  unit: "mg/dL", range: "> 40",    isAbnormal: true  },
+            { name: "Total Cholesterol", value: "180", unit: "mg/dL", range: "< 200",   isAbnormal: false, resultType: "Numeric", qualitativeOptions: null, notes: null },
+            { name: "HDL",               value: "32",  unit: "mg/dL", range: "> 40",    isAbnormal: true,  resultType: "Numeric", qualitativeOptions: null, notes: null },
           ],
         },
       ],

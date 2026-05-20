@@ -4,8 +4,9 @@ import { resolve } from "path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: ["@lab/db", "@lab/types"] })],
+    plugins: [externalizeDepsPlugin({ exclude: ["@lab/db", "@lab/types", "@lab/reports", "@react-pdf/renderer"] })],
     resolve: { alias: { "@main": resolve("src/main"), "@shared": resolve("src/shared") } },
+    esbuild: { jsx: "automatic" },
     build: { outDir: "out/main" }
   },
   preload: {

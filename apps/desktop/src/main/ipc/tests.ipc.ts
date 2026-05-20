@@ -19,18 +19,39 @@ register("tests:get", async ({ id }: { id: string }) => {
   return t;
 });
 
-register("tests:create", async (input: { name: string; category: string; price: number; isOutsourced: boolean }) => {
+type CollectionTimeRestriction = "FastingMorningOnly" | "MorningOnly" | "EveningOnly" | null;
+
+const VALID_RESTRICTIONS: ReadonlySet<string> = new Set([
+  "FastingMorningOnly", "MorningOnly", "EveningOnly"
+]);
+
+function normalizeRestriction(v: unknown): CollectionTimeRestriction {
+  if (v == null || v === "") return null;
+  if (typeof v === "string" && VALID_RESTRICTIONS.has(v)) return v as CollectionTimeRestriction;
+  throw new Error("INVALID_INPUT");
+}
+
+register("tests:create", async (input: { name: string; category: string; price: number; isOutsourced: boolean; collectionTimeRestriction?: string | null }) => {
   requireAdmin();
   if (!input.name?.trim() || input.price < 0) throw new Error("INVALID_INPUT");
-  const t = await prisma().test.create({ data: input });
+  const t = await prisma().test.create({
+    data: {
+      name: input.name, category: input.category, price: input.price,
+      isOutsourced: input.isOutsourced,
+      collectionTimeRestriction: normalizeRestriction(input.collectionTimeRestriction)
+    }
+  });
   await audit("CREATE", "Test", t.id);
   return t;
 });
 
-register("tests:update", async (input: { id: string; name: string; category: string; price: number; isOutsourced: boolean; isActive: boolean }) => {
+register("tests:update", async (input: { id: string; name: string; category: string; price: number; isOutsourced: boolean; isActive: boolean; collectionTimeRestriction?: string | null }) => {
   requireAdmin();
-  const { id, ...rest } = input;
-  const t = await prisma().test.update({ where: { id }, data: rest });
+  const { id, collectionTimeRestriction, ...rest } = input;
+  const t = await prisma().test.update({
+    where: { id },
+    data: { ...rest, collectionTimeRestriction: normalizeRestriction(collectionTimeRestriction) }
+  });
   await audit("UPDATE", "Test", id);
   return t;
 });

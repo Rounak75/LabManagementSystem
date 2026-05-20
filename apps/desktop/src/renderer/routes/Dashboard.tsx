@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
+import { useAuth } from "@/stores/auth.store";
+import { NotificationsFailedBadge } from "@/components/NotificationsFailedBadge";
+import { PaymentLinksCard } from "@/components/PaymentLinksCard";
+import { PaymentLinksFailedBadge } from "@/components/PaymentLinksFailedBadge";
+import { SyncStatusCard } from "@/components/SyncStatusCard";
+import { FreeTierUsageCard } from "@/components/FreeTierUsageCard";
+import { BackfillProgressCard } from "@/components/BackfillProgressCard";
 import type { DashboardStats } from "@shared/api";
 
 const inrFmt = new Intl.NumberFormat("en-IN", {
@@ -77,6 +84,7 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["dashboard:stats"],
     queryFn: () => call<DashboardStats>("dashboard:stats"),
@@ -89,7 +97,11 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold">Today</h1>
+      <div className="mb-6 flex items-center gap-4">
+        <h1 className="text-2xl font-semibold">Today</h1>
+        {user?.role === "Admin" && <NotificationsFailedBadge />}
+        {user?.role === "Admin" && <PaymentLinksFailedBadge />}
+      </div>
 
       {isError && (
         <div className="mb-4 text-sm text-rose-600">
@@ -142,6 +154,26 @@ export default function Dashboard() {
               isCurrency
               isLoading={isLoading}
             />
+          </div>
+        </section>
+      )}
+
+      {user?.role === "Admin" && (
+        <section className="mb-8">
+          <GroupHeading>Payment links</GroupHeading>
+          <div className="flex flex-wrap gap-4">
+            <PaymentLinksCard />
+          </div>
+        </section>
+      )}
+
+      {user?.role === "Admin" && (
+        <section className="mb-8">
+          <GroupHeading>Cloud sync</GroupHeading>
+          <div className="flex flex-wrap gap-4">
+            <SyncStatusCard />
+            <FreeTierUsageCard />
+            <BackfillProgressCard />
           </div>
         </section>
       )}

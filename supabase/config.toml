@@ -1,0 +1,9 @@
+project_id = "golmuri-lab"
+
+# Razorpay can't send Supabase JWTs — disable verification for the webhook.
+[functions.razorpay-webhook]
+verify_jwt = false
+
+# Cron-triggered free-tier snapshot — no JWT required.
+[functions.free-tier-check]
+verify_jwt = false

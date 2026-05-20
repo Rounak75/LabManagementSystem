@@ -1,3 +1,10 @@
+export type LetterheadFootprint = {
+  skipHeader: boolean;
+  skipFooter: boolean;
+  skipColumnHeaders: boolean;
+  skipSignatureLabels: boolean;
+};
+
 export type TemplateConfig = {
   headerText: string;
   footerText: string;
@@ -5,6 +12,12 @@ export type TemplateConfig = {
   fontFamily: "Inter" | "Times" | "Georgia";
   fontSize: number;
   accentColor: string;
+  layout?: "default" | "golmuri-standard";
+  // Phase 3d Plan A — print-time layout mode picked by default. "FullPage" renders
+  // header/footer bands and column headers; "ContentOnly" omits them so the page
+  // can be printed onto the lab's pre-printed colored letterhead.
+  defaultLayout?: "FullPage" | "ContentOnly";
+  letterheadFootprint?: LetterheadFootprint;
   sections: {
     logo: boolean;
     doctorInfo: boolean;
@@ -46,6 +59,20 @@ export function validate(input: unknown): ValidateResult {
   if (!c.columns || typeof c.columns !== "object") return { ok: false, error: "columns" };
   for (const k of COLUMN_KEYS) {
     if (typeof c.columns[k] !== "boolean") return { ok: false, error: `columns.${k}` };
+  }
+  if (c.layout !== undefined && c.layout !== "default" && c.layout !== "golmuri-standard") {
+    return { ok: false, error: "layout" };
+  }
+  if (c.defaultLayout !== undefined && c.defaultLayout !== "FullPage" && c.defaultLayout !== "ContentOnly") {
+    return { ok: false, error: "defaultLayout" };
+  }
+  if (c.letterheadFootprint !== undefined) {
+    if (!c.letterheadFootprint || typeof c.letterheadFootprint !== "object") {
+      return { ok: false, error: "letterheadFootprint" };
+    }
+    for (const k of ["skipHeader", "skipFooter", "skipColumnHeaders", "skipSignatureLabels"] as const) {
+      if (typeof c.letterheadFootprint[k] !== "boolean") return { ok: false, error: `letterheadFootprint.${k}` };
+    }
   }
   return { ok: true, value: c as TemplateConfig };
 }

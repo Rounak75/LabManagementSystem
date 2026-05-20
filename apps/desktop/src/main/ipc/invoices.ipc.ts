@@ -2,6 +2,8 @@ import { register } from "@main/ipc";
 import { prisma } from "@main/db";
 import { requireSession, requireAdmin } from "@main/session";
 import { audit } from "@main/services/audit.service";
+import * as triggers from "@main/services/notifications/triggers";
+import { recordUpiPayment } from "@main/services/payments/upi.service";
 import type { DiscountInput } from "@shared/api";
 
 register("invoices:get", async ({ id }: { id: string }) => {
@@ -42,5 +44,14 @@ register("invoices:recordCash", async ({ invoiceId, amount }: { invoiceId: strin
     where: { id: invoiceId }, data: { amountPaid: newPaid, paymentStatus: status, paymentMethod: "Cash" }
   });
   await audit("PAYMENT", "Invoice", invoiceId);
+  if (status === "Paid" && inv.paymentStatus !== "Paid") {
+    triggers.paymentReceived(invoiceId).catch(err =>
+      console.error("[notifications] paymentReceived trigger failed", err));
+  }
   return updated;
+});
+
+register("invoices:recordUpi", async ({ invoiceId }: { invoiceId: string }) => {
+  requireSession();
+  return recordUpiPayment(invoiceId);
 });
