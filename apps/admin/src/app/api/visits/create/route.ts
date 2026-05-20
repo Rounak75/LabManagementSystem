@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { visitCreateSchema } from "@lab/types";
 
 export async function POST(req: Request) {
@@ -49,5 +51,6 @@ export async function POST(req: Request) {
     })
     .then(undefined, () => {});
 
+  revalidateTag(CACHE_TAGS.visits);
   return NextResponse.json({ id: visitId });
 }

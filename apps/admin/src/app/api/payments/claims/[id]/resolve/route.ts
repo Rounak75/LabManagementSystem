@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 // A payment claim is a soft "I already paid" signal with no amount, so resolving
 // it just records that a human handled it — it does NOT create a payment. The
@@ -28,5 +30,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     details: "{}",
   });
 
+  revalidateTag(CACHE_TAGS.payments);
   return NextResponse.json({ ok: true });
 }

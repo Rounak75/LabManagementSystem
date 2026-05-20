@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const user = await getSessionUser();
@@ -29,5 +31,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     details: JSON.stringify({ reason: reason ?? null }),
   });
 
+  revalidateTag(CACHE_TAGS.bookings);
   return NextResponse.json({ ok: true });
 }

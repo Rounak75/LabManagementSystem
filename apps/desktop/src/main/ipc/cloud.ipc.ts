@@ -93,7 +93,8 @@ register("cloud:cancelOutbox", async ({ id }: { id: string }) => {
 
 register("cloud:runBackfillNow", async () => {
   requireAdmin();
-  const r = await runBackfillOnce();
+  // Manual button always forces a full re-run, even if backfillCompletedAt is set.
+  const r = await runBackfillOnce(true);
   return { ok: true, skipped: r.skipped };
 });
 

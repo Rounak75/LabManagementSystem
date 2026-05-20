@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { upsertResult } from "@/lib/result-write";
 
 // Flush endpoint for offline-queued result.upsert items. The body is the queue
@@ -12,6 +14,7 @@ export async function POST(req: Request) {
   const sb = getServerSupabase(user.token);
   try {
     const id = await upsertResult(sb, user.id, body);
+    revalidateTag(CACHE_TAGS.visits);
     return NextResponse.json({ id });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "failed" }, { status: 500 });

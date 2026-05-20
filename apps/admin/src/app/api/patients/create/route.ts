@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
 import { callReserveVisitId } from "@/lib/edge-function";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { patientCreateSchema } from "@lab/types";
 
 export async function POST(req: Request) {
@@ -53,5 +55,6 @@ export async function POST(req: Request) {
     })
     .then(undefined, () => {});
 
+  revalidateTag(CACHE_TAGS.patients);
   return NextResponse.json({ id: data.id, patient_id: patientId });
 }

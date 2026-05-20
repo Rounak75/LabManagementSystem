@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -63,5 +65,6 @@ export async function POST(req: Request) {
     details: JSON.stringify({ count: safeIds.length, skipped, batch: true }),
   });
 
+  revalidateTag(CACHE_TAGS.visits);
   return NextResponse.json({ ok: true, count: safeIds.length, skipped });
 }

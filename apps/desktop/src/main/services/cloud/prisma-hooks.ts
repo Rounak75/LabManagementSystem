@@ -28,6 +28,37 @@ export function toSnakePayload(record: Record<string, unknown>): Record<string, 
   return result;
 }
 
+// ─── sanitizeForCloud ─────────────────────────────────────────────────────────
+
+// Public lab-info columns that exist in the cloud lab_settings table. LabSettings
+// also holds encrypted secrets (service key, SMTP/Razorpay secrets) and desktop-only
+// config (backup paths, cloud-sync fields) that must NEVER be pushed.
+const LAB_SETTINGS_CLOUD_FIELDS = new Set([
+  "id", "labName", "labAddress", "labPhone", "labEmail",
+  "morningOpenTime", "morningCloseTime", "eveningOpenTime", "eveningCloseTime",
+  "weeklyHolidays", "isOpenToday", "manualClosureReason", "childAgeBoundary",
+  "pathologistName", "pathologistQuals", "labUpiVpa", "labUpiPayeeName",
+  "preferredPaymentGateway", "portalUrl", "updatedAt",
+]);
+
+/**
+ * Strip local-only / secret fields before a row is pushed to the cloud.
+ * Used by BOTH the live sync hook and the backfill so neither leaks secrets
+ * or sends columns the cloud tables don't have.
+ *  - Visit.accessCodePlaintext: defeats the bcrypt access-code hash if pushed.
+ *  - User.recoveryCodeHash: desktop-side recovery only; cloud users has no such column.
+ *  - LabSettings: allowlist to public columns only.
+ */
+export function sanitizeForCloud(model: string, row: Record<string, unknown>): Record<string, unknown> {
+  let safe: Record<string, unknown> = { ...row };
+  if (model === "Visit") delete safe.accessCodePlaintext;
+  if (model === "User") delete safe.recoveryCodeHash;
+  if (model === "LabSettings") {
+    safe = Object.fromEntries(Object.entries(safe).filter(([k]) => LAB_SETTINGS_CLOUD_FIELDS.has(k)));
+  }
+  return safe;
+}
+
 // ─── mirrorToOutbox ───────────────────────────────────────────────────────────
 
 /**
@@ -70,18 +101,8 @@ export async function mirrorToOutbox({
   const tableName = MODEL_TO_TABLE[model];
   if (!tableName) return;
 
-  // 6. Strip local-only sensitive fields before payload assembly.
-  //    Visit.accessCodePlaintext stays on the desktop ONLY — it would defeat
-  //    the bcrypt hash if pushed to the cloud.
-  //    User.recoveryCodeHash is for desktop-side password recovery only;
-  //    never push (the Edge Function only needs passwordHash for bcrypt compare).
-  const safeRow: Record<string, unknown> = { ...row };
-  if (model === "Visit") {
-    delete safeRow.accessCodePlaintext;
-  }
-  if (model === "User") {
-    delete safeRow.recoveryCodeHash;
-  }
+  // 6. Strip local-only / secret fields before payload assembly.
+  const safeRow = sanitizeForCloud(model, row);
 
   // 7. Enqueue
   const op = operation as OutboxOperation;

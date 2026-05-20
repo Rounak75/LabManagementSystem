@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -51,5 +53,6 @@ export async function POST(req: Request) {
     details: JSON.stringify({ amount: body.amount, reference: body.reference, new_status: newStatus }),
   });
 
+  revalidateTag(CACHE_TAGS.payments);
   return NextResponse.json({ ok: true, payment_status: newStatus });
 }

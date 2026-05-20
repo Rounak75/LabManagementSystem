@@ -3,7 +3,7 @@ import { decryptSecret } from "@main/services/crypto.service";
 import { createSupabaseClient } from "./supabase-client";
 
 export const EXPECTED_COLUMNS: Array<{ table: string; columns: string[] }> = [
-  { table: "patients", columns: ["id", "full_name", "phone"] },
+  { table: "patients", columns: ["id", "name", "phone"] },
   { table: "visits", columns: ["id", "patient_id", "visit_id", "created_at"] },
   { table: "visit_tests", columns: ["id", "visit_id", "test_id"] },
   { table: "results", columns: ["id", "visit_test_id", "parameter_id", "value"] },

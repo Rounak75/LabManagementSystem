@@ -1,34 +1,30 @@
 import { prisma } from "@main/db";
 import { enqueue } from "./outbox.service";
 import { MODEL_TO_TABLE } from "./types";
+import { sanitizeForCloud, toSnakePayload } from "./prisma-hooks";
 
 const PAGE_SIZE = 500;
 
+// Order matters: parents before children so the cloud FK constraints
+// (added in 20260521000001_phase_3e_add_foreign_keys.sql) are satisfied as
+// rows stream up. Model names MUST match the Prisma model names exactly —
+// the earlier "Parameter"/"Result" entries were dead (real names are
+// "TestParameter"/"TestResult"), and "User" was missing entirely, so users
+// and the test-catalog parameters/results never backfilled.
 const MODELS_ORDER: Array<keyof typeof MODEL_TO_TABLE> = [
+  "User",
   "Doctor",
   "Test",
-  "Parameter",
+  "TestParameter",
   "LabSettings",
   "Patient",
   "Visit",
   "VisitTest",
-  "Result",
+  "TestResult",
   "Invoice",
   "Payment",
   "HomeVisit",
 ];
-
-function camelToSnake(s: string): string {
-  return s.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
-}
-
-function toSnakePayload(row: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(row)) {
-    out[camelToSnake(k)] = v instanceof Date ? v.toISOString() : v;
-  }
-  return out;
-}
 
 async function backfillModel(modelName: string): Promise<void> {
   const tableName = MODEL_TO_TABLE[modelName];
@@ -51,18 +47,18 @@ async function backfillModel(modelName: string): Promise<void> {
         tableName,
         operation: "create",
         rowId: row.id,
-        payload: toSnakePayload(row),
+        payload: toSnakePayload(sanitizeForCloud(modelName, row)),
       });
     }
     cursor = rows[rows.length - 1]!.id;
   }
 }
 
-export async function runBackfillOnce(): Promise<{ skipped: boolean }> {
+export async function runBackfillOnce(force = false): Promise<{ skipped: boolean }> {
   const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
   if (!s) return { skipped: true };
   if (!s.cloudSyncEnabled) return { skipped: true };
-  if (s.backfillCompletedAt) return { skipped: true };
+  if (!force && s.backfillCompletedAt) return { skipped: true };
 
   for (const model of MODELS_ORDER) {
     await backfillModel(model);
