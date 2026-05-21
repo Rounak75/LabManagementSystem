@@ -183,6 +183,9 @@ export async function seedOne(prisma: PrismaClient, seed: Seed): Promise<void> {
   }
 }
 
+/** Number of tests this module seeds — used by the boot guard to skip when already seeded. */
+export const GOLMURI_SEED_COUNT = BIOCHEMISTRY_TESTS.length + HEMATOLOGY_TESTS.length + URINE_STOOL_TESTS.length;
+
 export async function seedGolmuriTests(prisma: PrismaClient): Promise<void> {
   for (const seed of [...BIOCHEMISTRY_TESTS, ...HEMATOLOGY_TESTS, ...URINE_STOOL_TESTS]) {
     await seedOne(prisma, seed);

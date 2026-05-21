@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 
 interface SavedCal { printerName: string; xOffsetMm: number; yOffsetMm: number; }
@@ -63,21 +64,14 @@ export function LetterheadCalibration() {
         </p>
 
         <div className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Printer</span>
-            <select
-              className="mt-1 block w-full rounded border-slate-300 text-sm"
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              {printers.length === 0 && <option value="">No printers detected</option>}
-              {printers.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}{p.isDefault ? " (default)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select label="Printer" value={selected} onChange={(e) => setSelected(e.target.value)}>
+            {printers.length === 0 && <option value="">No printers detected</option>}
+            {printers.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}{p.isDefault ? " (default)" : ""}
+              </option>
+            ))}
+          </Select>
 
           <div className="grid grid-cols-2 gap-3">
             <Input

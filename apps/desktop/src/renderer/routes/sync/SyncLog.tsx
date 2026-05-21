@@ -4,6 +4,7 @@ import { call } from "@/lib/api";
 import { useToast } from "@/lib/toast.store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 
 const PAGE_SIZE = 50;
 
@@ -76,29 +77,15 @@ export default function SyncLog() {
 
       <Card className="mb-4 p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Status</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={status}
-              onChange={(e) => onFilterChange(setStatus)(e.target.value)}
-            >
-              <option value="">All</option>
-              {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
+          <Select label="Status" value={status} onChange={(e) => onFilterChange(setStatus)(e.target.value)}>
+            <option value="">All</option>
+            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
 
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Table</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={tableName}
-              onChange={(e) => onFilterChange(setTableName)(e.target.value)}
-            >
-              <option value="">All</option>
-              {TABLE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </label>
+          <Select label="Table" value={tableName} onChange={(e) => onFilterChange(setTableName)(e.target.value)}>
+            <option value="">All</option>
+            {TABLE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </Select>
 
           <div className="flex items-end">
             <Button variant="secondary" onClick={resetFilters} className="w-full">Reset filters</Button>
@@ -118,7 +105,8 @@ export default function SyncLog() {
             </div>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-slate-100 text-left">
               <tr>
                 <th className="px-4 py-3 w-6" />
@@ -129,7 +117,7 @@ export default function SyncLog() {
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Attempts</th>
                 <th className="px-4 py-3">Next Attempt</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="sticky right-0 bg-slate-100 px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -155,12 +143,12 @@ export default function SyncLog() {
                       <td className="px-4 py-3"><span className={statusClass(r.status)}>{r.status}</span></td>
                       <td className="px-4 py-3 text-center">{r.attempts}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-600">{formatDate(r.nextAttemptAt)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          {r.status === "Failed" && (
+                      <td className="sticky right-0 bg-white px-4 py-3">
+                        <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                          {(r.status === "Failed" || r.status === "Pending") && (
                             <button
                               type="button"
-                              className="text-brand hover:underline disabled:opacity-50"
+                              className="whitespace-nowrap text-brand hover:underline disabled:opacity-50"
                               disabled={retry.isPending}
                               onClick={() => retry.mutate(r.id)}
                             >
@@ -170,7 +158,7 @@ export default function SyncLog() {
                           {r.status === "Pending" && (
                             <button
                               type="button"
-                              className="text-red-600 hover:underline disabled:opacity-50"
+                              className="whitespace-nowrap text-red-600 hover:underline disabled:opacity-50"
                               disabled={cancel.isPending}
                               onClick={() => cancel.mutate(r.id)}
                             >
@@ -214,6 +202,7 @@ export default function SyncLog() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 

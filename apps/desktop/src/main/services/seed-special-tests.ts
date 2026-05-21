@@ -86,6 +86,9 @@ const SPECIAL_TESTS: Seed[] = [
   ]}
 ];
 
+/** Number of tests this module seeds — used by the boot guard to skip when already seeded. */
+export const SPECIAL_SEED_COUNT = SEROLOGY_AND_OTHER.length + SPECIAL_TESTS.length;
+
 export async function seedSpecialTests(prisma: PrismaClient): Promise<void> {
   for (const seed of [...SEROLOGY_AND_OTHER, ...SPECIAL_TESTS]) {
     await seedOne(prisma, seed);

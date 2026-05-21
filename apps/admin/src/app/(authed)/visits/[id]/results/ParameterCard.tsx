@@ -140,6 +140,7 @@ export function ParameterCard({
         <select
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          aria-label={parameter.name}
           className="w-full border rounded px-3 py-2 bg-white"
         >
           <option value="">—</option>
@@ -152,6 +153,7 @@ export function ParameterCard({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           inputMode="decimal"
+          aria-label={parameter.name}
           className="w-full border rounded px-3 py-2 text-lg"
         />
       )}

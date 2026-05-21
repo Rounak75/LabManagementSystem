@@ -123,6 +123,37 @@ export function CloudSyncTab() {
     <div className="max-w-2xl space-y-4">
       <h1 className="text-2xl font-semibold">Cloud sync</h1>
 
+      <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-medium">Status</h2>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              status?.enabled ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {status?.enabled ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="rounded-lg bg-green-50 p-3">
+            <div className="text-2xl font-semibold text-green-700">{status?.sentCount ?? "—"}</div>
+            <div className="text-xs text-slate-500">Sent</div>
+          </div>
+          <div className="rounded-lg bg-blue-50 p-3">
+            <div className="text-2xl font-semibold text-blue-700">{status?.pendingCount ?? "—"}</div>
+            <div className="text-xs text-slate-500">Pending</div>
+          </div>
+          <div className="rounded-lg bg-red-50 p-3">
+            <div className="text-2xl font-semibold text-red-700">{status?.failedCount ?? "—"}</div>
+            <div className="text-xs text-slate-500">Failed</div>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Last successful push:{" "}
+          {status?.lastPushAt ? new Date(status.lastPushAt).toLocaleString() : "never"} · refreshes every 30s
+        </p>
+      </Card>
+
       <form onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-4">
         <Card>
           <h2 className="mb-4 text-lg font-medium">Master switch</h2>
@@ -186,11 +217,11 @@ export function CloudSyncTab() {
           <h2 className="mb-4 text-lg font-medium">Backfill</h2>
           <p className="mb-3 text-sm text-slate-600">
             {backfillDone
-              ? `Backfill completed ${new Date(status.backfillCompletedAt).toLocaleString()}.`
+              ? `Backfill last completed ${new Date(status.backfillCompletedAt).toLocaleString()}. Re-run to push anything added since (or to recover from an earlier partial sync).`
               : "Push all existing lab data to the cloud. Runs in the background."}
           </p>
-          <Button type="button" variant="secondary" onClick={handleBackfill} disabled={backfilling || backfillDone}>
-            {backfilling ? "Queueing…" : backfillDone ? "Backfill complete" : "Run backfill now"}
+          <Button type="button" variant="secondary" onClick={handleBackfill} disabled={backfilling}>
+            {backfilling ? "Queueing…" : backfillDone ? "Run backfill again" : "Run backfill now"}
           </Button>
         </Card>
 

@@ -12,6 +12,7 @@ register("cloud:getStatus", async () => {
   const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
   const pendingCount = await prisma().outbox.count({ where: { status: "Pending" } });
   const failedCount = await prisma().outbox.count({ where: { status: "Failed" } });
+  const sentCount = await prisma().outbox.count({ where: { status: "Sent" } });
   const lastSent = await prisma().outbox.findFirst({
     where: { status: "Sent" },
     orderBy: { sentAt: "desc" },
@@ -38,6 +39,7 @@ register("cloud:getStatus", async () => {
     lastPushAt: lastSent?.sentAt ?? null,
     pendingCount,
     failedCount,
+    sentCount,
     backfillCompletedAt: s?.backfillCompletedAt ?? null,
     freeTierBytes,
     freeTierLimit: 500 * 1024 * 1024,

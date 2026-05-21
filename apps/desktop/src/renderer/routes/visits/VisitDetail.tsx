@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/stores/auth.store";
 import { UndoToast } from "@/components/UndoToast";
@@ -24,12 +25,13 @@ export default function VisitDetail() {
   const nav = useNavigate();
   const { user } = useAuth();
   const [unlockTarget, setUnlockTarget] = useState<string | null>(null);
+  const [outsourceTarget, setOutsourceTarget] = useState<{ id: string; testName: string } | null>(null);
   const [undoToast, setUndoToast] = useState<{ ids: string[]; msg: string } | null>(null);
   const { data: visit } = useQuery({ queryKey: ["visit", id], queryFn: () => call<Visit>("visits:get", { id }), enabled: !!id });
 
   const setStatus = useMutation({
-    mutationFn: ({ visitTestId, status }: { visitTestId: string; status: string }) =>
-      call("visitTests:updateStatus", { visitTestId, status }),
+    mutationFn: ({ visitTestId, status, outsourcedSentTo }: { visitTestId: string; status: string; outsourcedSentTo?: string }) =>
+      call("visitTests:updateStatus", { visitTestId, status, outsourcedSentTo }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["visit", id] })
   });
   const lock = useMutation({
@@ -83,19 +85,19 @@ export default function VisitDetail() {
                 <td className="px-4 py-3 text-slate-500">
                   {vt.results.length > 0 ? `${vt.results.length}/${vt.test.parameters.length} entered` : "—"}
                 </td>
-                <td className="px-4 py-3 text-right">
-                  {!vt.isLocked && <Button variant="ghost" onClick={() => nav(`/results/${vt.id}`)}>Enter results</Button>}
-                  {!vt.isLocked && vt.status === "ResultEntered" && user?.role === "Admin" && (
-                    <Button variant="primary" className="ml-2" onClick={() => lock.mutate(vt.id)}>Verify & lock</Button>
-                  )}
-                  {vt.isLocked && user?.role === "Admin" && (
-                    <Button variant="ghost" className="ml-2" onClick={() => setUnlockTarget(vt.id)}>Unlock to edit</Button>
-                  )}
-                  {!vt.isLocked && vt.test.isOutsourced && vt.status !== "Outsourced" && (
-                    <Button variant="ghost" className="ml-2" onClick={() => {
-                      const lab = prompt("External lab name?"); if (lab) setStatus.mutate({ visitTestId: vt.id, status: "Outsourced" });
-                    }}>Mark outsourced</Button>
-                  )}
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {!vt.isLocked && <Button size="sm" variant="ghost" onClick={() => nav(`/results/${vt.id}`)}>Enter results</Button>}
+                    {!vt.isLocked && vt.status === "ResultEntered" && user?.role === "Admin" && (
+                      <Button size="sm" variant="primary" onClick={() => lock.mutate(vt.id)}>Verify & lock</Button>
+                    )}
+                    {vt.isLocked && user?.role === "Admin" && (
+                      <Button size="sm" variant="ghost" onClick={() => setUnlockTarget(vt.id)}>Unlock to edit</Button>
+                    )}
+                    {!vt.isLocked && vt.test.isOutsourced && vt.status !== "Outsourced" && (
+                      <Button size="sm" variant="ghost" onClick={() => setOutsourceTarget({ id: vt.id, testName: vt.test.name })}>Mark outsourced</Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -114,6 +116,19 @@ export default function VisitDetail() {
           }}
         />
       )}
+      {outsourceTarget && (
+        <OutsourceModal
+          testName={outsourceTarget.testName}
+          pending={setStatus.isPending}
+          onClose={() => setOutsourceTarget(null)}
+          onConfirm={(lab) => {
+            setStatus.mutate(
+              { visitTestId: outsourceTarget.id, status: "Outsourced", outsourcedSentTo: lab },
+              { onSuccess: () => setOutsourceTarget(null) }
+            );
+          }}
+        />
+      )}
       {undoToast && (
         <UndoToast
           notificationIds={undoToast.ids}
@@ -122,6 +137,42 @@ export default function VisitDetail() {
         />
       )}
     </div>
+  );
+}
+
+function OutsourceModal({
+  testName,
+  pending,
+  onClose,
+  onConfirm
+}: {
+  testName: string;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (lab: string) => void;
+}) {
+  const [lab, setLab] = useState("");
+  const trimmed = lab.trim();
+  return (
+    <Modal open onClose={onClose} title="Mark as outsourced">
+      <p className="mb-3 text-sm text-slate-700">
+        Send <span className="font-medium">{testName}</span> to an external lab? It will appear in the
+        Outsourced list until you mark the result received.
+      </p>
+      <Input
+        label="External lab name"
+        autoFocus
+        placeholder="e.g. SRL Diagnostics"
+        value={lab}
+        onChange={e => setLab(e.target.value)}
+      />
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button disabled={!trimmed || pending} onClick={() => onConfirm(trimmed)}>
+          {pending ? "Saving…" : "Mark outsourced"}
+        </Button>
+      </div>
+    </Modal>
   );
 }
 

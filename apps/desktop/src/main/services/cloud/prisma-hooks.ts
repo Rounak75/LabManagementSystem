@@ -48,11 +48,25 @@ const LAB_SETTINGS_CLOUD_FIELDS = new Set([
  *  - Visit.accessCodePlaintext: defeats the bcrypt access-code hash if pushed.
  *  - User.recoveryCodeHash: desktop-side recovery only; cloud users has no such column.
  *  - LabSettings: allowlist to public columns only.
+ *  - TestResult: two fields where the cloud column name diverges from a plain
+ *    camel→snake of the Prisma field. The cloud (and admin portal) standardised
+ *    on is_abnormal_override / entered_by_user_id, so remap before the snake
+ *    conversion rather than renaming cloud columns the portal already uses.
  */
 export function sanitizeForCloud(model: string, row: Record<string, unknown>): Record<string, unknown> {
   let safe: Record<string, unknown> = { ...row };
   if (model === "Visit") delete safe.accessCodePlaintext;
   if (model === "User") delete safe.recoveryCodeHash;
+  if (model === "TestResult") {
+    if ("abnormalOverride" in safe) {
+      safe.isAbnormalOverride = safe.abnormalOverride;
+      delete safe.abnormalOverride;
+    }
+    if ("enteredById" in safe) {
+      safe.enteredByUserId = safe.enteredById;
+      delete safe.enteredById;
+    }
+  }
   if (model === "LabSettings") {
     safe = Object.fromEntries(Object.entries(safe).filter(([k]) => LAB_SETTINGS_CLOUD_FIELDS.has(k)));
   }

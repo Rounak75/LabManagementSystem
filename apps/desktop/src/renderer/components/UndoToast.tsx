@@ -65,9 +65,9 @@ export function UndoToast({
         </div>
       </div>
       {!cancelled && (
-        <div className="h-1 bg-gray-200 mt-2 rounded overflow-hidden">
+        <div className="h-1 bg-slate-200 mt-2 rounded overflow-hidden">
           <div
-            className="h-full bg-blue-600 transition-all duration-1000"
+            className="h-full bg-brand transition-all duration-1000"
             style={{ width: `${(remaining / 60) * 100}%` }}
           />
         </div>

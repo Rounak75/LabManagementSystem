@@ -1,5 +1,8 @@
 import { register } from "@main/ipc";
-import { dialog } from "electron";
+import { logError } from "@main/services/logger";
+import { quitAndInstall, checkNow } from "@main/services/updater";
+import type { LogErrorInput } from "@shared/api";
+import { app, dialog } from "electron";
 import { writeFile } from "fs/promises";
 
 register("app:saveTextFile", async (payload: { filename: string; contents: string }) => {
@@ -20,3 +23,15 @@ register("app:pickFile", async (p: { filters?: { name: string; extensions: strin
   if (r.canceled || r.filePaths.length === 0) return null;
   return r.filePaths[0] ?? null;
 });
+
+register("app:logError", (input: LogErrorInput) => {
+  const detail = input.stack ? `${input.message}\n${input.stack}` : input.message;
+  logError(`renderer:${input.scope}`, detail);
+  return { ok: true };
+});
+
+register("app:getVersion", () => ({ version: app.getVersion() }));
+
+register("updater:quitAndInstall", () => { quitAndInstall(); return { ok: true }; });
+
+register("updater:checkNow", async () => { await checkNow(); return { ok: true }; });

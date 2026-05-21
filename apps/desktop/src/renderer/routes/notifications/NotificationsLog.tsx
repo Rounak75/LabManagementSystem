@@ -4,6 +4,7 @@ import { call } from "@/lib/api";
 import { useToast } from "@/lib/toast.store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 
 const PAGE_SIZE = 50;
 
@@ -95,47 +96,26 @@ export default function NotificationsLog() {
       {/* Filters */}
       <Card className="mb-4 p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Status</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={status}
-              onChange={(e) => onFilterChange(setStatus)(e.target.value)}
-            >
-              <option value="">All</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </label>
+          <Select label="Status" value={status} onChange={(e) => onFilterChange(setStatus)(e.target.value)}>
+            <option value="">All</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </Select>
 
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Channel</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={channel}
-              onChange={(e) => onFilterChange(setChannel)(e.target.value)}
-            >
-              <option value="">All</option>
-              {CHANNEL_OPTIONS.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </label>
+          <Select label="Channel" value={channel} onChange={(e) => onFilterChange(setChannel)(e.target.value)}>
+            <option value="">All</option>
+            {CHANNEL_OPTIONS.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </Select>
 
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Purpose</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={purpose}
-              onChange={(e) => onFilterChange(setPurpose)(e.target.value)}
-            >
-              <option value="">All</option>
-              {PURPOSE_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </label>
+          <Select label="Purpose" value={purpose} onChange={(e) => onFilterChange(setPurpose)(e.target.value)}>
+            <option value="">All</option>
+            {PURPOSE_OPTIONS.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </Select>
 
           <div className="flex items-end">
             <Button variant="secondary" onClick={resetFilters} className="w-full">

@@ -122,6 +122,49 @@ describe("classifyError", () => {
     expect(r.userMessage).toMatch(/reach Supabase/i);
   });
 
+  it("PostgREST missing-column error → non-retryable, surfaces real message + code", () => {
+    const pgErr = Object.assign(
+      new Error("Could not find the 'foo' column of 'visits' in the schema cache"),
+      { name: "PostgrestError", code: "PGRST204", details: "", hint: "" }
+    );
+    const r = classifyError(pgErr);
+    expect(r.retryable).toBe(false);
+    expect(r.userMessage).toMatch(/Could not find the 'foo' column/);
+    expect(r.userMessage).toMatch(/PGRST204/);
+  });
+
+  it("PostgREST FK-violation error → non-retryable", () => {
+    const pgErr = Object.assign(
+      new Error("insert or update on table \"visit_tests\" violates foreign key constraint"),
+      { name: "PostgrestError", code: "23503", details: "Key (visit_id)=(x) is not present in table \"visits\".", hint: "" }
+    );
+    const r = classifyError(pgErr);
+    expect(r.retryable).toBe(false);
+    expect(r.userMessage).toMatch(/23503/);
+  });
+
+  it("PostgREST transient connection error (08xxx) → retryable", () => {
+    const pgErr = Object.assign(new Error("connection failure"), {
+      name: "PostgrestError", code: "08006", details: "", hint: "",
+    });
+    expect(classifyError(pgErr).retryable).toBe(true);
+  });
+
+  it("fetch failure wrapped in PostgREST shape (empty code) → retryable network error", () => {
+    // postgrest-js wraps a failed fetch (connect timeout / offline) as an object
+    // shaped like a PostgrestError but with an EMPTY code. Must NOT be treated as
+    // a hard non-retryable PostgREST error.
+    const netErr = {
+      message: "TypeError: fetch failed",
+      details: "ConnectTimeoutError: Connect Timeout Error (UND_ERR_CONNECT_TIMEOUT)",
+      hint: "",
+      code: "",
+    };
+    const r = classifyError(netErr);
+    expect(r.retryable).toBe(true);
+    expect(r.userMessage).toMatch(/reach Supabase/i);
+  });
+
   it("unknown object without status → retryable internet message", () => {
     const r = classifyError({ code: "NETWORK_ERROR" });
     expect(r.retryable).toBe(true);

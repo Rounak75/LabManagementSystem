@@ -6,6 +6,7 @@ import { useAuth } from "@/stores/auth.store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import type { Role } from "@lab/types";
 
@@ -82,7 +83,8 @@ export default function UserManagement() {
             <div className="text-sm text-slate-500 max-w-xs">Click "Add user" to invite Staff or another Admin.</div>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-slate-100 text-left">
               <tr>
                 <th className="px-4 py-3">Name</th>
@@ -91,7 +93,7 @@ export default function UserManagement() {
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Collects samples</th>
                 <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -115,36 +117,41 @@ export default function UserManagement() {
                       />
                     </td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(u.createdAt)}</td>
-                    <td className="px-4 py-3 text-right space-x-1">
-                      <Button variant="ghost" onClick={() => setResetting(u)}>Reset password</Button>
-                      <Button variant="ghost" onClick={() => setChangingRole(u)}>Change role</Button>
-                      {u.isActive ? (
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => setResetting(u)}>Reset password</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setChangingRole(u)}>Change role</Button>
+                        {u.isActive ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={isMe}
+                            title={isMe ? "You can't disable yourself" : undefined}
+                            onClick={() => setTogglingActive(u)}
+                          >
+                            Disable
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" onClick={() => setTogglingActive(u)}>Enable</Button>
+                        )}
                         <Button
+                          size="sm"
                           variant="ghost"
+                          className="text-danger hover:bg-red-50"
                           disabled={isMe}
-                          title={isMe ? "You can't disable yourself" : undefined}
-                          onClick={() => setTogglingActive(u)}
+                          title={isMe ? "You can't delete yourself" : undefined}
+                          onClick={() => setDeleting(u)}
                         >
-                          Disable
+                          Delete
                         </Button>
-                      ) : (
-                        <Button variant="ghost" onClick={() => setTogglingActive(u)}>Enable</Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        className="text-danger hover:bg-red-50"
-                        disabled={isMe}
-                        title={isMe ? "You can't delete yourself" : undefined}
-                        onClick={() => setDeleting(u)}
-                      >
-                        Delete
-                      </Button>
+                      </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 
@@ -208,13 +215,10 @@ function AddUserModal({ onClose, onDone, onError }: { onClose: () => void; onDon
         <Input label="Full name" {...register("name", { required: true })} error={errors.name && "Required"} />
         <Input label="Username" {...register("username", { required: true })} error={errors.username && "Required"} />
         <Input label="Password" type="password" {...register("password", { required: true, minLength: 4 })} error={errors.password && "At least 4 characters"} />
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Role</span>
-          <select className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" {...register("role")}>
-            <option value="Staff">Staff</option>
-            <option value="Admin">Admin</option>
-          </select>
-        </label>
+        <Select label="Role" {...register("role")}>
+          <option value="Staff">Staff</option>
+          <option value="Admin">Admin</option>
+        </Select>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" {...register("canCollectSamples")} className="mt-0.5" />
           <span>
@@ -345,17 +349,10 @@ function ChangeRoleModal({ user, onClose, onDone, onError }: { user: UserRow; on
   return (
     <Modal open onClose={onClose} title={`Change role — ${user.name}`}>
       <div className="space-y-3">
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Role</span>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="Staff">Staff</option>
-            <option value="Admin">Admin</option>
-          </select>
-        </label>
+        <Select label="Role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          <option value="Staff">Staff</option>
+          <option value="Admin">Admin</option>
+        </Select>
         {formError && <p className="text-sm text-danger">{formError}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>

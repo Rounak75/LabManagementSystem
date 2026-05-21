@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import type { Channel } from "@shared/api";
 import type { IpcResult } from "@lab/types";
+import { logError } from "@main/services/logger";
 
 type Handler = (payload: any) => Promise<unknown> | unknown;
 const handlers = new Map<Channel, Handler>();
@@ -17,9 +18,16 @@ export function attachIpc() {
         return { ok: true, data: stripNonCloneable(data) };
       } catch (err) {
         const e = err as Error;
-        const code = /^[A-Z_]+$/.test(e.message) ? e.message : "INTERNAL_ERROR";
-        const message = code === "INTERNAL_ERROR" ? e.message : codeToMessage(code);
-        return { ok: false, error: { code, message } };
+        const isKnownCode = typeof e?.message === "string" && /^[A-Z_]+$/.test(e.message);
+        if (isKnownCode) {
+          return { ok: false, error: { code: e.message, message: codeToMessage(e.message) } };
+        }
+        // Unknown/internal error: log the real detail to disk, return a safe generic message.
+        logError(`ipc:${channel}`, err);
+        return {
+          ok: false,
+          error: { code: "INTERNAL_ERROR", message: "Something went wrong on the lab computer. Please try again." },
+        };
       }
     });
   }

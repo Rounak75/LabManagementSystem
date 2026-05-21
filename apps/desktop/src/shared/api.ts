@@ -41,7 +41,8 @@ export type Channel =
   | "audit:write"
   | "audit:list" | "audit:distinctActions"
   // app utilities
-  | "app:saveTextFile" | "app:pickDirectory" | "app:pickFile"
+  | "app:saveTextFile" | "app:pickDirectory" | "app:pickFile" | "app:logError"
+  | "app:getVersion" | "updater:quitAndInstall" | "updater:checkNow"
   // backup
   | "backup:runNow" | "backup:list" | "backup:restore"
   // dashboard
@@ -108,6 +109,8 @@ export interface SaveTextFileResult {
   saved: boolean;
   path?: string;
 }
+
+export interface LogErrorInput { scope: string; message: string; stack?: string; }
 
 export interface PickFileInput {
   filters?: { name: string; extensions: string[] }[];
@@ -271,6 +274,7 @@ export type TemplateIdInput = { id: string };
 
 export type Api = {
   invoke<T = unknown>(channel: Channel, payload?: unknown): Promise<IpcResult<T>>;
+  onUpdateDownloaded(cb: (info: { version: string }) => void): () => void;
 };
 
 declare global {

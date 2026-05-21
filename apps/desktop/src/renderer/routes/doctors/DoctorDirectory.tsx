@@ -34,7 +34,7 @@ export default function DoctorDirectory() {
                   <td className="px-4 py-3 text-slate-500">{d.clinic ?? "—"}</td>
                   <td className="px-4 py-3">{d.isActive ? "Active" : "Inactive"}</td>
                   <td className="px-4 py-3 text-right">
-                    {d.id !== "doctor-self" && <Button variant="ghost" onClick={() => setEditing(d)}>Edit</Button>}
+                    {d.id !== "doctor-self" && <Button size="sm" variant="ghost" onClick={() => setEditing(d)}>Edit</Button>}
                   </td>
                 </tr>
               ))}

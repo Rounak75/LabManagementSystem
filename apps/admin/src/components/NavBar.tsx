@@ -5,8 +5,8 @@ import type { SessionUser } from "@/lib/auth-session";
 export function NavBar({ user }: { user: SessionUser }) {
   return (
     <nav className="bg-white border-b">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
+      <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-x-6">
           {/* prefetch forces a full prefetch (incl. data) of these dynamic routes;
               their reads are cached server-side, so navigation lands instantly. */}
           <Link href="/dashboard" prefetch className="font-semibold">Lab Admin</Link>

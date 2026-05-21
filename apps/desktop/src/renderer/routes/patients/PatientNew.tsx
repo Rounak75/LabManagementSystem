@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
 import { useNavigate } from "react-router-dom";
 
@@ -43,11 +44,9 @@ export default function PatientNew() {
         <form onSubmit={handleSubmit(v => create.mutate(v))} className="grid grid-cols-2 gap-4">
           <Input label="Full name" className="col-span-2" {...register("name", { required: "required", minLength: 2 })} error={errors.name?.message as string} />
           <Input label="Age (years)" type="number" {...register("age", { required: true, min: 0, max: 130 })} />
-          <label className="text-sm"><span className="mb-1 block font-medium">Sex</span>
-            <select className="w-full rounded-md border px-3 py-2" {...register("sex")}>
-              <option>Male</option><option>Female</option><option>Other</option>
-            </select>
-          </label>
+          <Select label="Sex" {...register("sex")}>
+            <option>Male</option><option>Female</option><option>Other</option>
+          </Select>
           <Input label="Phone" {...register("phone", { required: true, pattern: /^[0-9+\-\s]{7,}$/ })} error={errors.phone?.message as string} />
           <Input
             label="Email (optional — used for digital reports)"
@@ -60,11 +59,9 @@ export default function PatientNew() {
             error={errors.email?.message as string}
           />
           <Input label="Address (optional)" className="col-span-2" {...register("address")} />
-          <label className="col-span-2 text-sm"><span className="mb-1 block font-medium">Referred by</span>
-            <select className="w-full rounded-md border px-3 py-2" {...register("referredById")}>
-              {doctors.map(d => <option key={d.id} value={d.id}>{d.name}{d.clinic ? ` — ${d.clinic}` : ""}</option>)}
-            </select>
-          </label>
+          <Select label="Referred by" className="col-span-2" {...register("referredById")}>
+            {doctors.map(d => <option key={d.id} value={d.id}>{d.name}{d.clinic ? ` — ${d.clinic}` : ""}</option>)}
+          </Select>
           {duplicate && (
             <div className="col-span-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <div className="font-medium">Patient with this phone already registered.</div>

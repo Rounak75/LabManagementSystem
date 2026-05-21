@@ -39,14 +39,14 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         router.push("/select-patient");
         return;
       }
-      if (data.error === "account_locked") {
+      if (data.error?.code === "account_locked") {
         setLockedUntil(data.until);
         return;
       }
       setError(
-        data.error === "no_patient_found"
+        data.error?.code === "no_patient_found"
           ? "We can't find a patient with this phone number. Please contact the lab."
-          : data.error === "invalid_code"
+          : data.error?.code === "invalid_code"
           ? mode === "code"
             ? "That access code doesn't match. Please check your receipt."
             : "Incorrect password."

@@ -84,7 +84,9 @@ export default async function Landing() {
     reason: c.reason ?? null,
   }));
 
-  const status = cfg ? isOpenNow(cfg, closureRows) : { open: true, reason: null };
+  // When settings haven't loaded we don't actually know the hours — never claim
+  // we're open. Show nothing rather than a misleading "open right now".
+  const status = cfg ? isOpenNow(cfg, closureRows) : null;
 
   const tests: FeaturedTest[] = (allTests ?? []).map((t) => ({
     id: t.id,
@@ -98,27 +100,30 @@ export default async function Landing() {
     <div className="space-y-12">
       {/* ─── Hero ──────────────────────────────────────────────────────── */}
       <section className="pt-2">
-        <div className="flex items-center gap-2 mb-5">
-          <span
-            className={`relative inline-block h-2 w-2 rounded-full dot-pulse ${
-              status.open ? "bg-ok text-ok" : "bg-notice text-notice"
-            }`}
-          />
-          <span className={`text-[12.5px] font-medium ${status.open ? "text-ok" : "text-notice"}`}>
-            {status.open ? "We're open right now" : "Currently closed"}
-          </span>
-          {status.reason && (
-            <span className="text-[12px] text-muted">· {status.reason}</span>
-          )}
-        </div>
+        {status && (
+          <div className="flex items-center gap-2 mb-5">
+            <span
+              className={`relative inline-block h-2 w-2 rounded-full dot-pulse ${
+                status.open ? "bg-ok text-ok" : "bg-notice text-notice"
+              }`}
+            />
+            <span className={`text-[12.5px] font-medium ${status.open ? "text-ok" : "text-notice"}`}>
+              {status.open ? "We're open right now" : "Currently closed"}
+            </span>
+            {status.reason && (
+              <span className="text-[12px] text-muted">· {status.reason}</span>
+            )}
+          </div>
+        )}
 
         <h1 className="font-heading text-[36px] sm:text-[48px] leading-[1.04] tracking-tighter text-text font-bold">
           Your reports, ready when&nbsp;you are.
         </h1>
         <p className="mt-5 text-[15.5px] text-soft max-w-prose leading-relaxed">
-          Golmuri Janch Ghar has been the neighbourhood diagnostic lab for over
-          a decade. Pull up any report on your phone, pay a pending bill by UPI,
-          or ask us to come collect a sample at home.
+          Golmuri Janch Ghar has provided diagnostic services in Jamshedpur for
+          over a decade. View your reports online, settle outstanding bills
+          securely by UPI, and request home sample collection &mdash; all from
+          your phone.
         </p>
 
         <div className="mt-7 flex flex-wrap gap-2.5">

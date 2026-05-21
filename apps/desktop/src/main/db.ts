@@ -1,44 +1,15 @@
 import { app } from "electron";
 import { join } from "path";
 import { existsSync, mkdirSync, copyFileSync } from "fs";
-import { execSync } from "child_process";
 import { getPrisma } from "@lab/db";
 import { outboxExtension } from "@main/services/cloud/prisma-hooks";
+import { applyPendingMigrations } from "@main/services/apply-migrations";
 
 let initialized = false;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _extended: any | null = null;
 
-/**
- * Run pending Prisma migrations against the live database.
- * Uses `prisma migrate deploy` which is safe for production —
- * it only applies migrations that haven't been applied yet.
- */
-function runMigrations(dbUrl: string): void {
-  const schemaDir = app.isPackaged
-    ? join(process.resourcesPath, "prisma")
-    : join(__dirname, "../../../../packages/db/prisma");
-  const schemaPath = join(schemaDir, "schema.prisma");
-
-  if (!existsSync(schemaPath)) {
-    console.warn("[DB] schema.prisma not found at", schemaPath, "— skipping migrations");
-    return;
-  }
-
-  try {
-    console.log("[DB] Running prisma migrate deploy …");
-    const result = execSync(
-      `npx prisma migrate deploy --schema "${schemaPath}"`,
-      { env: { ...process.env, DATABASE_URL: dbUrl }, timeout: 30_000, encoding: "utf-8" }
-    );
-    console.log("[DB] Migrations applied:", result);
-  } catch (err: any) {
-    // Log but don't crash — the app may still work if the DB is already up-to-date
-    console.error("[DB] Migration error (non-fatal):", err.stderr || err.message);
-  }
-}
-
-export function initDatabase() {
+export async function initDatabase() {
   if (initialized) return;
   const userData = app.getPath("userData");
   console.log("[DB] userData:", userData);
@@ -60,10 +31,31 @@ export function initDatabase() {
   console.log("[DB] DATABASE_URL:", dbUrl);
   process.env.DATABASE_URL = dbUrl;
 
-  // Apply any pending migrations before initializing Prisma client
-  runMigrations(dbUrl);
-
   const base = getPrisma(dbUrl);
+
+  // WAL: better concurrent read/write + crash resilience. Persistent once set; safe every boot.
+  try {
+    await base.$executeRawUnsafe("PRAGMA journal_mode=WAL");
+    await base.$executeRawUnsafe("PRAGMA synchronous=NORMAL");
+  } catch (err) {
+    console.warn("[DB] could not set WAL pragma (non-fatal):", err);
+  }
+
+  // Apply pending migrations IN-PROCESS (works in dev AND the packaged app, unlike
+  // `npx prisma migrate deploy` which can't run on an end-user machine). This is
+  // what makes an auto-update that ships new migrations actually take effect.
+  const migrationsDir = app.isPackaged
+    ? join(process.resourcesPath, "prisma", "migrations")
+    : join(__dirname, "../../../../packages/db/prisma/migrations");
+  try {
+    const applied = await applyPendingMigrations(base, migrationsDir);
+    if (applied.length) console.log("[DB] applied migrations:", applied.join(", "));
+    else console.log("[DB] migrations already up to date");
+  } catch (err) {
+    // Non-fatal: log loudly. A failed migration leaves the prior schema in place.
+    console.error("[DB] migration apply failed (non-fatal):", err);
+  }
+
   _extended = base.$extends(outboxExtension);
   initialized = true;
 }

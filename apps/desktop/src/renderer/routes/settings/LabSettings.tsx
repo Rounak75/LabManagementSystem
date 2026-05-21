@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { BackupPanel } from "./BackupPanel";
 import { NotificationsTab } from "./NotificationsTab";
@@ -170,13 +171,10 @@ export default function LabSettings() {
             <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" {...register("isOpenToday")} /> Open today</label>
             <Input label="Closure reason (if closed today)" className="col-span-2" {...register("manualClosureReason")} />
             <Input label="Patient portal URL" className="col-span-2" placeholder="golmurijanchghar.vercel.app/patient" {...register("portalUrl")} />
-            <label className="col-span-2 flex flex-col gap-1 text-sm">
-              <span className="font-medium text-slate-700">Primary payment gateway in portal</span>
-              <select className="rounded border-slate-300 text-sm" {...register("preferredPaymentGateway")}>
-                <option value="UPI">UPI (direct, no gateway fees)</option>
-                <option value="Razorpay">Razorpay (hidden until KYC clears)</option>
-              </select>
-            </label>
+            <Select label="Primary payment gateway in portal" className="col-span-2" {...register("preferredPaymentGateway")}>
+              <option value="UPI">UPI (direct, no gateway fees)</option>
+              <option value="Razorpay">Razorpay (hidden until KYC clears)</option>
+            </Select>
             <div className="col-span-2 flex justify-end"><Button type="submit">Save</Button></div>
           </form>
         </Card>

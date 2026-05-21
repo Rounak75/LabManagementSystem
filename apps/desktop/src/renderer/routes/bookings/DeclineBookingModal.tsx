@@ -3,6 +3,9 @@
 
 import { useState } from "react";
 import { call } from "@/lib/api";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 
 const PRESET_REASONS = [
   "Outside service area",
@@ -56,62 +59,49 @@ export function DeclineBookingModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-5 rounded shadow-lg w-full max-w-md">
-        <h2 className="font-semibold">Decline booking {booking.bookingId}</h2>
-        <p className="text-sm text-slate-600 mt-1">
-          {booking.patientName} · {booking.patientPhone}
-        </p>
+    <Modal open onClose={() => onClose(false)} title={`Decline booking ${booking.bookingId}`}>
+      <p className="text-sm text-slate-600">
+        {booking.patientName} · {booking.patientPhone}
+      </p>
 
-        <label className="block mt-3">
-          <span className="text-sm font-medium">Reason</span>
-          <select
-            value={preset}
-            onChange={(e) => setPreset(e.target.value as (typeof PRESET_REASONS)[number])}
-            className="mt-1 block w-full rounded border-slate-300 text-sm"
-          >
-            {PRESET_REASONS.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </label>
-
-        {preset === "Other" && (
-          <textarea
-            value={other}
-            onChange={(e) => setOther(e.target.value)}
-            placeholder="Tell the patient why (at least 10 characters)"
-            rows={3}
-            className="mt-2 block w-full rounded border-slate-300 text-sm"
-          />
-        )}
-
-        <p className="text-xs text-slate-500 mt-2">
-          This message is sent to the patient and shown on their status page.
-        </p>
-
-        {error && (
-          <div className="mt-3 bg-red-50 border border-red-200 text-red-800 text-sm p-2 rounded">
-            {error}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 mt-4">
-          <button
-            onClick={() => onClose(false)}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDecline}
-            disabled={submitting || !canSubmit}
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm disabled:opacity-50"
-          >
-            {submitting ? "Declining…" : "Decline"}
-          </button>
-        </div>
+      <div className="mt-3">
+        <Select
+          label="Reason"
+          value={preset}
+          onChange={(e) => setPreset(e.target.value as (typeof PRESET_REASONS)[number])}
+        >
+          {PRESET_REASONS.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </Select>
       </div>
-    </div>
+
+      {preset === "Other" && (
+        <textarea
+          value={other}
+          onChange={(e) => setOther(e.target.value)}
+          placeholder="Tell the patient why (at least 10 characters)"
+          rows={3}
+          className="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+        />
+      )}
+
+      <p className="mt-2 text-xs text-slate-500">
+        This message is sent to the patient and shown on their status page.
+      </p>
+
+      {error && (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="secondary" onClick={() => onClose(false)}>Cancel</Button>
+        <Button variant="danger" onClick={handleDecline} disabled={submitting || !canSubmit}>
+          {submitting ? "Declining…" : "Decline"}
+        </Button>
+      </div>
+    </Modal>
   );
 }

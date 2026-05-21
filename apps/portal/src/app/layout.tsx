@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Schibsted_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Header } from "@portal/components/Header";
 import { Footer } from "@portal/components/Footer";
+import { ErrorReporterMount } from "@portal/components/ErrorReporterMount";
 
 const body = DM_Sans({
   subsets: ["latin"],
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
       <body className="min-h-screen flex flex-col">
+        <ErrorReporterMount />
         <Header />
         <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">{children}</main>
         <Footer />

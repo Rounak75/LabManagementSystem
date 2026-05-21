@@ -75,7 +75,7 @@ export async function runSyncTick(): Promise<void> {
         });
         pushedKeys.add(row.id);
       } catch (e) {
-        await scheduleRetry(row, e as Error);
+        await scheduleRetry(row, e);
       }
     }
     for (const id of allIds) {

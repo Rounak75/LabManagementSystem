@@ -117,16 +117,34 @@ export default function VisitNew() {
         ) : (
           <>
             <Input placeholder="Search by name or phone…" value={searchQ} onChange={e => setSearchQ(e.target.value)} />
-            <div className="mt-2 max-h-48 overflow-auto divide-y rounded border">
-              {searchResults.map(p => (
-                <button type="button" key={p.id} onClick={() => setPatient(p)} className="block w-full p-2 text-left text-sm hover:bg-slate-50">
-                  <span className="font-medium">{p.name}</span> · {p.phone} <span className="ml-2 text-xs text-slate-500 font-mono">{p.patientId}</span>
-                </button>
-              ))}
-              {searchQ && searchResults.length === 0 && (
-                <div className="p-2 text-sm text-slate-500">No patient found. <a className="text-brand underline" href="/patients/new">Register new</a></div>
-              )}
-            </div>
+            {searchQ && (
+              <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-slate-200 shadow-sm">
+                {searchResults.map(p => (
+                  <button
+                    type="button"
+                    key={p.id}
+                    onClick={() => setPatient(p)}
+                    className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-slate-50"
+                  >
+                    <span className="min-w-0 truncate">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-slate-500"> · {p.phone}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-slate-500">{p.patientId}</span>
+                  </button>
+                ))}
+                {searchResults.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-slate-500">
+                    No patient found. <a className="text-brand underline" href="/patients/new">Register new</a>
+                  </div>
+                )}
+                {searchResults.length >= 50 && (
+                  <div className="border-t border-slate-100 px-3 py-2 text-xs text-slate-400">
+                    Showing the first 50 matches — type more to narrow the search.
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </Card>

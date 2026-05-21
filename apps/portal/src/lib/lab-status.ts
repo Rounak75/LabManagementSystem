@@ -33,6 +33,15 @@ export interface TestRestriction {
 const ALL_SLOTS: readonly Slot[] = ["Morning", "Afternoon", "Evening"];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+// The lab is in Jamshedpur (IST, UTC+5:30, no DST). Server time is UTC on Vercel,
+// so reading getHours()/getDay() directly would compute "open now" against the
+// wrong wall clock. Shift the instant by the IST offset and read UTC parts to get
+// India wall-clock time regardless of where the server runs.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function toIST(d: Date): Date {
+  return new Date(d.getTime() + IST_OFFSET_MS);
+}
+
 function hhmmToMinutes(s: string): number {
   const [h, m] = s.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
@@ -40,6 +49,12 @@ function hhmmToMinutes(s: string): number {
 
 function dayLabel(d: Date): string {
   return DAYS[d.getDay()] ?? "";
+}
+
+function sameYMDUTC(a: Date, b: Date): boolean {
+  return a.getUTCFullYear() === b.getUTCFullYear()
+    && a.getUTCMonth() === b.getUTCMonth()
+    && a.getUTCDate() === b.getUTCDate();
 }
 
 function sameYMD(a: Date, b: Date): boolean {
@@ -61,20 +76,24 @@ export function isOpenNow(
   closures: ClosureRow[],
   now: Date = new Date()
 ): { open: boolean; reason: string | null } {
+  const ist = toIST(now);
+
   if (!cfg.isOpenToday) {
     return { open: false, reason: cfg.manualClosureReason ?? "Lab is closed today" };
   }
 
-  if (isClosedByWholeDayClosure(closures, now)) {
+  // Closure dates are stored at UTC midnight for the intended calendar day, and
+  // `ist` now carries the IST calendar day in its UTC fields — so compare in UTC.
+  if (closures.some((c) => sameYMDUTC(new Date(c.date), ist))) {
     return { open: false, reason: "Lab is closed today" };
   }
 
-  const today = dayLabel(now);
+  const today = DAYS[ist.getUTCDay()] ?? "";
   if (cfg.weeklyHolidays.includes(today)) {
     return { open: false, reason: `Closed every ${today}` };
   }
 
-  const mins = now.getHours() * 60 + now.getMinutes();
+  const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
   const mOpen = hhmmToMinutes(cfg.morningOpenTime);
   const mClose = hhmmToMinutes(cfg.morningCloseTime);
   const hasEvening = !!(cfg.eveningOpenTime && cfg.eveningCloseTime);

@@ -5,6 +5,7 @@ import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { TEST_CATEGORIES, type TestCategory, type ResultType } from "@lab/types";
 
@@ -92,23 +93,19 @@ function TestForm({ test, onClose }: { test?: Test; onClose: () => void }) {
     <Modal open onClose={onClose} title={editing ? "Edit test" : "Add test"}>
       <form onSubmit={handleSubmit(v => save.mutate(v))} className="grid grid-cols-2 gap-3">
         <Input label="Name" className="col-span-2" {...register("name", { required: true })} />
-        <label className="text-sm">
-          <span className="mb-1 block font-medium">Category</span>
-          <select className="w-full rounded-md border px-3 py-2" {...register("category")}>
-            {TEST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
+        <Select label="Category" {...register("category")}>
+          {TEST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </Select>
         <Input label="Price (₹)" type="number" step="1" {...register("price")} />
-        <label className="col-span-2 text-sm">
-          <span className="mb-1 block font-medium">Collection time restriction</span>
-          <select className="w-full rounded-md border px-3 py-2" {...register("collectionTimeRestriction")}>
+        <div className="col-span-2">
+          <Select label="Collection time restriction" {...register("collectionTimeRestriction")}>
             <option value="">No restriction</option>
             <option value="FastingMorningOnly">Fasting — Morning only (8–11am, last meal 8pm previous day)</option>
             <option value="MorningOnly">Morning only (8–11am)</option>
             <option value="EveningOnly">Evening only (6–8pm)</option>
-          </select>
+          </Select>
           <span className="mt-1 block text-xs text-slate-500">Shown on the public booking form; restricts which slots a patient can pick when this test is selected.</span>
-        </label>
+        </div>
         <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" {...register("isOutsourced")} /> Outsourced (sent to external lab)</label>
         {editing && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" {...register("isActive")} /> Active</label>}
         <div className="col-span-2 flex justify-end gap-2">
@@ -189,12 +186,10 @@ function ParamForm({ testId, onClose }: { testId: string; onClose: () => void })
       <form onSubmit={handleSubmit(v => save.mutate(v))} className="grid grid-cols-2 gap-3">
         <Input label="Parameter name" className="col-span-2" {...register("name", { required: true })} />
         <Input label="Unit (e.g. mg/dL, leave blank for qualitative)" {...register("unit")} />
-        <label className="text-sm"><span className="mb-1 block font-medium">Type</span>
-          <select className="w-full rounded-md border px-3 py-2" {...register("resultType")}>
-            <option value="Numeric">Numeric</option>
-            <option value="Qualitative">Qualitative</option>
-          </select>
-        </label>
+        <Select label="Type" {...register("resultType")}>
+          <option value="Numeric">Numeric</option>
+          <option value="Qualitative">Qualitative</option>
+        </Select>
         <Input label="Display order" type="number" {...register("displayOrder")} />
         {!isQual && <>
           <Input label="Male range min" {...register("refRangeMaleMin")} />

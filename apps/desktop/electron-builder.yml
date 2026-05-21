@@ -12,7 +12,9 @@ extraResources:
   - from: "../../packages/db/prisma/dev.sqlite"
     to:   "lab.sqlite"
   - from: "../../packages/db/prisma/schema.prisma"
-    to:   "schema.prisma"
+    to:   "prisma/schema.prisma"
+  - from: "../../packages/db/prisma/migrations"
+    to:   "prisma/migrations"
 asarUnpack:
   - "**/node_modules/@prisma/client/**"
   - "**/node_modules/.prisma/**"
@@ -26,3 +28,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+publish:
+  provider: github
+  owner: Rounak75
+  repo: LabManagementSystem

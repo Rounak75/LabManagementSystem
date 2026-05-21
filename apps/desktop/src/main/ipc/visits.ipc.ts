@@ -152,11 +152,16 @@ register("visitTests:getOne", async ({ id }: { id: string }) => {
   return { ...vt, wasPreviouslyVerified };
 });
 
-register("visitTests:updateStatus", async ({ visitTestId, status }: { visitTestId: string; status: string }) => {
+register("visitTests:updateStatus", async ({ visitTestId, status, outsourcedSentTo }: { visitTestId: string; status: string; outsourcedSentTo?: string }) => {
   requireSession();
+  const sentTo = outsourcedSentTo?.trim();
   const vt = await prisma().visitTest.update({
     where: { id: visitTestId },
-    data: { status, ...(status === "ResultEntered" ? { resultEnteredAt: new Date() } : {}) }
+    data: {
+      status,
+      ...(status === "ResultEntered" ? { resultEnteredAt: new Date() } : {}),
+      ...(status === "Outsourced" ? { outsourcedSentAt: new Date(), ...(sentTo ? { outsourcedSentTo: sentTo } : {}) } : {})
+    }
   });
   await audit("UPDATE_STATUS", "VisitTest", visitTestId);
   return vt;

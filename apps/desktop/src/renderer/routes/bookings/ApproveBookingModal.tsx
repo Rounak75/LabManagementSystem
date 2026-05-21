@@ -6,6 +6,9 @@
 
 import { useEffect, useState } from "react";
 import { call } from "@/lib/api";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 
 interface Booking {
   id: string;
@@ -74,39 +77,32 @@ export function ApproveBookingModal({
 
   if (approved) {
     return (
-      <Modal>
-        <h2 className="font-semibold text-base">Booking approved</h2>
-        <p className="text-sm text-slate-600 mt-1">
+      <Modal open onClose={() => onClose(true)} title="Booking approved">
+        <p className="text-sm text-slate-600">
           {booking.patientName} · {booking.patientPhone}
         </p>
-        <div className="mt-3 bg-slate-50 border rounded p-3">
+        <div className="mt-3 rounded-md border bg-slate-50 p-3">
           <p className="text-xs uppercase tracking-wide text-slate-500">Patient access code</p>
-          <p className="font-mono text-2xl tracking-widest mt-1">{approved.accessCode}</p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="mt-1 font-mono text-2xl tracking-widest">{approved.accessCode}</p>
+          <p className="mt-1 text-xs text-slate-500">
             Print on the receipt or share with the patient — used to log into the portal.
           </p>
         </div>
         {approved.createdNewPatient && (
-          <p className="text-xs text-amber-700 mt-2">
+          <p className="mt-2 text-xs text-amber-700">
             New patient record created (age/sex unknown — update when the phlebotomist returns).
           </p>
         )}
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={() => onClose(true)}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
-          >
-            Done
-          </button>
+        <div className="mt-4 flex justify-end">
+          <Button onClick={() => onClose(true)}>Done</Button>
         </div>
       </Modal>
     );
   }
 
   return (
-    <Modal>
-      <h2 className="font-semibold">Approve booking {booking.bookingId}</h2>
-      <p className="text-sm text-slate-600 mt-1">
+    <Modal open onClose={() => onClose(false)} title={`Approve booking ${booking.bookingId}`}>
+      <p className="text-sm text-slate-600">
         {booking.patientName} · {booking.patientPhone}
       </p>
 
@@ -117,7 +113,7 @@ export function ApproveBookingModal({
           </p>
           <div className="mt-2 space-y-1">
             {chooser.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-sm border rounded p-2 hover:bg-slate-50">
+              <label key={c.id} className="flex items-center gap-2 rounded border p-2 text-sm hover:bg-slate-50">
                 <input
                   type="radio"
                   name="chooser"
@@ -131,7 +127,7 @@ export function ApproveBookingModal({
                 <span className="font-mono text-xs text-slate-500">{c.patientId}</span>
               </label>
             ))}
-            <label className="flex items-center gap-2 text-sm border rounded p-2 hover:bg-slate-50">
+            <label className="flex items-center gap-2 rounded border p-2 text-sm hover:bg-slate-50">
               <input
                 type="radio"
                 name="chooser"
@@ -144,55 +140,40 @@ export function ApproveBookingModal({
           </div>
         </div>
       ) : (
-        <label className="block mt-3">
-          <span className="text-sm font-medium">Assign to phlebotomist</span>
-          <select
+        <div className="mt-3">
+          <Select
+            label="Assign to phlebotomist"
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
-            className="mt-1 block w-full rounded border-slate-300 text-sm"
           >
             <option value="">— unassigned —</option>
             {phlebotomists.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
-          </select>
+          </Select>
           {phlebotomists.length === 0 && (
-            <p className="text-xs text-amber-700 mt-1">
+            <p className="mt-1 text-xs text-amber-700">
               No users have "Can collect samples" enabled. Toggle it in User Management to populate this list.
             </p>
           )}
-        </label>
+        </div>
       )}
 
       {error && (
-        <div className="mt-3 bg-red-50 border border-red-200 text-red-800 text-sm p-2 rounded">
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-800">
           {error}
         </div>
       )}
 
-      <div className="flex justify-end gap-2 mt-4">
-        <button
-          onClick={() => onClose(false)}
-          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-sm"
-        >
-          Cancel
-        </button>
-        <button
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="secondary" onClick={() => onClose(false)}>Cancel</Button>
+        <Button
           onClick={handleApprove}
           disabled={submitting || (chooser !== null && !chosen)}
-          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm disabled:opacity-50"
         >
           {submitting ? "Approving…" : chooser ? "Confirm patient" : "Approve"}
-        </button>
+        </Button>
       </div>
     </Modal>
-  );
-}
-
-function Modal({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-5 rounded shadow-lg w-full max-w-md">{children}</div>
-    </div>
   );
 }

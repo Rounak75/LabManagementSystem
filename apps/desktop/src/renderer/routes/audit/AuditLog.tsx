@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 import type { AuditListResult, UserRow } from "@shared/api";
 
 const PAGE_SIZE = 50;
@@ -103,53 +104,44 @@ export default function AuditLog() {
 
       <Card className="mb-4 p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">User</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={userId}
-              onChange={(e) => onAnyFilterChange(setUserId)(e.target.value)}
-            >
-              <option value="">All users</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} @ {u.username}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="User"
+            value={userId}
+            onChange={(e) => onAnyFilterChange(setUserId)(e.target.value)}
+          >
+            <option value="">All users</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} @ {u.username}
+              </option>
+            ))}
+          </Select>
 
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Action</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={action}
-              onChange={(e) => onAnyFilterChange(setAction)(e.target.value)}
-            >
-              <option value="">All actions</option>
-              {actions.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Action"
+            value={action}
+            onChange={(e) => onAnyFilterChange(setAction)(e.target.value)}
+          >
+            <option value="">All actions</option>
+            {actions.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </Select>
 
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Entity</span>
-            <select
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={entityType}
-              onChange={(e) => onAnyFilterChange(setEntityType)(e.target.value)}
-            >
-              <option value="">All entities</option>
-              {ENTITY_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Entity"
+            value={entityType}
+            onChange={(e) => onAnyFilterChange(setEntityType)(e.target.value)}
+          >
+            <option value="">All entities</option>
+            {ENTITY_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
 
           <label className="block text-sm">
             <span className="mb-1 block font-medium text-slate-700">From</span>

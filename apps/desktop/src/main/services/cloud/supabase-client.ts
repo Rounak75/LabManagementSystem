@@ -17,7 +17,53 @@ import type {
  *  - Any unknown value without a numeric status (treated as network error)
  */
 export function classifyError(err: unknown): ClassifiedSupabaseError {
-  // Native Error → network failure
+  const asObj = err as Record<string, unknown> | null | undefined;
+
+  // PostgREST/Postgres error from a failed query (missing column, FK violation,
+  // RLS denial, etc). PostgrestError extends Error and carries a NON-EMPTY string
+  // `code` (SQLSTATE like "23503" or PostgREST like "PGRST204") plus `details`/
+  // `hint` — but NO numeric `status`. It MUST be classified here, before the
+  // generic `instanceof Error` branch below, otherwise every schema/FK/permission
+  // failure is mis-read as a transient network error and retried for ~6 hours.
+  //
+  // CAUTION: when fetch itself fails (connect timeout, DNS, offline), postgrest-js
+  // returns an object of the SAME shape but with an EMPTY `code` (`{ message:
+  // 'TypeError: fetch failed', details: <stack>, hint: '', code: '' }`). That is a
+  // genuine network failure and MUST stay retryable — so require a non-empty code
+  // here, otherwise real connectivity blips get marked Failed and never recover.
+  const code = typeof asObj?.code === "string" ? (asObj.code as string) : "";
+  const isPostgrest =
+    !!asObj &&
+    code !== "" &&
+    (asObj.name === "PostgrestError" || ("details" in asObj && "hint" in asObj));
+
+  if (isPostgrest) {
+    const baseMsg =
+      typeof asObj!.message === "string" && asObj!.message
+        ? (asObj!.message as string)
+        : `Cloud rejected the write`;
+    const hint =
+      typeof asObj!.hint === "string" && asObj!.hint ? ` (${asObj!.hint as string})` : "";
+    // Only genuinely transient Postgres conditions are worth retrying:
+    // connection (08xxx), insufficient resources (53xxx), operator intervention
+    // (57xxx), serialization failure / deadlock (40001 / 40P01). Everything else
+    // — missing column (PGRST204/42703), FK/unique violation (23xxx), RLS
+    // (42501/PGRST301), undefined table (42P01/PGRST205) — is deterministic and
+    // will fail identically on every retry, so fail fast and show the real cause.
+    const transient =
+      /^08/.test(code) ||
+      /^53/.test(code) ||
+      /^57/.test(code) ||
+      code === "40001" ||
+      code === "40P01";
+    return {
+      retryable: transient,
+      userMessage: `${baseMsg}${hint} [${code}]`,
+      raw: err,
+    };
+  }
+
+  // Native Error (no PostgREST shape) → network / transport failure
   if (err instanceof Error) {
     return {
       retryable: true,
@@ -27,7 +73,6 @@ export function classifyError(err: unknown): ClassifiedSupabaseError {
   }
 
   // Try to extract status from the error object
-  const asObj = err as Record<string, unknown> | null | undefined;
   const status = typeof asObj?.status === "number" ? asObj.status : undefined;
 
   if (status === undefined) {

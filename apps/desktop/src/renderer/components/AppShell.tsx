@@ -5,6 +5,7 @@ import { useAuth } from "@/stores/auth.store";
 import { Button } from "@/components/ui/Button";
 import { call } from "@/lib/api";
 import { SidebarCloudIcon } from "@/components/SidebarCloudIcon";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 const links = [
   { to: "/",            label: "Dashboard" },
@@ -31,10 +32,17 @@ export function AppShell({ children }: { children?: ReactNode }) {
     refetchInterval: 60_000,
     enabled: !!user
   });
+  const { data: appInfo } = useQuery({
+    queryKey: ["appVersion"],
+    queryFn: () => call<{ version: string }>("app:getVersion"),
+    staleTime: Infinity,
+  });
   const isOpen = settings?.isOpenToday;
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    `block rounded-md px-3 py-2 text-sm ${isActive ? "bg-brand text-white" : "text-slate-700 hover:bg-slate-100"}`;
   return (
     <div className="flex h-screen">
-      <aside className="w-56 shrink-0 border-r bg-white relative">
+      <aside className="flex w-56 shrink-0 flex-col border-r bg-white">
         <div className="border-b px-4 py-4">
           <div className="text-lg font-semibold text-brand">Golmuri Janch Ghar</div>
           <div className="text-xs text-slate-500">{user?.name} · {user?.role}</div>
@@ -51,31 +59,31 @@ export function AppShell({ children }: { children?: ReactNode }) {
             </div>
           )}
         </div>
-        <nav className="flex flex-col p-2">
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
           {links.filter(l => !l.admin).map(l => (
-            <NavLink key={l.to} to={l.to} end={l.to === "/"}
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-sm ${isActive ? "bg-brand text-white" : "text-slate-700 hover:bg-slate-100"}`}>
+            <NavLink key={l.to} to={l.to} end={l.to === "/"} className={linkClass}>
               {l.label}
             </NavLink>
           ))}
           {user?.role === "Admin" && (
             <>
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 px-3 mt-4 mb-1">
+              <div className="mb-1 mt-4 px-3 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                 Admin
               </div>
               {links.filter(l => l.admin).map(l => (
-                <NavLink key={l.to} to={l.to}
-                  className={({ isActive }) =>
-                    `rounded-md px-3 py-2 text-sm ${isActive ? "bg-brand text-white" : "text-slate-700 hover:bg-slate-100"}`}>
+                <NavLink key={l.to} to={l.to} className={linkClass}>
                   {l.label}
                 </NavLink>
               ))}
             </>
           )}
         </nav>
-        <div className="absolute bottom-4 left-4">
-          <Button variant="ghost" onClick={logout}>Log out</Button>
+        <div className="border-t p-2">
+          <UpdateBanner />
+          <Button variant="ghost" className="w-full justify-start" onClick={logout}>Log out</Button>
+          {appInfo?.version && (
+            <div className="px-3 pt-1 text-[10px] text-slate-400">v{appInfo.version}</div>
+          )}
         </div>
       </aside>
       <main className="flex-1 overflow-auto bg-slate-50 p-6">

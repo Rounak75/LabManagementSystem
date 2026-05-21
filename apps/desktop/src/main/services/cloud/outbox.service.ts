@@ -68,21 +68,47 @@ export async function markSent(id: string) {
 // ─── Schedule retry ───────────────────────────────────────────────────────────
 
 /**
- * Increments attempts on a row. If the next attempt number would exceed
- * MAX_RETRIES the row is marked Failed; otherwise it is rescheduled.
+ * Pull a human-readable message out of whatever was thrown. Cloud pushes throw a
+ * ClassifiedSupabaseError ({ retryable, userMessage, raw }), which is a plain
+ * object — not an Error — so reading `.message` yields undefined and the error
+ * column ends up null. Prefer userMessage, then Error.message, then String().
+ */
+function errorMessage(err: unknown): string {
+  if (err && typeof err === "object") {
+    const o = err as Record<string, unknown>;
+    if (typeof o.userMessage === "string") return o.userMessage;
+    if (typeof o.message === "string") return o.message;
+  }
+  return String(err);
+}
+
+/** Classified cloud errors flag whether a retry could ever succeed. A schema
+ *  mismatch (missing column) is not retryable — failing fast surfaces it now
+ *  instead of after ~6 hours of pointless back-off. */
+function isRetryable(err: unknown): boolean {
+  if (err && typeof err === "object" && "retryable" in err) {
+    return (err as { retryable: unknown }).retryable !== false;
+  }
+  return true;
+}
+
+/**
+ * Increments attempts on a row. If the error is non-retryable, or the next
+ * attempt number would exceed MAX_RETRIES, the row is marked Failed; otherwise
+ * it is rescheduled with back-off. Either way the real error is recorded.
  */
 export async function scheduleRetry(
   row: { id: string; attempts: number },
-  err: Error
+  err: unknown
 ) {
   const nextAttempt = row.attempts + 1;
-  const delay = retryDelayMs(nextAttempt);
+  const message = errorMessage(err);
+  const delay = isRetryable(err) ? retryDelayMs(nextAttempt) : null;
 
   if (delay === null) {
-    // Exceeded MAX_RETRIES — give up
     return prisma().outbox.update({
       where: { id: row.id },
-      data: { status: "Failed", attempts: nextAttempt, error: err.message },
+      data: { status: "Failed", attempts: nextAttempt, error: message },
     });
   }
 
@@ -91,7 +117,7 @@ export async function scheduleRetry(
     data: {
       attempts: nextAttempt,
       nextAttemptAt: new Date(Date.now() + delay),
-      error: err.message,
+      error: message,
     },
   });
 }
