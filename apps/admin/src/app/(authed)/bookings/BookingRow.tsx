@@ -21,39 +21,36 @@ export function BookingRow({
   const b = booking as Record<string, string | null>;
 
   return (
-    <li className="px-4 py-3">
-      <div className="flex justify-between items-start gap-3">
-        <div>
-          <div className="font-medium">
-            {b.patient_name} <span className="text-xs text-gray-500">({b.booking_id})</span>
+    <li className="px-4 py-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-slate-900">
+            {b.patient_name} <span className="text-xs font-normal text-slate-400">({b.booking_id})</span>
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="mt-0.5 text-xs text-slate-500">
             {formatPhone(b.patient_phone ?? "")} · {formatDateShort(b.preferred_date ?? "")} · {b.preferred_slot}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="mt-1 text-xs text-slate-500">
             {b.address}
             {b.pincode ? ` (${b.pincode})` : ""}
           </div>
-          {b.notes && <div className="text-xs italic mt-1 text-gray-600">&ldquo;{b.notes}&rdquo;</div>}
+          {b.notes && <div className="mt-1 text-xs italic text-slate-600">&ldquo;{b.notes}&rdquo;</div>}
         </div>
         {b.status === "Pending" && (
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <button
               onClick={() => setDeclining(true)}
-              className="bg-red-100 text-red-700 rounded px-3 py-1 text-sm"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50"
             >
               Decline
             </button>
-            <button
-              onClick={() => setApproving(true)}
-              className="bg-green-600 text-white rounded px-3 py-1 text-sm"
-            >
+            <button onClick={() => setApproving(true)} className="btn-success px-3 py-1.5">
               Approve
             </button>
           </div>
         )}
         {b.status === "Declined" && b.decline_reason && (
-          <div className="text-xs text-red-700">Reason: {b.decline_reason}</div>
+          <div className="shrink-0 text-xs text-rose-700">Reason: {b.decline_reason}</div>
         )}
       </div>
       {approving && (

@@ -20,20 +20,20 @@ export function ApproveDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-5 max-w-sm w-full">
-        <h3 className="font-semibold mb-3">Approve {bookingLabel}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="card w-full max-w-sm p-5 shadow-xl">
+        <h3 className="mb-3 text-base font-bold text-slate-900">Approve {bookingLabel}</h3>
         {phlebotomists.length === 0 ? (
-          <p className="text-sm text-gray-600 mb-3">
+          <p className="mb-3 text-sm text-slate-600">
             No sample collectors are configured. Approve without assignment, then assign later on the desktop.
           </p>
         ) : (
-          <label className="block text-sm mb-3">
-            Assign to phlebotomist
+          <label className="mb-3 block">
+            <span className="field-label">Assign to phlebotomist</span>
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
-              className="w-full border rounded px-3 py-2 mt-1"
+              className="input mt-1.5"
             >
               {phlebotomists.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -41,9 +41,9 @@ export function ApproveDialog({
             </select>
           </label>
         )}
-        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+        {error && <p className="mb-2 text-sm font-medium text-rose-600">{error}</p>}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded py-2 text-sm">Cancel</button>
+          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
           <button
             disabled={pending}
             onClick={() =>
@@ -62,7 +62,7 @@ export function ApproveDialog({
                 onClose();
               })
             }
-            className="flex-1 bg-green-600 text-white rounded py-2 text-sm font-medium disabled:bg-green-300"
+            className="btn-success flex-1"
           >
             {pending ? "Approving…" : "Approve"}
           </button>

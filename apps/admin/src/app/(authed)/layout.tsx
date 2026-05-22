@@ -12,7 +12,7 @@ export default async function AuthedLayout({ children }: { children: React.React
       <ErrorReporterMount />
       <NavBar user={user} />
       <OfflineBanner />
-      <main className="max-w-4xl mx-auto px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">{children}</main>
     </div>
   );
 }

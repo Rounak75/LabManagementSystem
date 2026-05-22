@@ -27,6 +27,24 @@ export function listBookings(jwt: string, status: BookingStatus = "Pending") {
   return _listBookings(jwt, status);
 }
 
+const _countPendingBookings = unstable_cache(
+  async (jwt: string): Promise<number> => {
+    const sb = getServerSupabase(jwt);
+    const { count, error } = await sb
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "Pending");
+    if (error) throw new Error(error.message);
+    return count ?? 0;
+  },
+  ["bookings-pending-count"],
+  { tags: [CACHE_TAGS.bookings], revalidate: 60 },
+);
+
+export function countPendingBookings(jwt: string): Promise<number> {
+  return _countPendingBookings(jwt);
+}
+
 // Phlebotomists come from the users table, which has no write path in this app —
 // cache longer with no tag; time-based revalidation is enough.
 const _listPhlebotomists = unstable_cache(

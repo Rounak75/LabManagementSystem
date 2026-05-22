@@ -19,24 +19,24 @@ export function DeclineDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-5 max-w-sm w-full">
-        <h3 className="font-semibold mb-3">Decline {bookingLabel}</h3>
-        <label className="block text-sm mb-3">
-          Reason
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="card w-full max-w-sm p-5 shadow-xl">
+        <h3 className="mb-3 text-base font-bold text-slate-900">Decline {bookingLabel}</h3>
+        <label className="mb-3 block">
+          <span className="field-label">Reason</span>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="w-full border rounded px-3 py-2 mt-1"
+            className="input mt-1.5"
           >
             {REASONS.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
         </label>
-        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+        {error && <p className="mb-2 text-sm font-medium text-rose-600">{error}</p>}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded py-2 text-sm">Cancel</button>
+          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
           <button
             disabled={pending}
             onClick={() =>
@@ -55,7 +55,7 @@ export function DeclineDialog({
                 onClose();
               })
             }
-            className="flex-1 bg-red-600 text-white rounded py-2 text-sm font-medium disabled:bg-red-300"
+            className="btn-danger flex-1"
           >
             {pending ? "Declining…" : "Decline"}
           </button>

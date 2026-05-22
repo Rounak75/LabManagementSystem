@@ -30,21 +30,21 @@ export default async function DiagnosticsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-4">Diagnostics — recent client errors</h1>
+      <h1 className="page-title mb-4">Diagnostics — recent client errors</h1>
       {errors.length === 0 ? (
-        <p className="text-sm text-gray-500">No errors logged.</p>
+        <div className="card p-8 text-center text-sm text-slate-500">No errors logged.</div>
       ) : (
         <ul className="space-y-2">
           {errors.map((e) => (
-            <li key={e.id} className="bg-white rounded border p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="font-medium text-red-700">{e.message}</span>
-                <span className="text-xs text-gray-500">{new Date(e.logged_at).toLocaleString("en-IN")}</span>
+            <li key={e.id} className="card p-3.5 text-sm">
+              <div className="flex justify-between gap-2">
+                <span className="font-semibold text-rose-700">{e.message}</span>
+                <span className="shrink-0 text-xs text-slate-400">{new Date(e.logged_at).toLocaleString("en-IN")}</span>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="mt-1 text-xs text-slate-500">
                 {(e.user_id && names.get(e.user_id)) || "anon"} · {e.url}
               </div>
-              {e.stack && <pre className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">{e.stack}</pre>}
+              {e.stack && <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-50 p-2.5 text-xs text-slate-500">{e.stack}</pre>}
             </li>
           ))}
         </ul>

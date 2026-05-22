@@ -1,21 +1,21 @@
 import { getSessionUser } from "@/lib/auth-session";
 import { listOpenPaymentClaims } from "@/lib/data-payments";
 import { ClaimRow } from "./ClaimRow";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function ClaimsPage() {
   const user = (await getSessionUser())!;
   const claims = await listOpenPaymentClaims(user.token);
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">Payment claims</h1>
-      <p className="text-sm text-gray-500 mb-4">
-        Patients who tapped &ldquo;I already paid&rdquo; on the portal. This is a heads-up only — record the
-        actual payment from the <strong>Payments</strong> page.
-      </p>
+      <PageHeader
+        title="Payment claims"
+        subtitle="Patients who tapped “I already paid” on the portal — a heads-up only. Record the actual payment from the Payments page."
+      />
       {claims.length === 0 ? (
-        <p className="text-sm text-gray-500">No open claims.</p>
+        <div className="card p-8 text-center text-sm text-slate-500">No open claims.</div>
       ) : (
-        <ul className="bg-white rounded border divide-y">
+        <ul className="card divide-y divide-slate-100 overflow-hidden">
           {claims.map((c) => (
             <ClaimRow key={c.id as string} claim={c} />
           ))}

@@ -98,24 +98,24 @@ export function VerifyView({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">{patient.name}</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <h1 className="page-title mb-1">{patient.name}</h1>
+      <p className="mb-4 text-sm text-slate-500">
         {visitIdLabel} · {patient.age}
         {patient.sex[0].toLowerCase()} · {formatPhone(patient.phone)} · {formatDateShort(visitDate)}
       </p>
 
       {hasCritical && (
-        <div className="bg-red-50 border border-red-300 rounded p-3 mb-4">
-          <p className="text-sm font-medium text-red-800 mb-2">⚠ Critical value(s) present. Review carefully.</p>
-          <label className="flex items-center gap-2 text-sm text-red-900">
-            <input type="checkbox" checked={criticalAck} onChange={(e) => setCriticalAck(e.target.checked)} />
+        <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3.5">
+          <p className="mb-2 text-sm font-semibold text-rose-800">⚠ Critical value(s) present. Review carefully.</p>
+          <label className="flex items-center gap-2 text-sm font-medium text-rose-900">
+            <input type="checkbox" checked={criticalAck} onChange={(e) => setCriticalAck(e.target.checked)} className="h-4 w-4 accent-rose-600" />
             I have reviewed the critical value(s).
           </label>
         </div>
       )}
 
-      <table className="w-full bg-white rounded border text-sm">
-        <thead className="bg-gray-50 text-left">
+      <table className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-sm">
+        <thead className="bg-slate-50 text-left text-slate-500">
           <tr>
             <th className="px-3 py-2">Parameter</th>
             <th className="px-3 py-2">Value</th>
@@ -131,16 +131,16 @@ export function VerifyView({
               r.severity === FlagSeverity.Low ? "text-orange-600 font-semibold" :
               "";
             return (
-              <tr key={`${r.visitTestId}:${r.parameter.id}:${i}`} className="border-t">
-                <td className="px-3 py-2">
-                  <span className="text-gray-500 text-xs">{r.visitTestName}</span>
+              <tr key={`${r.visitTestId}:${r.parameter.id}:${i}`} className="border-t border-slate-100">
+                <td className="px-3 py-2.5">
+                  <span className="text-xs text-slate-400">{r.visitTestName}</span>
                   <br />
-                  {r.parameter.name}
+                  <span className="font-medium text-slate-800">{r.parameter.name}</span>
                 </td>
-                <td className={`px-3 py-2 ${sevClass}`}>{r.value || "—"} {r.parameter.unit ?? ""}</td>
-                <td className="px-3 py-2 text-gray-500">{rangeFor(r.parameter, patient)}</td>
-                <td className="px-3 py-2">
-                  <button onClick={() => setEditing(r)} className="text-blue-600 text-xs hover:underline">Edit</button>
+                <td className={`px-3 py-2.5 ${sevClass}`}>{r.value || "—"} {r.parameter.unit ?? ""}</td>
+                <td className="px-3 py-2.5 text-slate-500">{rangeFor(r.parameter, patient)}</td>
+                <td className="px-3 py-2.5">
+                  <button onClick={() => setEditing(r)} className="text-xs font-medium text-brand-700 hover:text-brand-800">Edit</button>
                 </td>
               </tr>
             );
@@ -171,8 +171,8 @@ export function VerifyView({
         />
       )}
 
-      <div className="sticky bottom-0 bg-white border-t -mx-4 px-4 py-3 mt-6 flex gap-2">
-        <button onClick={() => setSendBack(true)} className="flex-1 bg-yellow-500 text-white rounded py-3 font-medium">
+      <div className="sticky bottom-0 -mx-4 mt-6 flex gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+        <button onClick={() => setSendBack(true)} className="btn flex-1 bg-amber-500 py-3 text-white hover:bg-amber-600">
           Send back
         </button>
         <button
@@ -189,12 +189,12 @@ export function VerifyView({
               router.refresh();
             });
           }}
-          className="flex-[2] bg-green-600 text-white rounded py-3 font-semibold disabled:bg-green-300"
+          className="btn-success flex-[2] py-3"
         >
           {pending ? "Verifying…" : "Verify"}
         </button>
       </div>
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {error && <p className="mt-2 text-sm font-medium text-rose-600">{error}</p>}
     </div>
   );
 }

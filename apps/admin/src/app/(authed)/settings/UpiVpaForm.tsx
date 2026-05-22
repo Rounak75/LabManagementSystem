@@ -49,7 +49,7 @@ export function UpiVpaForm({
       <label className="block text-sm">
         UPI VPA
         <input
-          className="block w-full border rounded px-3 py-2 mt-1"
+          className="input mt-1.5"
           value={vpa}
           onChange={(e) => setVpa(e.target.value)}
           placeholder="father@upi"
@@ -58,16 +58,16 @@ export function UpiVpaForm({
       <label className="block text-sm">
         Payee name
         <input
-          className="block w-full border rounded px-3 py-2 mt-1"
+          className="input mt-1.5"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <button disabled={pending} className="bg-blue-600 text-white rounded px-3 py-2 text-sm disabled:bg-blue-300">
+      <button disabled={pending} className="btn-primary">
         {pending ? "Saving…" : "Save"}
       </button>
-      {saved && <p className="text-xs text-green-700">Saved.</p>}
-      {error && <p className="text-xs text-red-700">{error}</p>}
+      {saved && <p className="text-sm font-medium text-emerald-700">Saved.</p>}
+      {error && <p className="text-sm font-medium text-rose-700">{error}</p>}
     </form>
   );
 }

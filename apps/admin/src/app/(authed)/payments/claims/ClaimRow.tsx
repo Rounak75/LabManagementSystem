@@ -37,20 +37,20 @@ export function ClaimRow({ claim }: { claim: Record<string, unknown> }) {
           {visit?.visit_id ?? "—"}
           {invoice?.total != null ? ` · Invoice ${formatINR(Number(invoice.total))}` : ""}
         </div>
-        {error && <div className="text-xs text-red-600 mt-1">{error}</div>}
+        {error && <div className="mt-1 text-xs font-medium text-rose-600">{error}</div>}
       </div>
-      <div className="flex gap-2">
+      <div className="flex shrink-0 gap-2">
         <button
           onClick={() => resolve("Dismissed")}
           disabled={pending}
-          className="bg-gray-100 text-gray-700 rounded px-3 py-1 text-sm disabled:opacity-50"
+          className="btn-ghost px-3 py-1.5"
         >
           Dismiss
         </button>
         <button
           onClick={() => resolve("Confirmed")}
           disabled={pending}
-          className="bg-green-600 text-white rounded px-3 py-1 text-sm disabled:bg-green-300"
+          className="btn-success px-3 py-1.5"
         >
           Mark handled
         </button>

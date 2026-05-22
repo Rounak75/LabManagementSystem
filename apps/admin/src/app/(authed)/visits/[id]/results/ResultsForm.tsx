@@ -40,10 +40,10 @@ export function ResultsForm({
       <CriticalNotice />
       {grouped.map(({ visitTest, params }) => (
         <section key={visitTest.id} className="mb-6">
-          <h2 className="text-lg font-semibold mb-2">{visitTest.testName}</h2>
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">{visitTest.testName}</h2>
           <div className="space-y-3">
             {params.length === 0 && (
-              <p className="text-sm text-gray-500">No parameters defined for this test.</p>
+              <p className="text-sm text-slate-500">No parameters defined for this test.</p>
             )}
             {params.map((p) => {
               const existing = initialResults.find(
@@ -65,8 +65,8 @@ export function ResultsForm({
         </section>
       ))}
 
-      <div className="sticky bottom-0 bg-white border-t -mx-4 px-4 py-3 mt-6">
-        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+      <div className="sticky bottom-0 -mx-4 mt-6 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+        {error && <p className="mb-2 text-sm font-medium text-rose-600">{error}</p>}
         <button
           disabled={pending}
           onClick={() => {
@@ -81,7 +81,7 @@ export function ResultsForm({
               router.refresh();
             });
           }}
-          className="w-full bg-green-600 text-white rounded py-3 font-medium disabled:bg-green-300"
+          className="btn-success w-full py-3"
         >
           {pending ? "Submitting…" : "Done — send to verify"}
         </button>

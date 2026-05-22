@@ -2,4 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-body { font-family: ui-sans-serif, system-ui, sans-serif; }
+:root {
+  /* Calm clinical palette — teal brand on cool slate neutrals */
+  --bg: #f1f5f9;
+  --ink: #0f172a;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Clear, consistent focus ring for keyboard + accessibility */
+  :focus-visible {
+    outline: 2px solid #0d9488;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* Card surface */
+  .card {
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm;
+  }
+
+  /* Page title */
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
+           transition-colors active:scale-[.99] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-dark shadow-sm;
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm;
+  }
+  .btn-ghost {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700 shadow-sm;
+  }
+
+  /* Form controls */
+  .field-label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[15px]
+           text-slate-900 placeholder:text-slate-400 shadow-sm
+           focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none;
+  }
+
+  /* List rows that link somewhere */
+  .row-link {
+    @apply flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50 active:bg-slate-100;
+  }
+}

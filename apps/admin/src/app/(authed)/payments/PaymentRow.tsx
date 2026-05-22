@@ -18,22 +18,29 @@ export function PaymentRow({ invoice }: { invoice: Record<string, unknown> }) {
   const visit = embedOne(inv.visits as never) as { visit_id?: string; patients?: unknown } | null;
   const patient = embedOne(visit?.patients as never) as { name?: string; phone?: string } | null;
   const outstanding = Number(inv.total) - Number(inv.amount_paid);
+  const partial = Number(inv.amount_paid) > 0;
 
   return (
-    <li className="px-4 py-3 flex items-center justify-between gap-3">
-      <div>
-        <div className="font-medium">{patient?.name ?? "—"}</div>
-        <div className="text-xs text-gray-500">
-          {visit?.visit_id ?? "—"} · {patient?.phone ? formatPhone(patient.phone) : "—"}
+    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+      <div className="min-w-0">
+        <div className="truncate font-semibold text-slate-900">
+          {patient?.name ?? <span className="italic text-slate-400">Unknown patient</span>}
         </div>
-        <div className="text-sm mt-1">
-          Outstanding: <strong>{formatINR(outstanding)}</strong> of {formatINR(Number(inv.total))}
+        <div className="mt-0.5 text-xs text-slate-500">
+          {visit?.visit_id ?? "—"}
+          {patient?.phone ? ` · ${formatPhone(patient.phone)}` : ""}
+        </div>
+        <div className="mt-1.5 flex items-baseline gap-1.5">
+          <span className="text-lg font-bold text-rose-600">{formatINR(outstanding)}</span>
+          <span className="text-xs text-slate-400">
+            {partial ? `outstanding of ${formatINR(Number(inv.total))}` : "due"}
+          </span>
         </div>
       </div>
-      <button
-        onClick={() => setOpen(true)}
-        className="bg-green-600 text-white rounded px-3 py-2 text-sm font-medium whitespace-nowrap"
-      >
+      <button onClick={() => setOpen(true)} className="btn-success whitespace-nowrap">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
         Mark UPI received
       </button>
       {open && (

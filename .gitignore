@@ -3,6 +3,7 @@ dist/
 out/
 .turbo/
 .next/
+coverage/
 *.log
 *.tsbuildinfo
 
@@ -17,6 +18,11 @@ out/
 *.sqlite
 *.sqlite-journal
 prisma/migrations/migration_lock.toml.bak
+
+# Certificates / signing keys (never commit)
+*.pem
+*.key
+*.pfx
 
 # Vercel
 .vercel

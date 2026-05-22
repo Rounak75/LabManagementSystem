@@ -1,6 +1,6 @@
 # Golmuri Janch Ghar — Lab Management System
 
-A Windows desktop app for the lab. It works without internet, prints reports, makes invoices, and keeps everything in one local database file on the PC.
+A complete system for running the lab: register patients, enter test results, print reports, make invoices, send patients their reports, and take a home-visit booking — without juggling paper.
 
 **Lab:** Golmuri Janch Ghar
 **Address:** Main Road, Golmuri Chowk, Jamshedpur
@@ -9,18 +9,70 @@ A Windows desktop app for the lab. It works without internet, prints reports, ma
 
 ---
 
+## The three pieces (read this first)
+
+The system is made of **three parts** that all talk to the same data. You don't have to learn all three at once, but it helps to know what each one is for.
+
+| Piece | Who uses it | Where | What it's for |
+|-------|-------------|-------|---------------|
+| **Desktop app** | The owner | The home PC (Windows) | The print station + the master offline copy of all data. Prints reports, runs the daily backup. |
+| **Staff portal** (admin) | Staff + owner | Any phone or laptop browser, **at the lab** | Register patients and **type results right at the lab**, from your phone. No paper notebook needed. |
+| **Patient portal** | Patients | The patient's own phone | Patients look up their report, pay by UPI, and request a home visit. |
+
+**Why this matters — the problem it solves.** The old way: staff handwrite every patient and result into a paper notebook at the lab, then the owner re-types all of it into the PC at home. **Every patient got entered twice.** Now staff type directly into the **staff portal** on their phone at the lab; the data flows to the home PC automatically, and the owner just prints. No more double-entry, no more re-typing errors.
+
+> The desktop app and the staff portal are kept in sync over the internet. Type a patient into the staff portal at the lab → within seconds it appears on the home PC, ready to print.
+
+---
+
 ## Pick your path
 
-This README has two starting points. Pick whichever fits you right now.
+This README has a few starting points. Pick whichever fits you right now.
 
-- **I just want to use the app today** — jump to [What you'll do every day](#what-youll-do-every-day).
-- **I'm setting it up on this computer for the first time** — jump to [Setting up the lab software for the first time](#setting-up-the-lab-software-for-the-first-time).
+- **I want to use the lab from my phone (staff)** — jump to [The staff portal](#the-staff-portal-enter-everything-from-your-phone).
+- **I want to use the desktop app today** — jump to [What you'll do every day](#what-youll-do-every-day).
+- **I'm setting up the desktop app on this computer for the first time** — jump to [Setting up the lab software for the first time](#setting-up-the-lab-software-for-the-first-time).
+- **I want to know what patients see** — jump to [Patient portal](#patient-portal).
 
 If a word in this guide is new to you, check the [Glossary](#glossary) at the bottom.
 
 ---
 
+## The staff portal: enter everything from your phone
+
+This is the part that replaces the paper notebook. It's a **website**, so there's nothing to install — you open it in the browser (Chrome, Safari) on your phone or any computer.
+
+**Address:** the lab's staff portal link (ask the owner — it looks like `https://golmurijanchghar-admin.vercel.app`). Save it as a bookmark on your phone's home screen so it's one tap away.
+
+**Sign in** with the same username and password you'd use on the desktop app. Staff and Admin accounts both work here.
+
+> **You need internet for the staff portal** (it's a website). The lab's mobile data or Wi-Fi is enough. If the internet drops for a moment while you're typing, the portal remembers what you entered and sends it once the connection is back.
+
+### What you can do from the staff portal
+
+Everything needed to run the front desk — the same actions as the desktop, just from a phone:
+
+- **Register a patient** — name, age, sex, phone. Gets the same `LAB-2026-…` ID.
+- **Create a visit** — pick the tests and the referring doctor.
+- **Enter results** — type the values for each test. Abnormal values flag automatically.
+- **Verify & lock** (Admin only) — lock correct results so they can't be changed by accident.
+- **Payments** — record a cash/UPI payment, see who still owes.
+- **Bookings** — approve or decline home-visit requests patients send from their phones.
+- **Dashboard** — today's visit count, money collected (Admin only), and the backlog of work.
+
+### How a normal lab day works now
+
+1. **At the lab (staff shift):** staff open the staff portal on their phone and register each patient and type results **as they go** — no notebook.
+2. **The data syncs to the home PC** automatically over the internet.
+3. **At home (owner):** the owner opens the desktop app, and every patient is already there. They verify, then **print** the reports. No re-typing.
+
+That's the whole point of the system: type once, print at home.
+
+---
+
 ## What you'll do every day
+
+> This section describes the **desktop app** on the home PC. The steps are the same on the staff portal, just on a phone screen instead.
 
 You don't need a terminal for this. Just open the **Lab Management** shortcut on the desktop and sign in with your username and password.
 
@@ -182,7 +234,9 @@ Run:
 pnpm desktop
 ```
 
-After a few seconds, the **Lab Management** window opens. Leave the PowerShell window open in the background while you use the app — closing PowerShell will close the app too. (When the proper installer is built later, this won't be needed.)
+After a few seconds, the **Lab Management** window opens. Leave the PowerShell window open in the background while you use the app — closing PowerShell will close the app too.
+
+> **Easier option — the installer.** The steps above build the app from source, which is only needed for development or the very first machine. For the lab's actual PC, build a proper Windows installer once with `pnpm --filter @lab/desktop package:win` — it produces a normal `.exe` in `apps/desktop/out/dist/`. Run that `.exe` and the app installs like any other program (desktop shortcut, no PowerShell). It also **updates itself automatically** when a new version is released. The full release steps are in `docs/deployment/desktop-release.md`.
 
 **You'll know it's working when:** the Lab Management window appears with a sign-in or first-run wizard screen.
 
@@ -493,9 +547,9 @@ A patient with that phone number is already registered. Cancel the form and **se
 
 ---
 
-## Patient portal (Phase 3d)
+## Patient portal
 
-Patients can now look up their own reports, pay invoices, and ask for a home sample collection from their phone — no need to call or come to the lab.
+Patients can look up their own reports, pay invoices, and ask for a home sample collection from their phone — no need to call or come to the lab.
 
 **Portal URL:** see **Settings → Lab Info → Patient portal URL** in the desktop app (printed on every receipt from now on).
 
@@ -530,23 +584,46 @@ Most of the portal is hands-off. The two new things to watch in the desktop app:
 
 ## For developers / deployers
 
-Operational docs for the portal deploy live at `docs/deployment/portal-vercel-setup.md`:
-- Supabase migration order + verification queries
-- Vercel environment variable table
-- Launch smoke checklist (17 acceptance criteria)
-- Open follow-ups (custom domain, Razorpay flip, DLT clear, etc.)
+This is a **pnpm + Turborepo monorepo**. For the full list of technologies and why each was chosen, see `docs/TECH_STACK.md`.
 
-The desktop app needs no special action on deploy day — once **Settings → Cloud sync** is enabled and pointed at the same Supabase project, the existing 10-second outbox worker pushes everything the portal reads.
+```
+apps/
+  desktop/   Electron + React  — the home-PC print station & offline master
+  admin/     Next.js           — the staff portal (phone data entry)
+  portal/    Next.js           — the patient-facing portal
+packages/
+  db/        Prisma schema + SQLite client + migrations + seed
+  reports/   shared react-pdf report rendering
+  types/     shared TypeScript types
+```
+
+**Common commands** (run from the repo root):
+
+| Command | What it does |
+|---------|--------------|
+| `pnpm install` | Install all dependencies |
+| `pnpm db:migrate` / `pnpm db:seed` | Set up / seed the local SQLite database |
+| `pnpm desktop` | Run the desktop app in dev |
+| `pnpm dev:admin` | Run the staff portal in dev (port 3002) |
+| `pnpm -r test` | Run all tests across every app and package |
+| `pnpm -r typecheck` | Type-check the whole workspace |
+| `pnpm --filter @lab/desktop package:win` | Build the Windows installer `.exe` |
+
+**Deployment runbooks** (in the `docs/` folder next to the repo):
+- `docs/deployment/admin-vercel-setup.md` — staff portal → Vercel + Supabase
+- `docs/deployment/portal-vercel-setup.md` — patient portal → Vercel + Supabase (migration order, env-var table, 17-point launch smoke)
+- `docs/deployment/desktop-release.md` — build & publish the desktop installer + auto-update
+
+The desktop app needs no special action on deploy day — once **Settings → Cloud sync** is enabled and pointed at the same Supabase project, the 10-second outbox worker pushes everything the portals read.
 
 ---
 
-## What's next
+## What's shipped, and what's still pending
 
-**Phases 1, 2, 2.5, 3a, 3b (UPI direct), 3c, and 3d are shipped.** Outstanding items live as TODOs in the project memory, not as a roadmap. The two known external blockers are:
+The whole system is built, tested, and deployed. The remaining items are **not code** — they're real-world registrations and one-time checks the owner has to complete:
 
-- **Razorpay KYC** — when it clears, paste keys into LabSettings and flip `preferredPaymentGateway` to `"Razorpay"`. UPI direct keeps working in parallel.
-- **TRAI DLT for SMS** — when it clears, paste sender ID + template IDs into LabSettings and flip `smsProvider` from `"Off"`/`"Test"` to `"Fast2SMS"`.
+- **Razorpay KYC** — payments today go through **UPI direct** (QR code → owner clicks "Mark received"). The Razorpay path is built but switched off until KYC clears; then paste the keys into Settings and flip the payment gateway. UPI keeps working alongside it.
+- **TRAI DLT for SMS** — SMS notifications stay off until DLT clears. When it does, paste the sender ID + template IDs into Settings and switch SMS on. (Email and the access-code-on-receipt login don't depend on SMS, so the portal works without it.)
+- **Lab secrets in Settings** — UPI VPA + payee name (for QR codes) and the Gmail App Password (for email reports). Until these are filled in, those specific features wait.
 
-Until then, keep doing the daily backups and keep the USB drive plugged in at night.
-#   L a b M a n a g e m e n t S y s t e m  
- 
+Day to day: keep doing the daily backups and keep the USB drive plugged in at night.

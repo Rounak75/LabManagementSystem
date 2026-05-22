@@ -51,13 +51,13 @@ export function PatientForm() {
       <Input name="age" label="Age (years)" type="number" required />
       <Select name="sex" label="Sex" options={["Male", "Female", "Other"]} required />
       <Input name="address" label="Address (optional)" />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {queued && <p className="text-sm text-yellow-700">Saved offline. Will sync when you&apos;re back online.</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="bg-blue-600 text-white rounded px-4 py-2 font-medium disabled:bg-blue-300"
-      >
+      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+      {queued && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+          Saved offline. Will sync when you&apos;re back online.
+        </p>
+      )}
+      <button type="submit" disabled={pending} className="btn-primary w-full sm:w-auto">
         {pending ? "Saving…" : "Save patient"}
       </button>
     </form>
@@ -68,16 +68,16 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { label: str
   const { label, ...rest } = props;
   return (
     <label className="block">
-      <span className="text-sm font-medium block mb-1">{label}</span>
-      <input className="w-full border rounded px-3 py-2" {...rest} />
+      <span className="field-label">{label}</span>
+      <input className="input" {...rest} />
     </label>
   );
 }
 function Select({ name, label, options, required }: { name: string; label: string; options: string[]; required?: boolean }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium block mb-1">{label}</span>
-      <select name={name} required={required} className="w-full border rounded px-3 py-2 bg-white">
+      <span className="field-label">{label}</span>
+      <select name={name} required={required} className="input">
         <option value="">—</option>
         {options.map((o) => (
           <option key={o} value={o}>{o}</option>

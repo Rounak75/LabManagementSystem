@@ -68,6 +68,46 @@ export function countPendingVerify(jwt: string): Promise<number> {
   return _countPendingVerify(jwt);
 }
 
+const _countOpenVisits = unstable_cache(
+  async (jwt: string): Promise<number> => {
+    const sb = getServerSupabase(jwt);
+    const { count, error } = await sb
+      .from("visits")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "Open")
+      .is("deleted_at", null);
+    if (error) throw new Error(error.message);
+    return count ?? 0;
+  },
+  ["visits-open-count"],
+  { tags: [CACHE_TAGS.visits], revalidate: 60 },
+);
+
+export function countOpenVisits(jwt: string): Promise<number> {
+  return _countOpenVisits(jwt);
+}
+
+const _countVisitsToday = unstable_cache(
+  async (jwt: string, dayStartIso: string): Promise<number> => {
+    const sb = getServerSupabase(jwt);
+    const { count, error } = await sb
+      .from("visits")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", dayStartIso)
+      .is("deleted_at", null);
+    if (error) throw new Error(error.message);
+    return count ?? 0;
+  },
+  ["visits-today-count"],
+  { tags: [CACHE_TAGS.visits], revalidate: 60 },
+);
+
+export function countVisitsToday(jwt: string): Promise<number> {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return _countVisitsToday(jwt, start.toISOString());
+}
+
 const _getVisit = unstable_cache(
   async (jwt: string, id: string) => {
     const sb = getServerSupabase(jwt);

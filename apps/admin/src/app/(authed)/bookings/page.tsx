@@ -1,7 +1,8 @@
 import { getSessionUser } from "@/lib/auth-session";
 import { listBookings, listPhlebotomists, type BookingStatus } from "@/lib/data-bookings";
 import { BookingRow } from "./BookingRow";
-import Link from "next/link";
+import { PageHeader } from "@/components/PageHeader";
+import { FilterTabs } from "@/components/FilterTabs";
 
 const TABS: BookingStatus[] = ["Pending", "Approved", "Declined", "Completed"];
 
@@ -15,22 +16,21 @@ export default async function BookingsPage({ searchParams }: { searchParams: { s
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-4">Home-visit bookings</h1>
-      <div className="flex gap-2 mb-4 text-sm">
-        {TABS.map((s) => (
-          <Link
-            key={s}
-            href={`/bookings?status=${s}`}
-            className={`px-3 py-1 rounded border ${status === s ? "bg-blue-600 text-white border-blue-600" : "bg-white"}`}
-          >
-            {s}
-          </Link>
-        ))}
-      </div>
+      <PageHeader title="Home-visit bookings" subtitle="Requests patients sent from the portal" />
+
+      <FilterTabs
+        basePath="/bookings"
+        param="status"
+        current={status}
+        options={TABS.map((s) => ({ label: s, value: s }))}
+      />
+
       {bookings.length === 0 ? (
-        <p className="text-sm text-gray-500">No bookings in this state.</p>
+        <div className="card p-8 text-center text-sm text-slate-500">
+          No {status.toLowerCase()} bookings.
+        </div>
       ) : (
-        <ul className="bg-white rounded border divide-y">
+        <ul className="card divide-y divide-slate-100 overflow-hidden">
           {bookings.map((b) => (
             <BookingRow key={b.id as string} booking={b} phlebotomists={phleb} />
           ))}

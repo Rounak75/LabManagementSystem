@@ -18,33 +18,33 @@ export function SendBackDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-5 max-w-sm w-full">
-        <h3 className="font-semibold mb-2">Send back to staff</h3>
-        <label className="block text-sm mb-2">
-          Reason
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="card w-full max-w-sm p-5 shadow-xl">
+        <h3 className="mb-3 text-base font-bold text-slate-900">Send back to staff</h3>
+        <label className="mb-2 block">
+          <span className="field-label">Reason</span>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="w-full border rounded px-3 py-2 mt-1"
+            className="input mt-1.5"
           >
             {REASONS.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
         </label>
-        <label className="block text-sm mb-3">
-          Note (optional)
+        <label className="mb-3 block">
+          <span className="field-label">Note (optional)</span>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
-            className="w-full border rounded px-3 py-2 mt-1"
+            className="input mt-1.5"
           />
         </label>
-        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+        {error && <p className="mb-2 text-sm font-medium text-rose-600">{error}</p>}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded py-2 text-sm">Cancel</button>
+          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
           <button
             disabled={pending}
             onClick={() => {
@@ -62,7 +62,7 @@ export function SendBackDialog({
                 onSent();
               });
             }}
-            className="flex-1 bg-yellow-600 text-white rounded py-2 text-sm font-medium disabled:bg-yellow-300"
+            className="btn flex-1 bg-amber-500 text-white hover:bg-amber-600"
           >
             {pending ? "Sending…" : "Send back"}
           </button>

@@ -21,7 +21,11 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
   const [selected, setSelected] = useState<string[]>([]);
 
   if (!patient) {
-    return <p className="text-red-600 text-sm">No patient selected. Open a patient and tap &ldquo;New visit&rdquo;.</p>;
+    return (
+      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+        No patient selected. Open a patient and tap &ldquo;New visit&rdquo;.
+      </p>
+    );
   }
 
   return (
@@ -61,28 +65,28 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
       }}
       className="space-y-4"
     >
-      <div className="text-sm text-gray-700">
+      <div className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
         Patient: <strong>{patient.name}</strong> · {patient.patient_id ?? patient.id}
       </div>
       <label className="block">
-        <span className="text-sm font-medium block mb-1">Visit date</span>
+        <span className="field-label">Visit date</span>
         <input
           name="visitDate"
           type="date"
           defaultValue={new Date().toISOString().slice(0, 10)}
-          className="w-full border rounded px-3 py-2"
+          className="input"
         />
       </label>
       <TestPicker tests={tests} selected={selected} setSelected={setSelected} />
       <label className="block">
-        <span className="text-sm font-medium block mb-1">Notes (optional)</span>
-        <textarea name="notes" rows={2} className="w-full border rounded px-3 py-2" />
+        <span className="field-label">Notes (optional)</span>
+        <textarea name="notes" rows={2} className="input" />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
       <button
         type="submit"
         disabled={pending || selected.length === 0}
-        className="bg-blue-600 text-white rounded px-4 py-2 font-medium disabled:bg-blue-300"
+        className="btn-primary w-full sm:w-auto"
       >
         {pending ? "Creating…" : "Create visit"}
       </button>

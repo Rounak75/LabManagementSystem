@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth-session";
 import { listAuditLogs, listDistinctAuditActions } from "@/lib/data-audit";
 import { AuditList } from "./AuditList";
+import { PageHeader } from "@/components/PageHeader";
 import { redirect } from "next/navigation";
 
 export default async function AuditPage({ searchParams }: { searchParams: { action?: string } }) {
@@ -11,15 +12,15 @@ export default async function AuditPage({ searchParams }: { searchParams: { acti
   const actions = await listDistinctAuditActions(user.token);
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-4">Audit log</h1>
-      <form>
-        <select name="action" defaultValue={action ?? ""} className="border rounded px-3 py-2 mb-4">
+      <PageHeader title="Audit log" subtitle="Every change, who made it, and when" />
+      <form className="mb-4 flex flex-wrap gap-2">
+        <select name="action" defaultValue={action ?? ""} className="input max-w-xs">
           <option value="">All actions</option>
           {actions.map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
-        <button type="submit" className="ml-2 border rounded px-3 py-2 text-sm">Filter</button>
+        <button type="submit" className="btn-ghost">Filter</button>
       </form>
       <AuditList logs={logs} />
     </div>

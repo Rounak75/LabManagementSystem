@@ -6,7 +6,7 @@ export function PrintButton({ visitId, verified }: { visitId: string; verified: 
   const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!verified) return <span className="text-xs text-gray-500">Verify before printing</span>;
+  if (!verified) return <span className="text-xs text-slate-500">Verify before printing</span>;
 
   return (
     <span>
@@ -20,11 +20,11 @@ export function PrintButton({ visitId, verified }: { visitId: string; verified: 
             else setError("Could not queue print.");
           })
         }
-        className="bg-blue-600 text-white rounded px-3 py-2 text-sm font-medium disabled:bg-blue-300"
+        className="btn-ghost"
       >
         {queued ? "Queued for printing" : pending ? "Queueing…" : "Print"}
       </button>
-      {error && <span className="text-xs text-red-600 ml-2">{error}</span>}
+      {error && <span className="ml-2 text-xs font-medium text-rose-600">{error}</span>}
     </span>
   );
 }

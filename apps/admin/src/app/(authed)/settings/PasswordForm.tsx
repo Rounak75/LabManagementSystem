@@ -36,7 +36,7 @@ export function PasswordForm() {
           type="password"
           value={oldPw}
           onChange={(e) => setOldPw(e.target.value)}
-          className="block w-full border rounded px-3 py-2 mt-1"
+          className="input mt-1.5"
           required
         />
       </label>
@@ -47,14 +47,14 @@ export function PasswordForm() {
           value={newPw}
           onChange={(e) => setNewPw(e.target.value)}
           minLength={8}
-          className="block w-full border rounded px-3 py-2 mt-1"
+          className="input mt-1.5"
           required
         />
       </label>
-      <button disabled={pending} className="bg-blue-600 text-white rounded px-3 py-2 text-sm disabled:bg-blue-300">
+      <button disabled={pending} className="btn-primary">
         {pending ? "Changing…" : "Change password"}
       </button>
-      {msg && <p className={`text-xs ${msg.kind === "ok" ? "text-green-700" : "text-red-700"}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm font-medium ${msg.kind === "ok" ? "text-emerald-700" : "text-rose-700"}`}>{msg.text}</p>}
     </form>
   );
 }

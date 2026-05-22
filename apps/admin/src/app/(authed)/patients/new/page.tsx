@@ -1,10 +1,13 @@
 import { PatientForm } from "./PatientForm";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function NewPatientPage() {
   return (
-    <div className="max-w-md">
-      <h1 className="text-2xl font-semibold mb-4">New patient</h1>
-      <PatientForm />
+    <div className="max-w-lg">
+      <PageHeader title="New patient" subtitle="Register someone new at the lab" />
+      <div className="card p-5 sm:p-6">
+        <PatientForm />
+      </div>
     </div>
   );
 }

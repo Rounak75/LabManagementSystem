@@ -4,6 +4,7 @@ import { formatDateShort } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PrintButton } from "./print/PrintButton";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface VisitTest {
   id: string;
@@ -26,33 +27,38 @@ export default async function VisitDetailPage({ params }: { params: { id: string
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">{patient?.name ?? "—"}</h1>
-      <p className="text-sm text-gray-500 mb-4">
-        {v.visit_id ?? v.id} · {formatDateShort(v.visit_date)} · {v.status}
-      </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title mb-1">{patient?.name ?? "—"}</h1>
+          <p className="text-sm text-slate-500">
+            {v.visit_id ?? v.id} · {formatDateShort(v.visit_date)}
+          </p>
+        </div>
+        <StatusBadge status={v.status} />
+      </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="mb-5 flex items-center gap-2">
         {v.status === "PendingVerify" && (
-          <Link
-            href={`/visits/${v.id}/verify`}
-            className="inline-block bg-green-600 text-white rounded px-3 py-2 text-sm font-medium"
-          >
+          <Link href={`/visits/${v.id}/verify`} className="btn-success">
             Review &amp; verify
           </Link>
         )}
         <PrintButton visitId={v.id} verified={!!v.verified_at} />
       </div>
 
-      <h2 className="text-lg font-semibold mb-2">Tests</h2>
-      <ul className="bg-white rounded border divide-y">
+      <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Tests</h2>
+      <ul className="card divide-y divide-slate-100 overflow-hidden">
         {visitTests.map((vt) => (
-          <li key={vt.id} className="px-4 py-3 flex justify-between">
-            <div>
-              <div className="font-medium">{testName(vt.tests)}</div>
-              <div className="text-xs text-gray-500">{vt.status ?? "—"}</div>
+          <li key={vt.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+            <div className="min-w-0">
+              <div className="truncate font-semibold text-slate-900">{testName(vt.tests)}</div>
+              <div className="text-xs text-slate-500">{vt.status ?? "—"}</div>
             </div>
-            <Link href={`/visits/${v.id}/results?test=${vt.id}`} className="text-sm text-blue-600 hover:underline">
-              Enter results
+            <Link
+              href={`/visits/${v.id}/results?test=${vt.id}`}
+              className="shrink-0 text-sm font-medium text-brand-700 hover:text-brand-800"
+            >
+              Enter results →
             </Link>
           </li>
         ))}

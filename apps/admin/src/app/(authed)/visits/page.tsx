@@ -3,7 +3,17 @@ import { listVisits, listPendingVerifyVisits } from "@/lib/data-visits";
 import { formatDateShort } from "@/lib/format";
 import Link from "next/link";
 import { PendingVerifyActions } from "./PendingVerifyActions";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusBadge, SourceBadge } from "@/components/StatusBadge";
+import { FilterTabs } from "@/components/FilterTabs";
 import type { BatchCandidate } from "../dashboard/BatchVerifyDialog";
+
+const VISIT_TABS = [
+  { label: "All", value: null },
+  { label: "Open", value: "Open" },
+  { label: "Awaiting verify", value: "PendingVerify" },
+  { label: "Completed", value: "Completed" },
+];
 
 interface VisitRow {
   id: string;
@@ -22,7 +32,7 @@ function patientName(p: VisitRow["patients"]): string {
 
 export default async function VisitsPage({ searchParams }: { searchParams: { status?: string } }) {
   const user = (await getSessionUser())!;
-  const status = searchParams.status;
+  const status = searchParams.status ?? null;
   const visits = (await listVisits(user.token, status ? { status } : undefined)) as unknown as VisitRow[];
 
   // For the PendingVerify view, compute low-risk (no abnormal result) candidates
@@ -47,28 +57,34 @@ export default async function VisitsPage({ searchParams }: { searchParams: { sta
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <h1 className="text-2xl font-semibold">
-          {status === "PendingVerify" ? "Awaiting verify" : "Visits"}
-        </h1>
+      <PageHeader title="Visits" subtitle={`${visits.length} ${status ? "in this view" : "recent"}`}>
+        <Link href="/visits/new" className="btn-primary">+ New visit</Link>
+      </PageHeader>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <FilterTabs basePath="/visits" param="status" current={status} options={VISIT_TABS} />
         {showBatch && <PendingVerifyActions candidates={candidates} />}
       </div>
+
       {visits.length === 0 ? (
-        <p className="text-gray-500">No visits{status ? " in this state" : ""} yet.</p>
+        <div className="card p-8 text-center text-sm text-slate-500">
+          No visits{status ? " in this view" : " yet"}.
+        </div>
       ) : (
-        <ul className="divide-y bg-white rounded border">
+        <ul className="card divide-y divide-slate-100 overflow-hidden">
           {visits.map((v) => (
             <li key={v.id}>
-              <Link href={`/visits/${v.id}`} className="flex justify-between px-4 py-3 hover:bg-gray-50">
-                <div>
-                  <div className="font-medium">{patientName(v.patients)}</div>
-                  <div className="text-xs text-gray-500">
-                    {v.visit_id ?? v.id} · {formatDateShort(v.visit_date)} · {v.status}
+              <Link href={`/visits/${v.id}`} className="row-link">
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-slate-900">{patientName(v.patients)}</div>
+                  <div className="mt-0.5 text-xs text-slate-500">
+                    {v.visit_id ?? v.id} · {formatDateShort(v.visit_date)}
                   </div>
                 </div>
-                {v.source === "admin" && (
-                  <span className="text-xs bg-blue-100 text-blue-700 rounded px-2 py-0.5 self-center">phone</span>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  <SourceBadge source={v.source} />
+                  <StatusBadge status={v.status} />
+                </div>
               </Link>
             </li>
           ))}

@@ -21,14 +21,14 @@ export function BatchVerifyDialog({
   const router = useRouter();
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-5 max-w-md w-full">
-        <h3 className="font-semibold mb-2">Verify multiple visits</h3>
-        <p className="text-sm text-gray-600 mb-3">Only visits with no abnormal values are shown.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="card w-full max-w-md p-5 shadow-xl">
+        <h3 className="mb-2 text-base font-bold text-slate-900">Verify multiple visits</h3>
+        <p className="mb-3 text-sm text-slate-600">Only visits with no abnormal values are shown.</p>
         {candidates.length === 0 ? (
-          <p className="text-sm text-gray-500">No low-risk visits to verify in bulk.</p>
+          <p className="text-sm text-slate-500">No low-risk visits to verify in bulk.</p>
         ) : (
-          <ul className="max-h-60 overflow-y-auto divide-y border rounded">
+          <ul className="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
             {candidates.map((c) => (
               <li key={c.id} className="px-3 py-2 flex items-center gap-2">
                 <input
@@ -47,9 +47,9 @@ export function BatchVerifyDialog({
             ))}
           </ul>
         )}
-        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
-        <div className="flex gap-2 mt-3">
-          <button onClick={onClose} className="flex-1 border rounded py-2 text-sm">Cancel</button>
+        {error && <p className="mt-2 text-sm font-medium text-rose-600">{error}</p>}
+        <div className="mt-3 flex gap-2">
+          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
           <button
             disabled={pending || selected.length === 0}
             onClick={() =>
@@ -68,7 +68,7 @@ export function BatchVerifyDialog({
                 onClose();
               })
             }
-            className="flex-1 bg-green-600 text-white rounded py-2 text-sm font-medium disabled:bg-green-300"
+            className="btn-success flex-1"
           >
             Verify {selected.length}
           </button>

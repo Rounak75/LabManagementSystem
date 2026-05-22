@@ -26,10 +26,10 @@ export default async function ResultsPage({ params }: { params: { id: string } }
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">{patient.name}</h1>
-      <p className="text-sm text-gray-500 mb-4">
+      <h1 className="page-title mb-1">{patient.name}</h1>
+      <p className="mb-4 text-sm text-slate-500">
         {visit.visit_id ?? visit.id} · {patient.age}
-        {patient.sex[0].toLowerCase()} · Status: <strong>{visit.status}</strong>
+        {patient.sex[0].toLowerCase()} · Status: <strong className="text-slate-700">{visit.status}</strong>
       </p>
       <ResultsForm
         visitId={visit.id}

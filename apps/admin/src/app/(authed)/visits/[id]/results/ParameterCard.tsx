@@ -121,18 +121,19 @@ export function ParameterCard({
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const severityColor =
-    flag.severity === FlagSeverity.Critical ? "border-red-500 bg-red-50" :
-    flag.severity === FlagSeverity.High ? "border-orange-400 bg-orange-50" :
-    flag.severity === FlagSeverity.Low ? "border-orange-400 bg-orange-50" :
-    "border-gray-200";
+    flag.severity === FlagSeverity.Critical ? "border-rose-300 bg-rose-50 ring-1 ring-rose-200" :
+    flag.severity === FlagSeverity.High ? "border-amber-300 bg-amber-50" :
+    flag.severity === FlagSeverity.Low ? "border-amber-300 bg-amber-50" :
+    "border-slate-200 bg-white";
 
   const isQualitative = (parameter.result_type ?? "Numeric") === "Qualitative";
+  const abnormal = flag.severity !== FlagSeverity.Normal;
 
   return (
-    <div className={`border rounded p-3 ${severityColor}`}>
-      <div className="flex items-baseline justify-between mb-1">
-        <label className="font-medium">{parameter.name}</label>
-        <span className="text-xs text-gray-500">
+    <div className={`rounded-xl border p-3.5 transition-colors ${severityColor}`}>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <label className="font-semibold text-slate-900">{parameter.name}</label>
+        <span className="shrink-0 text-xs text-slate-500">
           Normal: {rangeOf(parameter, patient)} {parameter.unit ?? ""}
         </span>
       </div>
@@ -141,7 +142,7 @@ export function ParameterCard({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           aria-label={parameter.name}
-          className="w-full border rounded px-3 py-2 bg-white"
+          className="input"
         >
           <option value="">—</option>
           {parseQualitativeOptions(parameter.qualitative_options).map((o) => (
@@ -154,17 +155,22 @@ export function ParameterCard({
           onChange={(e) => setValue(e.target.value)}
           inputMode="decimal"
           aria-label={parameter.name}
-          className="w-full border rounded px-3 py-2 text-lg"
+          className={`input text-lg font-semibold ${abnormal ? "border-rose-300" : ""}`}
         />
       )}
-      <div className="text-xs mt-1 flex justify-between">
-        <span>
-          {flag.severity !== FlagSeverity.Normal && (
-            <strong className="text-red-700">{flag.severity}</strong>
-          )}{" "}
-          {parameter.unit ?? ""}
+      <div className="mt-1.5 flex items-center justify-between text-xs">
+        <span className="font-medium">
+          {abnormal ? (
+            <span className={flag.severity === FlagSeverity.Critical ? "text-rose-700" : "text-amber-700"}>
+              {flag.severity} {parameter.unit ?? ""}
+            </span>
+          ) : (
+            <span className="text-slate-400">{parameter.unit ?? ""}</span>
+          )}
         </span>
-        <span className="text-gray-500">{savingError ?? (savedAt ? "Saved" : "")}</span>
+        <span className={savingError ? "text-amber-700" : "text-emerald-600"}>
+          {savingError ?? (savedAt ? "✓ Saved" : "")}
+        </span>
       </div>
     </div>
   );

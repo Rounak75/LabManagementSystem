@@ -19,17 +19,17 @@ export function EditValueDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-5 max-w-sm w-full">
-        <h3 className="font-semibold mb-2">Edit {row.parameter.name}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="card w-full max-w-sm p-5 shadow-xl">
+        <h3 className="mb-3 text-base font-bold text-slate-900">Edit {row.parameter.name}</h3>
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-full border rounded px-3 py-2 mb-3"
+          className="input mb-3 text-lg font-semibold"
         />
-        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+        {error && <p className="mb-2 text-sm font-medium text-rose-600">{error}</p>}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded py-2 text-sm">Cancel</button>
+          <button onClick={onClose} className="btn-ghost flex-1">Cancel</button>
           <button
             disabled={pending}
             onClick={() => {
@@ -71,7 +71,7 @@ export function EditValueDialog({
                 onSaved();
               });
             }}
-            className="flex-1 bg-blue-600 text-white rounded py-2 text-sm font-medium disabled:bg-blue-300"
+            className="btn-primary flex-1"
           >
             {pending ? "Saving…" : "Save"}
           </button>

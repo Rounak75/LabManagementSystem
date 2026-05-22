@@ -52,9 +52,10 @@ export function OfflineBanner() {
 
   if (online && pending === 0) return null;
   return (
-    <div className={online ? "bg-yellow-100 text-yellow-900" : "bg-red-100 text-red-900"}>
-      <div className="max-w-4xl mx-auto px-4 py-2 text-sm">
-        {!online && <span>You are offline. </span>}
+    <div className={online ? "bg-amber-100 text-amber-900" : "bg-rose-100 text-rose-900"}>
+      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-2 text-sm font-medium">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${online ? "bg-amber-500" : "bg-rose-500"}`} />
+        {!online && <span>You are offline — changes are saved on this device.</span>}
         {pending > 0 && <span>{pending} item{pending > 1 ? "s" : ""} waiting to sync.</span>}
       </div>
     </div>
