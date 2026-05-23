@@ -8,6 +8,7 @@ import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import { ApproveBookingModal } from "./ApproveBookingModal";
 import { DeclineBookingModal } from "./DeclineBookingModal";
 
@@ -85,11 +86,11 @@ export default function BookingsPage() {
         {loading && bookings.length === 0 ? (
           <div className="p-6 text-slate-500">Loading…</div>
         ) : bookings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-3 text-4xl">🏠</div>
-            <div className="mb-1 text-lg font-medium text-slate-700">No bookings in this state</div>
-            <div className="max-w-xs text-sm text-slate-500">Home-visit requests from the patient portal will appear here.</div>
-          </div>
+          <EmptyState
+            icon={EmptyIcons.home}
+            title="No bookings in this state"
+            description="Home-visit requests from the patient portal will appear here."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left">
@@ -104,7 +105,7 @@ export default function BookingsPage() {
             </thead>
             <tbody>
               {bookings.map((b) => (
-                <tr key={b.id} className="border-t align-top">
+                <tr key={b.id} className="border-t align-top transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3 text-xs text-slate-500">
                     <div>{new Date(b.createdAt).toLocaleString("en-IN")}</div>
                     <div className="font-mono">{b.bookingId}</div>

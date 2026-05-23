@@ -20,7 +20,7 @@ export default function PatientSearch() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Patients</h1>
-        <Button onClick={() => nav("/patients/new")}>+ Register patient</Button>
+        <Button onClick={() => nav("/patients/new")}>Register patient</Button>
       </div>
       <Input className="mb-4 max-w-md" placeholder="Search by name, phone, or LAB-YYYY-NNNNN…" value={q} onChange={e => setQ(e.target.value)} />
       <Card className="p-0">

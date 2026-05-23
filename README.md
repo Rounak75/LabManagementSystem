@@ -31,7 +31,8 @@ This README has a few starting points. Pick whichever fits you right now.
 
 - **I want to use the lab from my phone (staff)** — jump to [The staff portal](#the-staff-portal-enter-everything-from-your-phone).
 - **I want to use the desktop app today** — jump to [What you'll do every day](#what-youll-do-every-day).
-- **I'm setting up the desktop app on this computer for the first time** — jump to [Setting up the lab software for the first time](#setting-up-the-lab-software-for-the-first-time).
+- **I just want to install the finished app on the lab's PC (no coding)** — jump to [Installing on the lab computer](#installing-on-the-lab-computer-the-easy-way).
+- **I'm a developer setting up from source** — jump to [Setting up from source](#setting-up-from-source-developers).
 - **I want to know what patients see** — jump to [Patient portal](#patient-portal).
 
 If a word in this guide is new to you, check the [Glossary](#glossary) at the bottom.
@@ -80,7 +81,7 @@ A normal day at the lab goes like this:
 
 ### 1. Register a new patient
 
-Click **Patients** in the left sidebar, then **+ Register patient**. Fill in name, age, sex, and phone number. The app gives them a patient ID like `LAB-2026-00001`. If the patient has been here before, search for them by phone or name instead — don't register them twice.
+Click **Patients** in the left sidebar, then **Register patient**. Fill in name, age, sex, and phone number. The app gives them a patient ID like `LAB-2026-00001`. If the patient has been here before, search for them by phone or name instead — don't register them twice.
 
 ### 2. Create a visit
 
@@ -114,9 +115,84 @@ In the visit, open **Invoice**. Apply a discount if the Admin has approved one. 
 
 ---
 
-## Setting up the lab software for the first time
+## Installing on the lab computer (the easy way)
 
-This section is **only** for the very first setup on a new computer. Once it's done, you never run these commands again — you just double-click the desktop shortcut from then on.
+This is the way to put the app on the lab's actual PC. **No coding, no PowerShell, no commands — ever.** You build a normal Windows installer once on the computer that has the project code, hand the lab a single file, and they double-click it like any other program (WhatsApp, Chrome, etc.). It even **makes the desktop shortcut for them automatically** and **updates itself** when you release a new version.
+
+Think of it in three steps: **build it → share it → install it.**
+
+### Step A. Build the installer (once, on the computer that has the code)
+
+On the machine where the project folder lives (the developer's / owner's PC that already did the [from-source setup](#setting-up-from-source-developers)), open PowerShell in the project folder and run:
+
+```powershell
+pnpm --filter @lab/desktop package:win
+```
+
+This takes a few minutes and produces a single installer file here:
+
+```
+apps\desktop\out\dist\Golmuri Janch Ghar Lab Setup <version>.exe
+```
+
+(For example `Golmuri Janch Ghar Lab Setup 0.1.0.exe`.) That one `.exe` is the whole app — the lab PC does **not** need Node.js, pnpm, or the source code.
+
+**You'll know it's working when:** the `out\dist\` folder contains a file ending in `Setup <version>.exe`.
+
+> To open the folder fast: in PowerShell run `explorer apps\desktop\out\dist` and File Explorer opens right on the installer.
+
+### Step B. Share it with the lab
+
+Copy that single `Setup .exe` file to the lab's computer. Any of these works — pick whatever's easiest:
+
+- **USB pen drive** — copy the `.exe` onto it, carry it to the lab, copy it onto the lab PC's Desktop.
+- **Google Drive / OneDrive** — upload the `.exe`, open the link on the lab PC, download it.
+- **WhatsApp (Send to yourself) / email** — attach the `.exe`. Note: it's a large file (~80–150 MB), so a USB drive or Google Drive is usually faster than WhatsApp/email.
+
+You only share **one file**. Nothing else needs to be copied.
+
+### Step C. Install it on the lab PC
+
+On the lab computer:
+
+1. **Double-click** the `Golmuri Janch Ghar Lab Setup ….exe` file you copied over.
+2. Windows may show a blue **"Windows protected your PC"** box (because the app isn't code-signed yet). Click **More info**, then **Run anyway**. This is safe — it's your own app. It only appears on this first install.
+3. If an antivirus blocks it, see [Antivirus blocking the installer](#antivirus-blocking-the-installer) in Troubleshooting.
+4. The installer wizard opens. Click through it (the defaults are fine). Click **Finish**.
+
+**That's it.** The installer automatically:
+
+- puts a **"Golmuri Janch Ghar Lab" icon on the Desktop**, and
+- adds it to the **Start menu**.
+
+**You'll know it's working when:** a new **Golmuri Janch Ghar Lab** icon appears on the desktop.
+
+### Opening the app every day (no command window)
+
+From now on, the lab staff just **double-click the "Golmuri Janch Ghar Lab" icon on the desktop**. The app opens directly. There is **no black command window** to keep open, and nothing to type — that command-window method is only for developers running from source.
+
+The very first time it opens, you'll go through the [First boot](#first-boot) wizard (Admin account + recovery code). After that, it goes straight to the sign-in screen.
+
+### Making it even easier to open (optional shortcuts)
+
+The desktop icon is created for you, but you can make it more convenient:
+
+- **Pin to the taskbar** (the bar at the bottom of the screen, always visible): open the app once, then **right-click its icon on the taskbar → Pin to taskbar**. Now it's one click from anywhere, even with windows open.
+- **Pin to Start:** press the **Windows key**, type `Golmuri`, right-click the result → **Pin to Start**.
+- **If the desktop shortcut ever goes missing:** press the **Windows key**, type `Golmuri`, right-click the result → **Open file location**, then right-click the app → **Send to → Desktop (create shortcut)**.
+- **Start automatically when the PC turns on** (so the daily 2 AM backup always runs — see [Backups](#backups)): press **Windows key + R**, type `shell:startup`, press **Enter** — a folder opens. Copy the desktop shortcut into this folder. The app will now launch by itself whenever the computer starts.
+
+### Updating to a newer version later
+
+You don't reinstall. Once the lab PC has the app, it **updates itself**: when you publish a new release, the app downloads it in the background and shows a **"Restart to update"** banner in the sidebar. The owner clicks it and the update applies. The full publish steps are in `docs/deployment/desktop-release.md`.
+
+---
+
+## Setting up from source (developers)
+
+> **Most people don't need this section.** To put the app on the lab's PC, use [Installing on the lab computer](#installing-on-the-lab-computer-the-easy-way) above — it needs no commands. The steps below build the app from source and are only for a developer, or for the one machine that builds the installer.
+
+This section is for the very first setup on a developer's computer. Once it's done, you never run these commands again — you just double-click the desktop shortcut from then on.
 
 It will take roughly **30–45 minutes** the first time, mostly waiting for downloads.
 
@@ -236,7 +312,7 @@ pnpm desktop
 
 After a few seconds, the **Lab Management** window opens. Leave the PowerShell window open in the background while you use the app — closing PowerShell will close the app too.
 
-> **Easier option — the installer.** The steps above build the app from source, which is only needed for development or the very first machine. For the lab's actual PC, build a proper Windows installer once with `pnpm --filter @lab/desktop package:win` — it produces a normal `.exe` in `apps/desktop/out/dist/`. Run that `.exe` and the app installs like any other program (desktop shortcut, no PowerShell). It also **updates itself automatically** when a new version is released. The full release steps are in `docs/deployment/desktop-release.md`.
+> **For the lab's actual PC, don't use these dev steps.** Build the installer once and hand the lab a single `.exe` — see [Installing on the lab computer](#installing-on-the-lab-computer-the-easy-way). It installs like any other program, creates the desktop shortcut for them, and updates itself.
 
 **You'll know it's working when:** the Lab Management window appears with a sign-in or first-run wizard screen.
 

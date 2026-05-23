@@ -20,7 +20,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(
   ({ variant = "primary", size = "md", className = "", ...rest }, ref) => (
     <button
       ref={ref}
-      className={`inline-flex items-center justify-center rounded-md font-medium disabled:opacity-50 ${sizes[size]} ${styles[variant]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 disabled:opacity-50 ${sizes[size]} ${styles[variant]} ${className}`}
       {...rest}
     />
   )

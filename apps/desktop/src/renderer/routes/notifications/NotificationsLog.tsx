@@ -5,6 +5,7 @@ import { useToast } from "@/lib/toast.store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
+import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 
 const PAGE_SIZE = 50;
 
@@ -149,13 +150,11 @@ export default function NotificationsLog() {
             </tbody>
           </table>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-3">&#128276;</div>
-            <div className="text-lg font-medium text-slate-700 mb-1">No notifications</div>
-            <div className="text-sm text-slate-500 max-w-xs">
-              No notifications match the current filters.
-            </div>
-          </div>
+          <EmptyState
+            icon={EmptyIcons.bell}
+            title="No notifications"
+            description="No notifications match the current filters."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left">
@@ -181,7 +180,7 @@ export default function NotificationsLog() {
                       <td className="px-4 py-3">
                         <button
                           type="button"
-                          className="text-slate-400 hover:text-slate-700"
+                          className="text-slate-600 hover:text-slate-900"
                           aria-label={isOpen ? "Collapse row" : "Expand row"}
                           onClick={() => setExpanded(isOpen ? null : r.id)}
                         >

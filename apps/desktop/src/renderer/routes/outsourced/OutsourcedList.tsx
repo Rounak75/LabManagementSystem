@@ -5,6 +5,7 @@ import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
+import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { OutsourcedRow } from "@shared/api";
 
 function formatDate(d: string | Date | null): string {
@@ -56,11 +57,11 @@ export default function OutsourcedList() {
         {isLoading ? (
           <div className="p-6 text-slate-500">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-3">📦</div>
-            <div className="text-lg font-medium text-slate-700 mb-1">Nothing awaiting external results</div>
-            <div className="text-sm text-slate-500 max-w-xs">Outsourced tests sent to external labs will appear here.</div>
-          </div>
+          <EmptyState
+            icon={EmptyIcons.inbox}
+            title="Nothing awaiting external results"
+            description="Outsourced tests sent to external labs will appear here."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-100 text-left">
@@ -76,7 +77,7 @@ export default function OutsourcedList() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-t align-top">
+                <tr key={r.id} className="border-t align-top transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to={`/visits/${r.visit.id}`} className="text-brand hover:underline">
                       {r.visit.visitId}

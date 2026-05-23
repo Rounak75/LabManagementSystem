@@ -5,6 +5,7 @@ import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
+import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { TemplateRow } from "@shared/api";
 
 function friendlyError(err: unknown): string {
@@ -69,12 +70,12 @@ export default function TemplateList() {
         <Card className="p-6 text-slate-500">Loading…</Card>
       ) : templates.length === 0 ? (
         <Card className="p-0">
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-3">🗂</div>
-            <div className="text-lg font-medium text-slate-700 mb-1">No templates yet</div>
-            <div className="text-sm text-slate-500 max-w-xs mb-4">Create one to customize how reports look.</div>
-            <Button onClick={() => navigate("/templates/new")}>New template</Button>
-          </div>
+          <EmptyState
+            icon={EmptyIcons.templates}
+            title="No templates yet"
+            description="Create one to customize how reports look."
+            action={<Button onClick={() => navigate("/templates/new")}>New template</Button>}
+          />
         </Card>
       ) : (
         <div className="space-y-3">

@@ -129,7 +129,7 @@ export default function SyncLog() {
                       <td className="px-4 py-3">
                         <button
                           type="button"
-                          className="text-slate-400 hover:text-slate-700"
+                          className="text-slate-600 hover:text-slate-900"
                           aria-label={isOpen ? "Collapse row" : "Expand row"}
                           onClick={() => setExpanded(isOpen ? null : r.id)}
                         >

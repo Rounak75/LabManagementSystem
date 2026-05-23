@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
+import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { Role } from "@lab/types";
 
 type UserRow = {
@@ -77,11 +78,11 @@ export default function UserManagement() {
         {isLoading ? (
           <div className="p-6 text-slate-500">Loading…</div>
         ) : users.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-3">👤</div>
-            <div className="text-lg font-medium text-slate-700 mb-1">No users yet</div>
-            <div className="text-sm text-slate-500 max-w-xs">Click "Add user" to invite Staff or another Admin.</div>
-          </div>
+          <EmptyState
+            icon={EmptyIcons.users}
+            title="No users yet"
+            description={'Click "Add user" to invite Staff or another Admin.'}
+          />
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
@@ -100,7 +101,7 @@ export default function UserManagement() {
               {users.map(u => {
                 const isMe = me?.id === u.id;
                 return (
-                  <tr key={u.id} className="border-t">
+                  <tr key={u.id} className="border-t transition-colors hover:bg-slate-50">
                     <td className="px-4 py-3">{u.name}{isMe && <span className="ml-2 text-xs text-slate-500">(you)</span>}</td>
                     <td className="px-4 py-3 text-slate-600">{u.username}</td>
                     <td className="px-4 py-3">{u.role}</td>

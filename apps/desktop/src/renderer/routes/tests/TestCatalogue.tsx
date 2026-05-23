@@ -39,7 +39,7 @@ export default function TestCatalogue() {
             <details key={cat} open className="rounded-md border border-slate-200 bg-white">
               <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 transition-transform group-open:rotate-90">▶</span>
+                  <span className="text-xs text-slate-600 transition-transform group-open:rotate-90">▶</span>
                   <span className="uppercase tracking-wide">{cat}</span>
                   <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{inCat.length}</span>
                 </span>

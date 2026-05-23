@@ -29,7 +29,7 @@ export default function DoctorDirectory() {
             </thead>
             <tbody>
               {doctors.map(d => (
-                <tr key={d.id} className="border-t">
+                <tr key={d.id} className="border-t transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3">{d.name}</td>
                   <td className="px-4 py-3 text-slate-500">{d.clinic ?? "—"}</td>
                   <td className="px-4 py-3">{d.isActive ? "Active" : "Inactive"}</td>

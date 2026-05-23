@@ -82,7 +82,7 @@ export function ApproveBookingModal({
           {booking.patientName} · {booking.patientPhone}
         </p>
         <div className="mt-3 rounded-md border bg-slate-50 p-3">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Patient access code</p>
+          <p className="text-xs uppercase tracking-wide text-slate-600">Patient access code</p>
           <p className="mt-1 font-mono text-2xl tracking-widest">{approved.accessCode}</p>
           <p className="mt-1 text-xs text-slate-500">
             Print on the receipt or share with the patient — used to log into the portal.

@@ -167,7 +167,7 @@ export default function VisitNew() {
             <details key={cat} open={pickedInCat > 0} className="mb-3 rounded-md border border-slate-200">
               <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2">
-                  <span className="text-slate-400">▶</span>
+                  <span className="text-slate-600">▶</span>
                   <span>{cat}</span>
                   <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-600">{inCat.length}</span>
                   {pickedInCat > 0 && <span className="rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-brand">{pickedInCat} selected</span>}

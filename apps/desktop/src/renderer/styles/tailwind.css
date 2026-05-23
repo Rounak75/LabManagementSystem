@@ -6,3 +6,20 @@
   html, body, #root { height: 100%; }
   body { font-family: theme('fontFamily.sans'); }
 }
+
+@layer utilities {
+  /* Subtle, unobtrusive scrollbar for in-app scroll regions (e.g. the sidebar nav). */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.slate.300') transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: theme('colors.slate.300');
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.slate.400');
+  }
+}

@@ -77,7 +77,7 @@ function StatCard({
 
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-500">
+    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
       {children}
     </h2>
   );

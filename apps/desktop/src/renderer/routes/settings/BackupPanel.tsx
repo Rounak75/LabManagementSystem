@@ -187,7 +187,7 @@ export function BackupPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-600">
                   <th className="py-2 pr-2">Time</th>
                   <th className="py-2 pr-2">Kind</th>
                   <th className="py-2 pr-2">Destination</th>

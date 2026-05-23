@@ -11,6 +11,7 @@ export default function Login() {
   const { login } = useAuth();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<{ username: string; password: string }>();
   const [error, setError] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
   async function onSubmit(v: any) {
     setError(null);
     try { await login(v.username, v.password); nav("/"); }
@@ -23,7 +24,24 @@ export default function Login() {
         <p className="mb-6 text-xs text-slate-500">Golmuri Janch Ghar</p>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Username" autoFocus {...register("username", { required: "required" })} error={errors.username?.message} />
-          <Input label="Password" type="password" {...register("password", { required: "required" })} error={errors.password?.message} />
+          <div className="relative">
+            <Input
+              label="Password"
+              type={showPw ? "text" : "password"}
+              className="pr-12"
+              {...register("password", { required: "required" })}
+              error={errors.password?.message}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(s => !s)}
+              className="absolute right-2 top-7 rounded px-2 py-1 text-xs font-medium text-slate-500 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+              aria-label={showPw ? "Hide password" : "Show password"}
+              tabIndex={-1}
+            >
+              {showPw ? "Hide" : "Show"}
+            </button>
+          </div>
           <div className="-mt-2 text-right">
             <Link to="/recover" className="text-xs text-slate-500 hover:text-brand hover:underline">Forgot password?</Link>
           </div>
