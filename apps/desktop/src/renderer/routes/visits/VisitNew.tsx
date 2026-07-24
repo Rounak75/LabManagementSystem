@@ -206,10 +206,12 @@ export default function VisitNew() {
                   <Input label="Full name" value={newName} onChange={e => setNewName(e.target.value)} className="col-span-2" placeholder="e.g. John Doe" />
                   <Input label="Phone" value={newPhone} onChange={e => setNewPhone(e.target.value.replace(/\D/g, ''))} placeholder="10-digit number" />
                   <div className="flex gap-2">
-                    <Input label="Age" type="number" value={newAge} onChange={e => setNewAge(e.target.value)} className="w-16" />
+                    <div className="w-1/3">
+                      <Input label="Age" type="number" value={newAge} onChange={e => setNewAge(e.target.value)} />
+                    </div>
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Sex</label>
-                      <select value={newSex} onChange={e => setNewSex(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[15px] focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-700">Sex</label>
+                      <select value={newSex} onChange={e => setNewSex(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition-colors duration-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
                         <option>Male</option><option>Female</option><option>Other</option>
                       </select>
                     </div>

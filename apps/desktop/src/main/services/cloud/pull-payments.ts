@@ -66,6 +66,7 @@ export async function pullPayments(client: any): Promise<void> {
       });
     } catch (e) {
       console.error("[pull-payments] row", r.id, "failed", e);
+      throw e;
     }
   }
 

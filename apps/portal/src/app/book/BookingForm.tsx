@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   isOpenNow,
@@ -49,7 +49,29 @@ export function BookingForm({
   } = actions;
 
   const [filter, setFilter] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dropdownOpen]);
 
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaQuestion, setCaptchaQuestion] = useState("");
@@ -176,7 +198,7 @@ export function BookingForm({
         </Section>
 
         <Section title="Test Selection" step={2}>
-          <div className="relative group z-20">
+          <div className="relative group z-20" ref={dropdownRef}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft group-focus-within:text-brand transition-colors">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
             </svg>
@@ -184,28 +206,34 @@ export function BookingForm({
               value={filter}
               onChange={(e) => {
                 setFilter(e.target.value);
-                setSearchFocused(true);
+                setDropdownOpen(true);
               }}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              onFocus={() => setDropdownOpen(true)}
+              onClick={() => {
+                if (!filter) setDropdownOpen(prev => !prev);
+                else setDropdownOpen(true);
+              }}
               placeholder="Search or select tests..."
               className={`${inputCls} pl-10 pr-10`}
             />
-            <svg 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              className={`absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft transition-transform duration-200 cursor-pointer ${searchFocused ? "rotate-180 text-brand" : "hover:text-brand"}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setSearchFocused(!searchFocused);
-              }}
+            <button
+              type="button"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-soft transition-transform duration-200 cursor-pointer hover:text-brand"
+              onClick={() => setDropdownOpen(prev => !prev)}
+              aria-label="Toggle test selection"
             >
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
+              <svg 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180 text-brand" : ""}`}
+              >
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
 
-            {searchFocused && (filter.length > 0 || visible.length > 0) && (
+            {dropdownOpen && (filter.length > 0 || visible.length > 0) && (
               <div className="absolute z-20 w-full mt-2 rounded-xl border border-line bg-bg shadow-2xl max-h-72 overflow-y-auto divide-y divide-line animate-in fade-in slide-in-from-top-1 duration-200">
                 {visible.map((t) => {
                   const isAlreadySelected = testIds.includes(t.id);
@@ -213,11 +241,10 @@ export function BookingForm({
                   return (
                     <div
                       key={t.id}
-                      onMouseDown={(e) => {
-                        e.preventDefault(); // Prevents input onBlur from firing before click
+                      onClick={() => {
                         if (!isAlreadySelected) toggle(t.id);
                         setFilter("");
-                        setSearchFocused(false);
+                        setDropdownOpen(false);
                       }}
                       className="flex items-center gap-3 px-4 py-3 text-[14px] cursor-pointer hover:bg-elev transition-colors"
                     >

@@ -103,6 +103,7 @@ export async function pullResults(client: any): Promise<void> {
       });
     } catch (e) {
       console.error("[pull-results] row", r.id, "failed", e);
+      throw e;
     }
   }
 

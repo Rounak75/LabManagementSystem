@@ -64,6 +64,7 @@ export async function pullPrintJobs(client: any): Promise<void> {
       });
     } catch (e) {
       console.error("[pull-print-jobs] row", r.id, "failed", e);
+      throw e;
     }
   }
 

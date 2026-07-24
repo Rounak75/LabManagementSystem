@@ -65,6 +65,7 @@ export async function pullDisputes(client: any): Promise<void> {
       if (created > latest) latest = created;
     } catch (e) {
       console.error("[pull-disputes] row", r.id, "failed", e);
+      throw e;
     }
   }
 

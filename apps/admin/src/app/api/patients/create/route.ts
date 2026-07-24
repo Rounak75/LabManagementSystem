@@ -37,6 +37,8 @@ export async function POST(req: Request) {
       address: parsed.data.address || null,
       created_by_id: user.id,
       source: "admin",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .select("id")
     .single();

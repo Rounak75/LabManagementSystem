@@ -95,6 +95,7 @@ export async function pullVisits(client: any): Promise<void> {
       }
     } catch (e) {
       console.error("[pull-visits] row", r.visit_id, "failed", e);
+      throw e;
     }
   }
 

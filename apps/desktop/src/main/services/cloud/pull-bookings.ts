@@ -107,6 +107,7 @@ export async function pullBookings(client: any): Promise<void> {
       if (rowUpdated > latest) latest = rowUpdated;
     } catch (e) {
       console.error("[pull-bookings] row", r.booking_id, "failed", e);
+      throw e;
     }
   }
 

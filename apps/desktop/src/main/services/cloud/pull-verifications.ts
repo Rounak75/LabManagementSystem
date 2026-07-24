@@ -72,6 +72,7 @@ export async function pullVerifications(client: any): Promise<void> {
       }
     } catch (e) {
       console.error("[pull-verifications] row", r.id, "failed", e);
+      throw e;
     }
   }
 

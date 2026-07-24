@@ -69,6 +69,7 @@ export async function pullPatients(client: any): Promise<void> {
       });
     } catch (e) {
       console.error("[pull-patients] row", r.patient_id, "failed", e);
+      throw e;
     }
   }
 

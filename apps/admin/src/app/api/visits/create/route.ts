@@ -28,6 +28,8 @@ export async function POST(req: Request) {
     staff_id: user.id,
     status: "Open",
     source: "admin",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   });
   if (vErr) return NextResponse.json({ error: vErr.message }, { status: 500 });
 
@@ -37,6 +39,8 @@ export async function POST(req: Request) {
     visit_id: visitId,
     test_id: tid,
     status: "Collected",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }));
   const { error: vtErr } = await sb.from("visit_tests").insert(vtRows);
   if (vtErr) return NextResponse.json({ error: vtErr.message }, { status: 500 });
