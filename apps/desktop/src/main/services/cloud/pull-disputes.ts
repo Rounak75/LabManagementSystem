@@ -26,7 +26,7 @@ export async function pullDisputes(client: any): Promise<void> {
 
   let rows: RawDisputeRow[] = [];
   try {
-    rows = (await client.pullSince("disputes", "updated_at", sinceIso, BATCH)) as unknown as RawDisputeRow[];
+    rows = (await client.pullSince("disputes", "created_at", sinceIso, BATCH)) as unknown as RawDisputeRow[];
   } catch (e) {
     console.error("[pull-disputes] fetch failed", e);
     return;
