@@ -3,8 +3,6 @@
 // echoing back our own outbox-pushed rows.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 
 const SOURCE = "patients";
 const BATCH = 100;
@@ -26,23 +24,14 @@ interface RawPatientRow {
   updated_at: string;
 }
 
-export async function pullPatients(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullPatients(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawPatientRow[] = [];
   try {
-    rows = (await client.fetchPatientsSince(sinceIso, BATCH)) as unknown as RawPatientRow[];
+    rows = (await client.pullSince("patients", "updated_at", sinceIso, BATCH)) as unknown as RawPatientRow[];
   } catch (e) {
     console.error("[pull-patients] fetch failed", e);
     return;

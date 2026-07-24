@@ -82,7 +82,7 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
         <span className="field-label">Notes (optional)</span>
         <textarea name="notes" rows={2} className="input" />
       </label>
-      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+      {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p> : null}
       <button
         type="submit"
         disabled={pending || selected.length === 0}

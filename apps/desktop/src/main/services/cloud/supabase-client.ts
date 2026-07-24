@@ -145,7 +145,23 @@ export function createSupabaseClient(config: SupabaseConfig) {
     realtime: { transport: ws as unknown as typeof WebSocket },
   });
 
-  // ── pushRow ────────────────────────────────────────────────────────────────
+  async function pushBatch(
+    tableName: string,
+    operation: "create" | "update" | "delete",
+    rows: { rowId: string; payload: unknown }[]
+  ): Promise<void> {
+    if (rows.length === 0) return;
+
+    if (operation === "delete") {
+      const ids = rows.map((r) => r.rowId);
+      const result = await sb.from(tableName).delete().in("id", ids);
+      unwrap(result);
+    } else {
+      const payloads = rows.map((r) => r.payload as Record<string, unknown>);
+      const result = await sb.from(tableName).upsert(payloads, { onConflict: "id" });
+      unwrap(result);
+    }
+  }
 
   async function pushRow(input: {
     tableName: string;
@@ -219,7 +235,7 @@ export function createSupabaseClient(config: SupabaseConfig) {
   }
 
   // ── fetchColumnInfo ────────────────────────────────────────────────────────
-
+  
   async function fetchColumnInfo(
     tableNames: string[]
   ): Promise<Record<string, unknown>[]> {
@@ -229,67 +245,29 @@ export function createSupabaseClient(config: SupabaseConfig) {
     return unwrap(result) as Record<string, unknown>[];
   }
 
-  // ── fetchBookingsSince ─────────────────────────────────────────────────────
-  // Phase 3d Plan F: portal-created bookings flow cloud → desktop on each tick.
+  // ── pullSince (Generic Adapter) ─────────────────────────────────────────────
 
-  async function fetchBookingsSince(
+  async function pullSince(
+    tableName: string,
+    cursorColumn: string,
     sinceIso: string,
-    limit: number
+    limit: number,
+    filters?: Record<string, string>
   ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("bookings")
+    let query = sb
+      .from(tableName)
       .select("*")
-      .gt("updated_at", sinceIso)
-      .order("updated_at", { ascending: true })
+      .gt(cursorColumn, sinceIso)
+      .order(cursorColumn, { ascending: true })
       .limit(limit);
-    return unwrap(result) as Record<string, unknown>[];
-  }
 
-  // ── fetchDisputesSince ─────────────────────────────────────────────────────
-  // Phase 3d Plan F: portal-filed disputes flow cloud → desktop, firing the
-  // staff alert when a new one shows up.
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        query = query.eq(key, value);
+      }
+    }
 
-  async function fetchDisputesSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("disputes")
-      .select("*")
-      .gt("created_at", sinceIso)
-      .order("created_at", { ascending: true })
-      .limit(limit);
-    return unwrap(result) as Record<string, unknown>[];
-  }
-
-  // ── Phase 3e Plan A: admin-portal pull fetchers ───────────────────────────
-  // All follow the fetchBookingsSince pattern: rows where updated_at > sinceIso,
-  // ordered ascending, limit applied. Verifications + print jobs use specialised
-  // filters because they're event-shaped rather than row-shaped.
-
-  async function fetchPatientsSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("patients")
-      .select("*")
-      .gt("updated_at", sinceIso)
-      .order("updated_at", { ascending: true })
-      .limit(limit);
-    return unwrap(result) as Record<string, unknown>[];
-  }
-
-  async function fetchVisitsSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("visits")
-      .select("*")
-      .gt("updated_at", sinceIso)
-      .order("updated_at", { ascending: true })
-      .limit(limit);
+    const result = await query;
     return unwrap(result) as Record<string, unknown>[];
   }
 
@@ -300,64 +278,6 @@ export function createSupabaseClient(config: SupabaseConfig) {
       .from("visit_tests")
       .select("*")
       .eq("visit_id", visitId);
-    return unwrap(result) as Record<string, unknown>[];
-  }
-
-  async function fetchResultsSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("results")
-      .select("*")
-      .gt("updated_at", sinceIso)
-      .order("updated_at", { ascending: true })
-      .limit(limit);
-    return unwrap(result) as Record<string, unknown>[];
-  }
-
-  async function fetchPaymentsSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("payments")
-      .select("*")
-      .gt("updated_at", sinceIso)
-      .order("updated_at", { ascending: true })
-      .limit(limit);
-    return unwrap(result) as Record<string, unknown>[];
-  }
-
-  // Verifications = visits whose verified_at advanced AND originated from admin.
-  // We pull these on a separate cursor so verification events don't get lost
-  // when a Staff-created visit gets verified later by Admin.
-  async function fetchVerificationsSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("visits")
-      .select("*")
-      .gt("verified_at", sinceIso)
-      .eq("source", "admin")
-      .order("verified_at", { ascending: true })
-      .limit(limit);
-    return unwrap(result) as Record<string, unknown>[];
-  }
-
-  // Only Queued jobs — Picked/Done/Failed are terminal from this client's POV.
-  async function fetchPrintJobsSince(
-    sinceIso: string,
-    limit: number
-  ): Promise<Record<string, unknown>[]> {
-    const result = await sb
-      .from("print_jobs")
-      .select("*")
-      .gt("requested_at", sinceIso)
-      .eq("status", "Queued")
-      .order("requested_at", { ascending: true })
-      .limit(limit);
     return unwrap(result) as Record<string, unknown>[];
   }
 
@@ -381,21 +301,15 @@ export function createSupabaseClient(config: SupabaseConfig) {
 
   return {
     pushRow,
+    pushBatch,
     testConnection,
     fetchUnprocessedPaymentEvents,
     markPaymentEventProcessed,
     fetchFreeTierStatus,
     fetchColumnInfo,
     pushHeartbeat,
-    fetchBookingsSince,
-    fetchDisputesSince,
-    fetchPatientsSince,
-    fetchVisitsSince,
+    pullSince,
     fetchVisitTestsForVisit,
-    fetchResultsSince,
-    fetchPaymentsSince,
-    fetchVerificationsSince,
-    fetchPrintJobsSince,
   };
 }
 

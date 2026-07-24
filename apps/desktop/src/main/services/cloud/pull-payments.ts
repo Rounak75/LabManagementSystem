@@ -5,8 +5,6 @@
 // admin-portal payments are insert-only so we won't see the same row twice.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 
 const SOURCE = "payments";
 const BATCH = 100;
@@ -24,23 +22,14 @@ interface RawPaymentRow {
   updated_at: string;
 }
 
-export async function pullPayments(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullPayments(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawPaymentRow[] = [];
   try {
-    rows = (await client.fetchPaymentsSince(sinceIso, BATCH)) as unknown as RawPaymentRow[];
+    rows = (await client.pullSince("payments", "updated_at", sinceIso, BATCH)) as unknown as RawPaymentRow[];
   } catch (e) {
     console.error("[pull-payments] fetch failed", e);
     return;

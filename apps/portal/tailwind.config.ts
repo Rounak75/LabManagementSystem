@@ -12,6 +12,14 @@ const config: Config = {
         heading: ["var(--font-heading)", "Georgia", "serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
+      boxShadow: {
+        ambient: "0 8px 30px rgba(0, 0, 0, 0.04)",
+        "inner-bezel": "inset 0 1px 1px rgba(255, 255, 255, 0.15)",
+        "inner-bezel-dark": "inset 0 1px 1px rgba(0, 0, 0, 0.05)"
+      },
+      transitionTimingFunction: {
+        "out-fluid": "cubic-bezier(0.23, 1, 0.32, 1)",
+      },
       colors: {
         bg: withAlpha("--bg"),
         elev: withAlpha("--elev"),

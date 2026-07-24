@@ -8,6 +8,8 @@ import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import { ApproveBookingModal } from "./ApproveBookingModal";
 import { DeclineBookingModal } from "./DeclineBookingModal";
@@ -56,33 +58,27 @@ export default function BookingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const pendingCount = useMemo(
-    () => bookings.filter((b) => b.status === "Pending").length,
-    [bookings],
-  );
+  const pendingCount = bookings.filter((b) => b.status === "Pending").length;
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Bookings</h1>
-          <p className="text-sm text-slate-500">
-            Home-visit requests from the patient portal.
-            {statusFilter === "Pending" && pendingCount > 0 && ` ${pendingCount} pending.`}
-          </p>
-        </div>
-        <Select
-          className="w-44"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_OPTIONS)[number])}
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </Select>
-      </div>
+      <PageHeader
+        title="Bookings"
+        subtitle={`Home-visit requests from the patient portal.${statusFilter === "Pending" && pendingCount > 0 ? ` ${pendingCount} pending.` : ""}`}
+        actions={
+          <Select
+            className="w-44"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as (typeof STATUS_OPTIONS)[number])}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </Select>
+        }
+      />
 
-      <Card className="p-0">
+      <Card noPadding>
         {loading && bookings.length === 0 ? (
           <div className="p-6 text-slate-500">Loading…</div>
         ) : bookings.length === 0 ? (
@@ -93,28 +89,28 @@ export default function BookingsPage() {
           />
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
-                <th className="px-4 py-3">Booked</th>
-                <th className="px-4 py-3">Patient</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Address</th>
-                <th className="px-4 py-3">When</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Booked</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Patient</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Phone</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Address</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">When</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
               {bookings.map((b) => (
-                <tr key={b.id} className="border-t align-top transition-colors hover:bg-slate-50">
+                <tr key={b.id} className="border-b border-slate-100 align-top transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3 text-xs text-slate-500">
                     <div>{new Date(b.createdAt).toLocaleString("en-IN")}</div>
                     <div className="font-mono">{b.bookingId}</div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{b.patientName}</div>
-                    {b.patientEmail && (
+                    {b.patientEmail ? (
                       <div className="text-xs text-slate-500">{b.patientEmail}</div>
-                    )}
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <a href={`tel:${b.patientPhone}`} className="text-brand hover:underline">
@@ -122,7 +118,7 @@ export default function BookingsPage() {
                     </a>
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    {b.address}{b.pincode && <span className="text-slate-500"> · {b.pincode}</span>}
+                    {b.address}{b.pincode ? <span className="text-slate-500"> · {b.pincode}</span> : null}
                   </td>
                   <td className="px-4 py-3">
                     {new Date(b.preferredDate).toLocaleDateString("en-IN")}
@@ -135,10 +131,12 @@ export default function BookingsPage() {
                         <Button variant="danger" onClick={() => setDeclining(b)}>Decline</Button>
                       </div>
                     ) : (
-                      <span className="text-xs text-slate-500">
-                        {b.status}
-                        {b.declineReason && <span> · {b.declineReason}</span>}
-                      </span>
+                      <>
+                        <StatusBadge variant={b.status === "Approved" ? "success" : b.status === "Declined" ? "error" : "neutral"}>
+                          {b.status}
+                        </StatusBadge>
+                        {b.declineReason ? <span className="text-xs font-medium text-slate-600"> · {b.declineReason}</span> : null}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -148,7 +146,7 @@ export default function BookingsPage() {
         )}
       </Card>
 
-      {approving && (
+      {approving ? (
         <ApproveBookingModal
           booking={approving}
           onClose={(refresh) => {
@@ -156,8 +154,8 @@ export default function BookingsPage() {
             if (refresh) reload();
           }}
         />
-      )}
-      {declining && (
+      ) : null}
+      {declining ? (
         <DeclineBookingModal
           booking={declining}
           onClose={(refresh) => {
@@ -165,7 +163,7 @@ export default function BookingsPage() {
             if (refresh) reload();
           }}
         />
-      )}
+      ) : null}
     </div>
   );
 }

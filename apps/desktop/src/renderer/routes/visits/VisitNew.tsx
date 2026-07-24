@@ -18,6 +18,7 @@ export default function VisitNew() {
   const nav = useNavigate();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [searchQ, setSearchQ] = useState("");
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "yesterday">("all");
   const [pickedTestIds, setPickedTestIds] = useState<string[]>([]);
   const [outsourcedMeta, setOutsourcedMeta] = useState<Record<string, OutsourcedMeta>>({});
   const [type, setType] = useState<"WalkIn" | "HomeCollection">("WalkIn");
@@ -39,8 +40,8 @@ export default function VisitNew() {
   }, [initialPatientId]);
 
   const { data: searchResults = [] } = useQuery({
-    queryKey: ["patients", searchQ], enabled: !!searchQ && !patient,
-    queryFn: () => call<Patient[]>("patients:search", { q: searchQ })
+    queryKey: ["patients", searchQ, dateFilter], enabled: !!searchQ && !patient,
+    queryFn: () => call<Patient[]>("patients:search", { q: searchQ, dateFilter })
   });
   const { data: tests = [] } = useQuery({ queryKey: ["tests"], queryFn: () => call<Test[]>("tests:list") });
 
@@ -126,11 +127,12 @@ export default function VisitNew() {
   const subtotal = tests.filter(t => pickedTestIds.includes(t.id)).reduce((s, t) => s + Number(t.price), 0);
 
   return (
-    <div className="max-w-4xl">
-      <h1 className="mb-4 text-2xl font-semibold">New visit</h1>
+    <div className="mx-auto max-w-4xl">
+      <h1 className="mb-8 font-display text-4xl font-bold tracking-tight text-slate-900">New visit</h1>
 
-      <Card className="mb-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">1. Patient</h2>
+      <Card className="mb-6" noPadding>
+        <div className="p-6">
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">1. Patient Details</h2>
         {patient ? (
           <div className="flex items-center justify-between">
             <div>
@@ -143,16 +145,27 @@ export default function VisitNew() {
           <>
             {!isNewPatientMode ? (
               <>
-                <div className="relative">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-                  </svg>
-                  <Input 
-                    placeholder="Search by name or phone…" 
-                    value={searchQ} 
-                    onChange={e => setSearchQ(e.target.value)} 
-                    className="py-1.5 pl-9 pr-3 text-sm text-black border-black bg-slate-50 placeholder:text-slate-500 focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm" 
-                  />
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400">
+                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                    </svg>
+                    <Input 
+                      placeholder="Search by name, phone, or ID…" 
+                      value={searchQ} 
+                      onChange={e => setSearchQ(e.target.value)} 
+                      className="pl-10" 
+                    />
+                  </div>
+                  <select 
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value as any)}
+                    className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-[14px] font-medium text-slate-700 shadow-inner-bezel transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
+                  >
+                    <option value="all">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                  </select>
                 </div>
                 {searchQ && (
                   <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-slate-200 shadow-sm">
@@ -206,31 +219,35 @@ export default function VisitNew() {
             )}
           </>
         )}
-      </Card>
-
-      <Card className="mb-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">2. Visit type</h2>
-        <div className="flex gap-2">
-          <Button variant={type === "WalkIn" ? "primary" : "secondary"} onClick={() => setType("WalkIn")}>Walk-in</Button>
-          <Button variant={type === "HomeCollection" ? "primary" : "secondary"} onClick={() => setType("HomeCollection")}>Home collection</Button>
         </div>
       </Card>
 
-      <Card className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-slate-700">3. Tests</h2>
+      <Card className="mb-6" noPadding>
+        <div className="p-6">
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">2. Visit type</h2>
+          <div className="flex gap-3">
+            <Button variant={type === "WalkIn" ? "primary" : "secondary"} onClick={() => setType("WalkIn")}>Walk-in</Button>
+            <Button variant={type === "HomeCollection" ? "primary" : "secondary"} onClick={() => setType("HomeCollection")}>Home collection</Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="mb-6" noPadding>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">3. Select Tests</h2>
             <div className="w-1/2 relative">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
               </svg>
               <Input 
                 placeholder="Search tests..." 
                 value={testSearchQ} 
                 onChange={e => setTestSearchQ(e.target.value)} 
-                className="py-1.5 pl-9 pr-3 text-sm text-black border-black bg-slate-50 placeholder:text-slate-500 focus:bg-white focus:border-black focus:ring-1 focus:ring-black transition-all shadow-sm"
+                className="pl-10"
               />
             </div>
-        </div>
+          </div>
         
         {TEST_CATEGORIES.map(cat => {
           const inCat = tests.filter(t => t.category === cat);
@@ -246,43 +263,43 @@ export default function VisitNew() {
           const isOpen = testSearchQ.length > 0 || pickedInCat > 0;
 
           return (
-            <details key={cat} open={isOpen} className="group mb-3 rounded-md border border-slate-200">
-              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-wide text-black [&::-webkit-details-marker]:hidden bg-slate-50 hover:bg-slate-100 transition-colors">
-                <span className="flex items-center gap-2">
+            <details key={cat} open={isOpen} className="group mb-4 rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[13px] font-bold uppercase tracking-widest text-slate-700 [&::-webkit-details-marker]:hidden bg-slate-50 hover:bg-slate-100 transition-colors">
+                <span className="flex items-center gap-3">
                   <svg 
                     viewBox="0 0 24 24" 
                     fill="none" 
                     stroke="currentColor" 
                     strokeWidth="2.5" 
-                    className="h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-open:rotate-90"
+                    className="h-4 w-4 text-slate-400 transition-transform duration-300 ease-out-fluid group-open:rotate-90"
                   >
                     <polyline points="9 18 15 12 9 6"></polyline>
                   </svg>
                   <span>{cat}</span>
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-600">{inCat.length}</span>
-                  {pickedInCat > 0 && <span className="rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-brand">{pickedInCat} selected</span>}
+                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-500 shadow-sm">{inCat.length}</span>
+                  {pickedInCat > 0 && <span className="rounded-full bg-brand/10 text-brand px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal">{pickedInCat} selected</span>}
                 </span>
               </summary>
-              <div className="grid grid-cols-1 gap-2 border-t border-slate-100 p-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-4 md:grid-cols-2">
                 {filteredInCat.map(t => {
                   const picked = pickedTestIds.includes(t.id);
                   const meta = outsourcedMeta[t.id];
                   const showMissingWarning = submitAttempted && picked && t.isOutsourced && !(meta?.sentTo ?? "").trim();
                   return (
-                    <div key={t.id} className={`rounded border p-2 text-sm ${picked ? "border-brand bg-brand/5" : ""}`}>
+                    <div key={t.id} className={`rounded-xl border p-3 transition-all duration-300 ease-out-fluid ${picked ? "border-brand/40 bg-brand/5 shadow-sm" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"}`}>
                       <label className="flex cursor-pointer items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <input type="checkbox" checked={picked} onChange={() => togglePicked(t)} />
+                        <span className="flex items-center gap-3">
+                          <input type="checkbox" className="h-4 w-4 rounded text-brand focus:ring-brand/50" checked={picked} onChange={() => togglePicked(t)} />
                           <span>
-                            <span className="font-medium">{t.name}</span>
+                            <span className="font-medium text-slate-900">{t.name}</span>
                             {t.isOutsourced && (
-                              <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
                                 Outsourced
                               </span>
                             )}
                           </span>
                         </span>
-                        <span>₹{Number(t.price).toFixed(0)}</span>
+                        <span className="font-mono text-sm font-medium text-slate-600">₹{Number(t.price).toFixed(0)}</span>
                       </label>
                       {picked && t.isOutsourced && (
                         <div className="mt-2 grid grid-cols-1 gap-2 pl-6 md:grid-cols-2">
@@ -308,7 +325,11 @@ export default function VisitNew() {
             </details>
           );
         })}
-        <div className="mt-3 text-right text-sm font-medium">Subtotal: ₹{subtotal.toFixed(0)}</div>
+        <div className="mt-6 flex items-center justify-between border-t border-slate-200/60 pt-4">
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Selection</span>
+          <div className="font-display text-2xl font-bold tracking-tight text-slate-900">₹{subtotal.toFixed(0)}</div>
+        </div>
+        </div>
       </Card>
 
       <div className="flex items-center justify-between">

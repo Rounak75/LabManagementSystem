@@ -5,10 +5,12 @@ import { getServerSupabase } from "@/lib/supabase-client";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const userPromise = getSessionUser();
+  const bodyPromise = req.json();
+  const user = await userPromise;
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (user.role !== "Admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const { ids } = await req.json();
+  const { ids } = await bodyPromise;
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: "no ids" }, { status: 400 });
   }
@@ -46,24 +48,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, count: 0, skipped });
   }
 
-  const { error } = await sb
-    .from("visits")
-    .update({ status: "Verified", verified_at: now, verified_by_user_id: user.id, updated_at: now })
-    .in("id", safeIds);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
   const safeVtIds = (vts ?? []).filter((vt) => safeIds.includes(vt.visit_id)).map((vt) => vt.id);
+
+  const updates = [
+    sb.from("visits").update({ status: "Verified", verified_at: now, verified_by_user_id: user.id, updated_at: now }).in("id", safeIds),
+    sb.from("audit_logs").insert({
+      user_id: user.id,
+      action: "visit.batch_verify",
+      target_entity: "visits",
+      target_id: safeIds.join(","),
+      details: JSON.stringify({ count: safeIds.length, skipped, batch: true }),
+    })
+  ];
   if (safeVtIds.length > 0) {
-    await sb.from("results").update({ verified_at: now }).in("visit_test_id", safeVtIds);
+    updates.push(sb.from("results").update({ verified_at: now }).in("visit_test_id", safeVtIds) as any);
   }
 
-  await sb.from("audit_logs").insert({
-    user_id: user.id,
-    action: "visit.batch_verify",
-    target_entity: "visits",
-    target_id: safeIds.join(","),
-    details: JSON.stringify({ count: safeIds.length, skipped, batch: true }),
-  });
+  const [visitResult] = await Promise.all(updates);
+  if (visitResult.error) return NextResponse.json({ error: visitResult.error.message }, { status: 500 });
 
   revalidateTag(CACHE_TAGS.visits);
   return NextResponse.json({ ok: true, count: safeIds.length, skipped });

@@ -42,18 +42,38 @@ register("patients:get", async ({ id }: { id: string }) => {
   return p;
 });
 
-register("patients:search", async ({ q }: { q: string }) => {
+register("patients:search", async ({ q, dateFilter }: { q: string; dateFilter?: "today" | "yesterday" | "all" }) => {
   requireSession();
   const term = (q ?? "").trim();
-  if (!term) return prisma().patient.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+  
+  let dateCondition: any = undefined;
+  if (dateFilter === "today") {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    dateCondition = { gte: start };
+  } else if (dateFilter === "yesterday") {
+    const start = new Date();
+    start.setDate(start.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    dateCondition = { gte: start, lt: end };
+  }
+
+  const where: any = {};
+  if (term) {
+    where.OR = [
+      { name:      { contains: term } },
+      { phone:     { contains: term } },
+      { patientId: { contains: term } }
+    ];
+  }
+  if (dateCondition) {
+    where.createdAt = dateCondition;
+  }
+  
   return prisma().patient.findMany({
-    where: {
-      OR: [
-        { name:      { contains: term } },
-        { phone:     { contains: term } },
-        { patientId: { contains: term } }
-      ]
-    },
+    where,
     orderBy: { createdAt: "desc" },
     take: 50
   });

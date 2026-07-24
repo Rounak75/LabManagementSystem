@@ -38,13 +38,24 @@ const getSessionEpoch = unstable_cache(
   { tags: [CACHE_TAGS.sessionEpoch], revalidate: 60 },
 );
 
+export interface TokenValidator {
+  verify(token: string, secret: string): Promise<JWTPayload>;
+}
+
+export const JoseTokenValidator: TokenValidator = {
+  async verify(token: string, secret: string): Promise<JWTPayload> {
+    const key = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, key);
+    return payload as unknown as JWTPayload;
+  },
+};
+
 export async function verifyJWT(
   token: string,
   secret = process.env.SUPABASE_JWT_SECRET!,
+  validator: TokenValidator = JoseTokenValidator
 ): Promise<JWTPayload> {
-  const key = new TextEncoder().encode(secret);
-  const { payload } = await jwtVerify(token, key);
-  return payload as unknown as JWTPayload;
+  return validator.verify(token, secret);
 }
 
 export function encodeSessionPayload(p: { token: string; expiresAt: number }): string {

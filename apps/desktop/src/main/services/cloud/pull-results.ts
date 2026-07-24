@@ -5,8 +5,6 @@
 // isn't local yet (sync race).
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 import { isAbnormal } from "@main/services/abnormality";
 import type { ResultType, Sex } from "@lab/types";
 
@@ -27,23 +25,14 @@ interface RawResultRow {
   updated_at: string;
 }
 
-export async function pullResults(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullResults(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawResultRow[] = [];
   try {
-    rows = (await client.fetchResultsSince(sinceIso, BATCH)) as unknown as RawResultRow[];
+    rows = (await client.pullSince("results", "updated_at", sinceIso, BATCH)) as unknown as RawResultRow[];
   } catch (e) {
     console.error("[pull-results] fetch failed", e);
     return;

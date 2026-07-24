@@ -7,22 +7,39 @@ import { call } from "@/lib/api";
 import { SidebarCloudIcon } from "@/components/SidebarCloudIcon";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import logo from "@/assets/logo.png";
+import {
+  LayoutDashboard,
+  Calendar,
+  Users,
+  PlusCircle,
+  FileText,
+  Truck,
+  TestTube,
+  Stethoscope,
+  UserCog,
+  Activity,
+  Bell,
+  RefreshCw,
+  FileCode,
+  Settings,
+  LogOut
+} from "lucide-react";
 
 const links = [
-  { to: "/",            label: "Dashboard" },
-  { to: "/bookings",    label: "Bookings" },
-  { to: "/patients",    label: "Patients" },
-  { to: "/visits/new",  label: "New Visit" },
-  { to: "/reports",     label: "Reports" },
-  { to: "/outsourced",  label: "Outsourced" },
-  { to: "/tests",       label: "Tests",   admin: true },
-  { to: "/doctors",     label: "Doctors", admin: true },
-  { to: "/users",       label: "Users", admin: true },
-  { to: "/audit",       label: "Audit log", admin: true },
-  { to: "/notifications",label: "Notifications", admin: true },
-  { to: "/sync",        label: "Sync log", admin: true },
-  { to: "/templates",   label: "Templates", admin: true },
-  { to: "/settings",    label: "Settings", admin: true }
+  { to: "/",            label: "Dashboard",   icon: LayoutDashboard },
+  { to: "/bookings",    label: "Bookings",    icon: Calendar },
+  { to: "/patients",    label: "Patients",    icon: Users },
+  { to: "/visits/new",  label: "New Visit",   icon: PlusCircle },
+  { to: "/reports",     label: "Reports",     icon: FileText },
+  { to: "/outsourced",  label: "Outsourced",  icon: Truck },
+  { to: "/tests",       label: "Tests",       icon: TestTube,   admin: true },
+  { to: "/doctors",     label: "Doctors",     icon: Stethoscope, admin: true },
+  { to: "/users",       label: "Users",       icon: UserCog,    admin: true },
+  { to: "/audit",       label: "Audit log",   icon: Activity,   admin: true },
+  { to: "/notifications",label: "Notifications", icon: Bell,    admin: true },
+  { to: "/sync",        label: "Sync log",    icon: RefreshCw,  admin: true },
+  { to: "/templates",   label: "Templates",   icon: FileCode,   admin: true },
+  { to: "/settings",    label: "Settings",    icon: Settings,   admin: true }
 ];
 
 export function AppShell({ children }: { children?: ReactNode }) {
@@ -39,67 +56,99 @@ export function AppShell({ children }: { children?: ReactNode }) {
     staleTime: Infinity,
   });
   const isOpen = settings?.isOpenToday;
+
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center justify-between px-4 py-2.5 text-[14px] font-medium transition-colors ${
+    `group flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ease-out-fluid active:scale-[0.98] ${
       isActive
-        ? "bg-white text-[#2f3542] border-l-4 border-brand font-semibold shadow-sm"
-        : "text-slate-300 hover:bg-[#3a4150] hover:text-white border-l-4 border-transparent"
+        ? "bg-brand/10 text-brand shadow-inner-bezel-dark"
+        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
     }`;
+
   return (
-    <div className="flex h-screen">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-[#1e232c] bg-[#2f3542] text-white shadow-xl z-20">
-        <div className="border-b border-[#1e232c] bg-[#282d38] px-4 py-4">
-          <div className="flex items-center gap-2 mb-1">
-            <img src={logo} alt="Logo" className="w-8 h-8 rounded bg-white shadow-sm" />
-            <div className="text-[17px] leading-tight font-extrabold tracking-tight text-white">Golmuri Janch Ghar</div>
+    <div className="flex h-screen bg-slate-100 p-3 font-sans selection:bg-brand/20">
+      <aside className="flex w-64 shrink-0 flex-col rounded-[2rem] border border-[#1f2937] bg-[#111827] shadow-ambient">
+        <div className="p-6 pb-2">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+              <img src={logo} alt="Logo" className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="font-display text-[15px] font-bold tracking-tight text-slate-100">Golmuri Janch Ghar</div>
+              <div className="text-[11px] font-medium tracking-wide text-slate-500">{user?.name} · {user?.role}</div>
+            </div>
           </div>
-          <div className="text-xs font-medium text-slate-400">{user?.name} · {user?.role}</div>
           {settings && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#1e232c] px-2.5 py-1 text-xs font-medium text-slate-300 border border-slate-700">
-                <span
-                  className={`h-2 w-2 rounded-full ${isOpen ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"}`}
-                  aria-hidden="true"
-                />
-                <span>{isOpen ? "Open" : "Closed"}</span>
+            <div className="mb-2 flex items-center justify-between rounded-full border border-slate-800 bg-slate-900 px-3 py-1.5 shadow-inner-bezel-dark">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${isOpen ? "bg-emerald-400" : "bg-rose-400"}`}></span>
+                  <span className={`relative inline-flex h-2 w-2 rounded-full ${isOpen ? "bg-emerald-500" : "bg-rose-500"}`}></span>
+                </span>
+                <span className="text-xs font-semibold text-slate-300">{isOpen ? "Open" : "Closed"}</span>
               </div>
-              <div className="text-slate-400"><SidebarCloudIcon /></div>
+              <div className="text-slate-500"><SidebarCloudIcon /></div>
             </div>
           )}
         </div>
-        <nav className="scrollbar-thin flex flex-1 flex-col overflow-y-auto py-2">
-          {links.filter(l => !l.admin).map(l => (
-            <NavLink key={l.to} to={l.to} end={l.to === "/"} className={linkClass}>
-              {({ isActive }) => (
-                <span>{l.label}</span>
-              )}
-            </NavLink>
-          ))}
+        
+        <nav className="scrollbar-thin flex flex-1 flex-col overflow-y-auto px-4 py-2 gap-0.5">
+          <div className="mx-4 mb-2 mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            Operations
+          </div>
+          {links.filter(l => !l.admin).map(l => {
+            const Icon = l.icon;
+            return (
+              <NavLink key={l.to} to={l.to} end={l.to === "/"} className={linkClass}>
+                {({ isActive }) => (
+                  <>
+                    <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-brand" : "text-slate-400 group-hover:text-slate-300"} transition-colors duration-200`} strokeWidth={2} />
+                    <span>{l.label}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
           {user?.role === "Admin" && (
             <>
-              <div className="mb-1 mt-4 px-6 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                Admin
+              <div className="mx-4 mb-2 mt-6 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-t border-slate-800 pt-4">
+                Administration
               </div>
-              {links.filter(l => l.admin).map(l => (
-                <NavLink key={l.to} to={l.to} className={linkClass}>
-                  {({ isActive }) => (
-                    <span>{l.label}</span>
-                  )}
-                </NavLink>
-              ))}
+              {links.filter(l => l.admin).map(l => {
+                const Icon = l.icon;
+                return (
+                  <NavLink key={l.to} to={l.to} className={linkClass}>
+                    {({ isActive }) => (
+                      <>
+                        <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-white" : "text-slate-500 group-hover:text-slate-400"} transition-colors duration-200`} strokeWidth={2} />
+                        <span>{l.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
             </>
           )}
         </nav>
-        <div className="border-t border-[#1e232c] bg-[#282d38] p-4">
+        
+        <div className="mt-auto border-t border-slate-800/60 p-4 pb-6">
           <UpdateBanner />
-          <Button variant="ghost" className="w-full justify-start text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" onClick={logout}>Log out</Button>
+          <button 
+            className="w-full group flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ease-out-fluid active:scale-[0.98] text-slate-400 hover:bg-rose-500/10 hover:text-rose-400" 
+            onClick={logout}
+          >
+            <LogOut className="h-[18px] w-[18px] shrink-0 text-slate-500 group-hover:text-rose-400 transition-colors duration-200" strokeWidth={2} />
+            <span>Log out</span>
+          </button>
           {appInfo?.version && (
-            <div className="px-4 pt-2 text-[10px] text-slate-500 font-mono">v{appInfo.version}</div>
+            <div className="mt-3 px-4 text-[10px] text-slate-600 font-mono">v{appInfo.version}</div>
           )}
         </div>
       </aside>
-      <main className="flex-1 overflow-auto bg-slate-50 p-6">
-        {children ?? <Outlet />}
+
+      <main className="ml-4 flex flex-1 flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-ambient">
+        <div className="flex-1 overflow-auto px-10 py-10">
+          {children ?? <Outlet />}
+        </div>
       </main>
     </div>
   );

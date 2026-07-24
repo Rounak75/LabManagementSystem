@@ -4,6 +4,8 @@ import { call } from "@/lib/api";
 import { useToast } from "@/lib/toast.store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Select } from "@/components/ui/Select";
 
 const PAGE_SIZE = 50;
@@ -71,11 +73,13 @@ export default function SyncLog() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Sync log</h1>
-      </div>
+      <PageHeader 
+        title="Sync log" 
+        subtitle="View the status of synchronization with the cloud backend."
+        actions={<Button onClick={() => qc.invalidateQueries({ queryKey: ["cloud:listOutbox"] })} variant="secondary">Refresh</Button>} 
+      />
 
-      <Card className="mb-4 p-4">
+      <Card noPadding className="mb-4 p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Select label="Status" value={status} onChange={(e) => onFilterChange(setStatus)(e.target.value)}>
             <option value="">All</option>
@@ -106,18 +110,18 @@ export default function SyncLog() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-slate-100 text-left">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
-                <th className="px-4 py-3 w-6" />
-                <th className="px-4 py-3">Created At</th>
-                <th className="px-4 py-3">Table</th>
-                <th className="px-4 py-3">Operation</th>
-                <th className="px-4 py-3">Row ID</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Attempts</th>
-                <th className="px-4 py-3">Next Attempt</th>
-                <th className="sticky right-0 bg-slate-100 px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3" />
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Time</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Table</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Operation</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Row ID</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Status</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700 text-center">Attempts</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Next Attempt</th>
+                <th className="sticky right-0 bg-slate-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -125,7 +129,7 @@ export default function SyncLog() {
                 const isOpen = expanded === r.id;
                 return (
                   <Fragment key={r.id}>
-                    <tr className="border-t align-top hover:bg-slate-50 transition-colors">
+                    <tr className="border-b border-slate-100 align-top transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <button
                           type="button"
@@ -140,7 +144,9 @@ export default function SyncLog() {
                       <td className="px-4 py-3">{r.tableName}</td>
                       <td className="px-4 py-3">{r.operation}</td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-700">{r.rowId}</td>
-                      <td className="px-4 py-3"><span className={statusClass(r.status)}>{r.status}</span></td>
+                      <td className="px-4 py-3">
+                        <StatusBadge variant={r.status === "Sent" ? "success" : r.status === "Failed" ? "error" : "neutral"}>{r.status}</StatusBadge>
+                      </td>
                       <td className="px-4 py-3 text-center">{r.attempts}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-600">{formatDate(r.nextAttemptAt)}</td>
                       <td className="sticky right-0 bg-white px-4 py-3">

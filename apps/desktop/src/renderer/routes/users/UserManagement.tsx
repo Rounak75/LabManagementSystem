@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { Role } from "@lab/types";
 
@@ -62,19 +63,16 @@ export default function UserManagement() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Users</h1>
-        <Button onClick={() => setAdding(true)}>Add user</Button>
-      </div>
+      <PageHeader title="Users" actions={<Button onClick={() => setAdding(true)}>Add user</Button>} />
 
-      {pageError && (
+      {pageError ? (
         <div className="mb-3 rounded-md border border-danger/30 bg-red-50 p-3 text-sm text-danger">
           {pageError}
           <button className="ml-3 underline" onClick={() => setPageError(null)}>dismiss</button>
         </div>
-      )}
+      ) : null}
 
-      <Card className="p-0">
+      <Card noPadding>
         {isLoading ? (
           <div className="p-6 text-slate-500">Loading…</div>
         ) : users.length === 0 ? (
@@ -86,23 +84,23 @@ export default function UserManagement() {
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
-            <thead className="bg-slate-100 text-left">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Username</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Collects samples</th>
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Name</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Username</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Role</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Status</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Collects samples</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Created</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map(u => {
                 const isMe = me?.id === u.id;
                 return (
-                  <tr key={u.id} className="border-t transition-colors hover:bg-slate-50">
-                    <td className="px-4 py-3">{u.name}{isMe && <span className="ml-2 text-xs text-slate-500">(you)</span>}</td>
+                  <tr key={u.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50">
+                    <td className="px-4 py-3">{u.name}{isMe ? <span className="ml-2 text-xs text-slate-500">(you)</span> : null}</td>
                     <td className="px-4 py-3 text-slate-600">{u.username}</td>
                     <td className="px-4 py-3">{u.role}</td>
                     <td className="px-4 py-3">
@@ -156,45 +154,45 @@ export default function UserManagement() {
         )}
       </Card>
 
-      {adding && (
+      {adding ? (
         <AddUserModal
           onClose={() => setAdding(false)}
           onDone={() => { setAdding(false); refresh(); }}
           onError={(msg) => setPageError(msg)}
         />
-      )}
-      {resetting && (
+      ) : null}
+      {resetting ? (
         <ResetPasswordModal
           user={resetting}
           onClose={() => setResetting(null)}
           onDone={() => { setResetting(null); refresh(); }}
           onError={(msg) => { setResetting(null); setPageError(msg); }}
         />
-      )}
-      {togglingActive && (
+      ) : null}
+      {togglingActive ? (
         <ToggleActiveModal
           user={togglingActive}
           onClose={() => setTogglingActive(null)}
           onDone={() => { setTogglingActive(null); refresh(); }}
           onError={(msg) => { setTogglingActive(null); setPageError(msg); }}
         />
-      )}
-      {changingRole && (
+      ) : null}
+      {changingRole ? (
         <ChangeRoleModal
           user={changingRole}
           onClose={() => setChangingRole(null)}
           onDone={() => { setChangingRole(null); refresh(); }}
           onError={(msg) => { setChangingRole(null); setPageError(msg); }}
         />
-      )}
-      {deleting && (
+      ) : null}
+      {deleting ? (
         <DeleteUserModal
           user={deleting}
           onClose={() => setDeleting(null)}
           onDone={() => { setDeleting(null); refresh(); }}
           onError={(msg) => { setDeleting(null); setPageError(msg); }}
         />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -229,7 +227,7 @@ function AddUserModal({ onClose, onDone, onError }: { onClose: () => void; onDon
             </span>
           </span>
         </label>
-        {formError && <p className="text-sm text-danger">{formError}</p>}
+        {formError ? <p className="text-sm text-danger">{formError}</p> : null}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={save.isPending}>Add</Button>
@@ -290,7 +288,7 @@ function ResetPasswordModal({ user, onClose, onDone, onError }: { user: UserRow;
       })} className="space-y-3">
         <Input label="New password" type="password" {...register("newPassword", { required: true, minLength: 4 })} error={errors.newPassword && "At least 4 characters"} />
         <Input label="Confirm password" type="password" {...register("confirm", { required: true, validate: v => v === pwd || "Passwords do not match" })} error={errors.confirm?.message} />
-        {formError && <p className="text-sm text-danger">{formError}</p>}
+        {formError ? <p className="text-sm text-danger">{formError}</p> : null}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={reset.isPending}>Reset password</Button>
@@ -316,7 +314,7 @@ function ToggleActiveModal({ user, onClose, onDone, onError }: { user: UserRow; 
     return (
       <Modal open onClose={onClose} title={`Enable ${user.name}`}>
         <p className="text-sm text-slate-700">Re-enable this user? They will be able to log in again.</p>
-        {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
+        {formError ? <p className="mt-3 text-sm text-danger">{formError}</p> : null}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button onClick={handleConfirm} disabled={mut.isPending}>Enable</Button>
@@ -329,7 +327,7 @@ function ToggleActiveModal({ user, onClose, onDone, onError }: { user: UserRow; 
       <p className="text-sm text-slate-700">
         This user will no longer be able to log in. Their activity history is preserved.
       </p>
-      {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
+      {formError ? <p className="mt-3 text-sm text-danger">{formError}</p> : null}
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button variant="danger" onClick={handleConfirm} disabled={mut.isPending}>Disable</Button>
@@ -354,7 +352,7 @@ function ChangeRoleModal({ user, onClose, onDone, onError }: { user: UserRow; on
           <option value="Staff">Staff</option>
           <option value="Admin">Admin</option>
         </Select>
-        {formError && <p className="text-sm text-danger">{formError}</p>}
+        {formError ? <p className="text-sm text-danger">{formError}</p> : null}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
           <Button onClick={() => mut.mutate()} disabled={mut.isPending || role === user.role}>Save</Button>
@@ -378,7 +376,7 @@ function DeleteUserModal({ user, onClose, onDone, onError }: { user: UserRow; on
         This permanently removes the user. If they have any activity in the audit log, deletion will fail —
         disable them instead.
       </p>
-      {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
+      {formError ? <p className="mt-3 text-sm text-danger">{formError}</p> : null}
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
         <Button variant="danger" onClick={() => mut.mutate()} disabled={mut.isPending}>Delete</Button>

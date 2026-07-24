@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type Doctor = { id: string; name: string; clinic: string | null; isActive: boolean };
 
@@ -17,22 +19,26 @@ export default function DoctorDirectory() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Referring doctors</h1>
-        <Button onClick={() => setAdding(true)}>Add doctor</Button>
-      </div>
-      <Card className="p-0">
+      <PageHeader title="Referring doctors" actions={<Button onClick={() => setAdding(true)}>Add doctor</Button>} />
+      <Card noPadding>
         {isLoading ? <div className="p-6 text-slate-500">Loading…</div> : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
-              <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Clinic</th><th className="px-4 py-3">Status</th><th /></tr>
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
+              <tr>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Name</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Clinic</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Status</th>
+                <th />
+              </tr>
             </thead>
             <tbody>
               {doctors.map(d => (
-                <tr key={d.id} className="border-t transition-colors hover:bg-slate-50">
-                  <td className="px-4 py-3">{d.name}</td>
+                <tr key={d.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-900">{d.name}</td>
                   <td className="px-4 py-3 text-slate-500">{d.clinic ?? "—"}</td>
-                  <td className="px-4 py-3">{d.isActive ? "Active" : "Inactive"}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge variant={d.isActive ? "success" : "neutral"}>{d.isActive ? "Active" : "Inactive"}</StatusBadge>
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {d.id !== "doctor-self" && <Button size="sm" variant="ghost" onClick={() => setEditing(d)}>Edit</Button>}
                   </td>

@@ -42,9 +42,9 @@ export function ResultsForm({
         <section key={visitTest.id} className="mb-6">
           <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">{visitTest.testName}</h2>
           <div className="space-y-3">
-            {params.length === 0 && (
-              <p className="text-sm text-slate-500">No parameters defined for this test.</p>
-            )}
+            {params.length === 0 ? (
+              <div className="py-4 text-sm text-slate-500">No parameters defined for this test.</div>
+            ) : null}
             {params.map((p) => {
               const existing = initialResults.find(
                 (r) => r.parameter_id === p.id && r.visit_test_id === visitTest.id,
@@ -66,7 +66,7 @@ export function ResultsForm({
       ))}
 
       <div className="sticky bottom-0 -mx-4 mt-6 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        {error && <p className="mb-2 text-sm font-medium text-rose-600">{error}</p>}
+        {error ? <p className="mb-2 text-sm font-medium text-rose-600">{error}</p> : null}
         <button
           disabled={pending}
           onClick={() => {

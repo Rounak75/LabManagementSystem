@@ -1,10 +1,23 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionHeading } from "@/components/ui/SectionHeading";
+import { StatCard } from "@/components/ui/StatCard";
+import { QuickActionCard } from "@/components/ui/QuickActionCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/stores/auth.store";
 import { NotificationsFailedBadge } from "@/components/NotificationsFailedBadge";
 import { PaymentLinksCard } from "@/components/PaymentLinksCard";
 import { PaymentLinksFailedBadge } from "@/components/PaymentLinksFailedBadge";
+import {
+  Users, TestTube, FileText, Clock,
+  PlusCircle, Calendar, FlaskConical, FileBarChart,
+  Wallet, CheckCircle2, AlertCircle, ListChecks,
+  RefreshCw
+} from "lucide-react";
 
 import type { DashboardStats } from "@shared/api";
 
@@ -18,72 +31,45 @@ function formatINR(n: number): string {
   return inrFmt.format(n);
 }
 
-function StatCard({
-  value,
-  label,
-  delta,
-  isCurrency,
-  isLoading,
-}: {
-  value?: number;
-  label: string;
-  delta?: number;
-  isCurrency?: boolean;
-  isLoading?: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <Card className="flex-1 animate-pulse">
-        <div className="h-9 w-24 rounded bg-slate-200" />
-        <div className="mt-2 h-3 w-32 rounded bg-slate-200" />
-      </Card>
-    );
-  }
+function trendFor(delta: number | undefined): { value: string; direction: "up" | "down" | "neutral" } | undefined {
+  if (delta === undefined) return undefined;
+  if (delta > 0) return { value: `+${delta} vs yesterday`, direction: "up" };
+  if (delta < 0) return { value: `${delta} vs yesterday`, direction: "down" };
+  return { value: "0% vs yesterday", direction: "neutral" };
+}
 
-  const display =
-    value === undefined
-      ? "—"
-      : isCurrency
-        ? formatINR(value)
-        : value.toLocaleString("en-IN");
-
-  let deltaNode: React.ReactNode = null;
-  if (delta !== undefined) {
-    let cls = "text-slate-500";
-    let prefix = "";
-    if (delta > 0) {
-      cls = "text-emerald-600";
-      prefix = "+";
-    } else if (delta < 0) {
-      cls = "text-rose-600";
-    }
-    deltaNode = (
-      <div className={`mt-1 text-xs ${cls}`}>
-        vs yesterday: {delta === 0 ? "—" : `${prefix}${delta}`}
-      </div>
-    );
-  }
-
+function PipelineStat({ label, value, color }: { label: string; value?: number; color: string }) {
   return (
-    <Card className="flex-1">
-      <div className="text-4xl font-semibold text-slate-900">{display}</div>
-      <div className="mt-1 text-sm text-slate-500">{label}</div>
-      {deltaNode}
-    </Card>
+    <div className="flex-1 text-center">
+      <div className="mb-2 flex items-center justify-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${color}`} />
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+      </div>
+      <div className="text-2xl font-semibold text-slate-900">{value ?? 0}</div>
+      <div className="mt-0.5 text-xs text-slate-400">samples</div>
+    </div>
   );
 }
 
-function GroupHeading({ children }: { children: React.ReactNode }) {
+function ReportStatusCol({ label, value, icon, trend }: { label: string; value?: number; icon: React.ReactNode; trend?: string }) {
   return (
-    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-700">
-      {children}
-    </h2>
+    <div className="flex-1 text-center">
+      <div className="mb-2 flex items-center justify-center gap-1.5">
+        {icon}
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+      </div>
+      <div className="text-2xl font-semibold text-slate-900">{value ?? 0}</div>
+      <div className="mt-0.5 text-xs text-slate-400">reports</div>
+      {trend ? <div className="mt-1 text-xs text-slate-400">{trend}</div> : null}
+    </div>
   );
 }
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { data, isLoading, isError, error } = useQuery({
+  const nav = useNavigate();
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error, isFetching } = useQuery({
     queryKey: ["dashboard:stats"],
     queryFn: () => call<DashboardStats>("dashboard:stats"),
     refetchInterval: 60_000,
@@ -93,93 +79,207 @@ export default function Dashboard() {
   const money = data?.money;
   const backlog = data?.backlog;
 
+  const todayDate = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
   return (
     <div>
-      <div className="mb-6 flex items-center gap-4">
-        <h1 className="text-2xl font-semibold">Today</h1>
-        {user?.role === "Admin" && <NotificationsFailedBadge />}
-        {user?.role === "Admin" && <PaymentLinksFailedBadge />}
-      </div>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Overview of today's laboratory operations"
+        actions={
+          <div className="flex items-center gap-3">
+            {user?.role === "Admin" ? <NotificationsFailedBadge /> : null}
+            {user?.role === "Admin" ? <PaymentLinksFailedBadge /> : null}
+            <Button variant="secondary" size="sm" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              {todayDate}
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              className="group gap-2"
+              disabled={isFetching}
+              onClick={() => qc.invalidateQueries({ queryKey: ["dashboard:stats"] })}
+            >
+              <RefreshCw className={`h-4 w-4 transition-transform duration-500 ease-in-out ${isFetching ? 'animate-spin' : 'group-hover:rotate-180'}`} />
+              {isFetching ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
+        }
+      />
 
-      {isError && (
-        <div className="mb-4 text-sm text-rose-600">
+      {isError ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Couldn't load dashboard. {(error as Error)?.message}
         </div>
-      )}
+      ) : null}
 
+      {/* Today's Operations */}
       <section className="mb-8">
-        <GroupHeading>Today's volume</GroupHeading>
-        <div className="flex flex-wrap gap-4">
+        <SectionHeading>Today's Operations</SectionHeading>
+        <div className="grid grid-cols-4 gap-4">
           <StatCard
-            value={today?.visits}
+            icon={<Users className="h-5 w-5" />}
+            value={today?.visits ?? 0}
             label="Visits today"
-            delta={today?.deltaVisits}
+            trend={trendFor(today?.deltaVisits)}
             isLoading={isLoading}
           />
-          <StatCard value={today?.tests} label="Tests run today" isLoading={isLoading} />
           <StatCard
-            value={today?.reports}
+            icon={<TestTube className="h-5 w-5" />}
+            value={today?.tests ?? 0}
+            label="Tests run today"
+            trend={trendFor(undefined)}
+            isLoading={isLoading}
+          />
+          <StatCard
+            icon={<FileText className="h-5 w-5" />}
+            value={today?.reports ?? 0}
             label="Reports generated today"
+            trend={trendFor(undefined)}
             isLoading={isLoading}
           />
           <StatCard
-            value={today?.reportsPending}
+            icon={<Clock className="h-5 w-5" />}
+            value={today?.reportsPending ?? 0}
             label="Reports pending"
+            trend={trendFor(undefined)}
             isLoading={isLoading}
           />
         </div>
       </section>
 
-      {money !== null && (
+      {/* Sample Pipeline + Report Status */}
+      <section className="mb-8 grid grid-cols-2 gap-4">
+        <div>
+          <SectionHeading>Sample Pipeline</SectionHeading>
+          <Card>
+            <div className="flex divide-x divide-slate-100">
+              <PipelineStat label="Collected" value={0} color="bg-status-success" />
+              <PipelineStat label="Processing" value={0} color="bg-orange-400" />
+              <PipelineStat label="Completed" value={0} color="bg-status-processing" />
+              <PipelineStat label="Rejected" value={0} color="bg-status-error" />
+            </div>
+          </Card>
+        </div>
+        <div>
+          <SectionHeading>Reports Status</SectionHeading>
+          <Card>
+            <div className="flex divide-x divide-slate-100">
+              <ReportStatusCol label="Generated" value={today?.reports} icon={<FileText className="h-3.5 w-3.5 text-status-processing" />} trend="0% vs yesterday" />
+              <ReportStatusCol label="Pending" value={today?.reportsPending} icon={<AlertCircle className="h-3.5 w-3.5 text-status-pending" />} trend={today?.reportsPending ? `↑ ${today.reportsPending} vs yesterday` : undefined} />
+              <ReportStatusCol label="Delayed" value={0} icon={<AlertCircle className="h-3.5 w-3.5 text-status-error" />} trend="0% vs yesterday" />
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* Revenue + Pending Actions */}
+      <section className="mb-8 grid grid-cols-2 gap-4">
+        <div>
+          <SectionHeading>Today's Revenue</SectionHeading>
+          <Card>
+            <div className="flex items-start gap-4 mb-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-brand">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-slate-900">{formatINR(money?.billed ?? 0)}</div>
+                <div className="text-sm text-slate-500">Total revenue</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+              <div>
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
+                  <span className="text-xs text-slate-500">Collected</span>
+                </div>
+                <div className="text-lg font-semibold text-slate-900">{formatINR(money?.collected ?? 0)}</div>
+                <div className="text-xs text-slate-400">{money?.billed ? Math.round(((money?.collected ?? 0) / money.billed) * 100) : 0}% of total</div>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-status-pending" />
+                  <span className="text-xs text-slate-500">Pending</span>
+                </div>
+                <div className="text-lg font-semibold text-slate-900">{formatINR((money?.billed ?? 0) - (money?.collected ?? 0))}</div>
+                <div className="text-xs text-slate-400">{money?.billed ? Math.round((((money?.billed ?? 0) - (money?.collected ?? 0)) / money.billed) * 100) : 0}% of total</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <div>
+          <SectionHeading>Pending Actions</SectionHeading>
+          <Card className="h-[calc(100%-2rem)]">
+            {(backlog?.pendingResults ?? 0) === 0 && (backlog?.openVisits ?? 0) === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <ListChecks className="h-6 w-6" />
+                </div>
+                <div className="text-sm font-medium text-slate-700">No pending actions</div>
+                <div className="text-xs text-slate-500">All tasks are up to date</div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(backlog?.pendingResults ?? 0) > 0 ? (
+                  <div className="flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3">
+                    <span className="text-sm text-slate-700">{backlog?.pendingResults} tests pending lock</span>
+                    <StatusBadge variant="pending">Pending</StatusBadge>
+                  </div>
+                ) : null}
+                {(backlog?.openVisits ?? 0) > 0 ? (
+                  <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-3">
+                    <span className="text-sm text-slate-700">{backlog?.openVisits} open visits</span>
+                    <StatusBadge variant="processing">Active</StatusBadge>
+                  </div>
+                ) : null}
+                {(backlog?.outsourcedSent ?? 0) > 0 ? (
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
+                    <span className="text-sm text-slate-700">{backlog?.outsourcedSent} outsourced awaiting return</span>
+                    <StatusBadge variant="neutral">Waiting</StatusBadge>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </Card>
+        </div>
+      </section>
+
+      {/* Payment Links (Admin only) */}
+      {user?.role === "Admin" ? (
         <section className="mb-8">
-          <GroupHeading>Today's money</GroupHeading>
-          <div className="flex flex-wrap gap-4">
-            <StatCard
-              value={money?.billed}
-              label="Billed today"
-              isCurrency
-              isLoading={isLoading}
-            />
-            <StatCard
-              value={money?.collected}
-              label="Collected today"
-              isCurrency
-              isLoading={isLoading}
-            />
-            <StatCard
-              value={money?.discount}
-              label="Discount given"
-              isCurrency
-              isLoading={isLoading}
-            />
-          </div>
+          <SectionHeading>Payment Links</SectionHeading>
+          <PaymentLinksCard />
         </section>
-      )}
+      ) : null}
 
-      {user?.role === "Admin" && (
-        <section className="mb-8">
-          <GroupHeading>Payment links</GroupHeading>
-          <div className="flex flex-wrap gap-4">
-            <PaymentLinksCard />
-          </div>
-        </section>
-      )}
-
-
-
+      {/* Quick Actions */}
       <section className="mb-8">
-        <GroupHeading>Backlog</GroupHeading>
-        <div className="flex flex-wrap gap-4">
-          <StatCard
-            value={backlog?.pendingResults}
-            label="Tests pending lock"
-            isLoading={isLoading}
+        <SectionHeading>Quick Actions</SectionHeading>
+        <div className="grid grid-cols-4 gap-4">
+          <QuickActionCard
+            icon={<PlusCircle className="h-5 w-5" />}
+            title="New Visit"
+            description="Create a new patient visit"
+            onClick={() => nav("/visits/new")}
           />
-          <StatCard value={backlog?.openVisits} label="Open visits" isLoading={isLoading} />
-          <StatCard
-            value={backlog?.outsourcedSent}
-            label="Outsourced awaiting return"
-            isLoading={isLoading}
+          <QuickActionCard
+            icon={<Calendar className="h-5 w-5" />}
+            title="New Booking"
+            description="Schedule a new booking"
+            onClick={() => nav("/bookings")}
+          />
+          <QuickActionCard
+            icon={<FlaskConical className="h-5 w-5" />}
+            title="Run Test"
+            description="Record test result"
+            onClick={() => nav("/reports")}
+          />
+          <QuickActionCard
+            icon={<FileBarChart className="h-5 w-5" />}
+            title="Generate Report"
+            description="Generate patient report"
+            onClick={() => nav("/reports")}
           />
         </div>
       </section>

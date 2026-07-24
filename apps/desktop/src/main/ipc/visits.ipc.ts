@@ -1,88 +1,15 @@
 import { register } from "@main/ipc";
 import { prisma } from "@main/db";
 import { requireSession, requireAdmin } from "@main/session";
-import { nextVisitId } from "@main/services/id-generator";
 import { audit } from "@main/services/audit.service";
-import { audit as auditBestEffort } from "@main/services/audit-best-effort";
 import type { VisitCreateInput } from "@shared/api";
-import * as triggers from "@main/services/notifications/triggers";
 import { generateAndHash } from "@main/services/access-code.service";
+import { visitOrchestrator } from "@main/domain/visit-orchestrator";
+import "@main/domain/side-effects"; // Register domain event listeners
 
 register("visits:create", async (input: VisitCreateInput) => {
   const u = requireSession();
-  if (!input.patientId || !input.testIds?.length) throw new Error("INVALID_INPUT");
-
-  const visitId = await nextVisitId();
-
-  const tests = await prisma().test.findMany({ where: { id: { in: input.testIds } } });
-  const subtotal = tests.reduce((sum, t) => sum + Number(t.price), 0);
-
-  // Build a map for quick isOutsourced lookups (server-side trust boundary).
-  const testById = new Map(tests.map(t => [t.id, t]));
-  // Optional per-test metadata from the client (e.g. outsourced sentTo / external ref).
-  const metaByTestId = new Map(
-    (input.tests ?? []).map(m => [m.testId, m])
-  );
-
-  const now = new Date();
-  // Phase 3d Plan A: generate a per-visit access code at creation.
-  // Hash is stored for portal login; plaintext is stored locally only (stripped
-  // from cloud-sync payloads in prisma-hooks.ts) so reprints can show the code.
-  const { plaintext: accessCode, hash: accessCodeHash } = await generateAndHash();
-  const visit = await prisma().visit.create({
-    data: {
-      visitId,
-      patientId: input.patientId,
-      type: input.type,
-      visitDate: input.visitDate ? new Date(input.visitDate) : new Date(),
-      status: "Open",
-      staffId: u.id,
-      accessCodeHash,
-      accessCodePlaintext: accessCode,
-      visitTests: {
-        create: input.testIds.map(testId => {
-          const t = testById.get(testId);
-          const meta = metaByTestId.get(testId);
-          // Only persist outsourced metadata when the Test row says it is outsourced.
-          // Never trust client-only flags.
-          if (t?.isOutsourced) {
-            return {
-              testId,
-              status: "Collected",
-              sampleCollectedAt: now,
-              outsourcedSentTo: meta?.outsourcedSentTo ?? null,
-              outsourcedExternalRef: meta?.outsourcedExternalRef ?? null,
-              outsourcedStatus: "Sent",
-              outsourcedSentAt: now,
-            };
-          }
-          return { testId, status: "Collected", sampleCollectedAt: now };
-        })
-      },
-      invoice: { create: { subtotal, total: subtotal, paymentStatus: "Pending", amountPaid: 0 } }
-    },
-    include: { visitTests: true }
-  });
-  await audit("CREATE", "Visit", visit.id);
-
-  // Audit OUTSOURCED_SENT for each VisitTest that was created with outsourced metadata.
-  for (const vt of visit.visitTests ?? []) {
-    if (vt.outsourcedStatus === "Sent") {
-      await audit(
-        "OUTSOURCED_SENT",
-        "VisitTest",
-        vt.id,
-        JSON.stringify({ sentTo: vt.outsourcedSentTo })
-      );
-    }
-  }
-
-  // Fire-and-forget: enqueue VisitBooked notification.
-  triggers.visitBooked(visit.id).catch(err =>
-    console.error("[notifications] visitBooked trigger failed", err));
-
-  // Return the one-time plaintext access code so the receipt can print it.
-  return { ...visit, accessCode };
+  return await visitOrchestrator.createVisit({ ...input, staffId: u.id });
 });
 
 /**

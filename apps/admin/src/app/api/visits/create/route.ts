@@ -6,9 +6,11 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { visitCreateSchema } from "@lab/types";
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const userPromise = getSessionUser();
+  const bodyPromise = req.json();
+  const user = await userPromise;
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = await req.json();
+  const body = await bodyPromise;
   const parsed = visitCreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
@@ -40,8 +42,7 @@ export async function POST(req: Request) {
   if (vtErr) return NextResponse.json({ error: vtErr.message }, { status: 500 });
 
   // 3. Best-effort audit trail.
-  await sb
-    .from("audit_logs")
+  sb.from("audit_logs")
     .insert({
       user_id: user.id,
       action: "visit.create",

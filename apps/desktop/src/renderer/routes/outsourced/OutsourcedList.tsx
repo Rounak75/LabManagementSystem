@@ -5,6 +5,7 @@ import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { OutsourcedRow } from "@shared/api";
 
@@ -48,12 +49,9 @@ export default function OutsourcedList() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold">Outsourced tests</h1>
-        <p className="text-sm text-slate-500">Tests sent to external labs awaiting results.</p>
-      </div>
+      <PageHeader title="Outsourced tests" subtitle="Tests sent to external labs awaiting results." />
 
-      <Card className="p-0">
+      <Card noPadding>
         {isLoading ? (
           <div className="p-6 text-slate-500">Loading…</div>
         ) : rows.length === 0 ? (
@@ -64,20 +62,20 @@ export default function OutsourcedList() {
           />
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
-                <th className="px-4 py-3">Visit ID</th>
-                <th className="px-4 py-3">Patient</th>
-                <th className="px-4 py-3">Test</th>
-                <th className="px-4 py-3">Sent to</th>
-                <th className="px-4 py-3">Sent date</th>
-                <th className="px-4 py-3">Age</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Visit ID</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Patient</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Test</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Sent to</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Sent date</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Age</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-t align-top transition-colors hover:bg-slate-50">
+                <tr key={r.id} className="border-b border-slate-100 align-top transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to={`/visits/${r.visit.id}`} className="text-brand hover:underline">
                       {r.visit.visitId}

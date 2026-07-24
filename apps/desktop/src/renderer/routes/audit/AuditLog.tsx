@@ -4,6 +4,7 @@ import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { AuditListResult, UserRow } from "@shared/api";
 
 const PAGE_SIZE = 50;
@@ -98,52 +99,56 @@ export default function AuditLog() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Audit log</h1>
-      </div>
+      <PageHeader title="Audit log" subtitle="Security and compliance tracking for all laboratory operations." />
 
-      <Card className="mb-4 p-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <Select
-            label="User"
-            value={userId}
-            onChange={(e) => onAnyFilterChange(setUserId)(e.target.value)}
-          >
-            <option value="">All users</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} @ {u.username}
-              </option>
-            ))}
-          </Select>
+      <Card noPadding className="mb-6">
+        <div className="flex flex-wrap items-center gap-3 p-4">
+          <div className="w-full md:w-48">
+            <Select
+              label="User"
+              value={userId}
+              onChange={(e) => onAnyFilterChange(setUserId)(e.target.value)}
+            >
+              <option value="">All users</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} @ {u.username}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-          <Select
-            label="Action"
-            value={action}
-            onChange={(e) => onAnyFilterChange(setAction)(e.target.value)}
-          >
-            <option value="">All actions</option>
-            {actions.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </Select>
+          <div className="w-full md:w-48">
+            <Select
+              label="Action"
+              value={action}
+              onChange={(e) => onAnyFilterChange(setAction)(e.target.value)}
+            >
+              <option value="">All actions</option>
+              {actions.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-          <Select
-            label="Entity"
-            value={entityType}
-            onChange={(e) => onAnyFilterChange(setEntityType)(e.target.value)}
-          >
-            <option value="">All entities</option>
-            {ENTITY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </Select>
+          <div className="w-full md:w-48">
+            <Select
+              label="Entity"
+              value={entityType}
+              onChange={(e) => onAnyFilterChange(setEntityType)(e.target.value)}
+            >
+              <option value="">All entities</option>
+              {ENTITY_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-          <label className="block text-sm">
+          <label className="block w-full md:w-40 text-sm">
             <span className="mb-1 block font-medium text-slate-700">From</span>
             <input
               type="date"
@@ -153,7 +158,7 @@ export default function AuditLog() {
             />
           </label>
 
-          <label className="block text-sm">
+          <label className="block w-full md:w-40 text-sm">
             <span className="mb-1 block font-medium text-slate-700">To</span>
             <input
               type="date"
@@ -165,63 +170,49 @@ export default function AuditLog() {
 
           <div className="flex items-end">
             <Button variant="secondary" onClick={resetFilters} className="w-full">
-              Reset filters
+              Reset
             </Button>
           </div>
         </div>
       </Card>
 
-      <Card className="p-0">
-        {isLoading ? (
+      <Card noPadding>
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
-                <th className="px-4 py-3">Time</th>
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Entity</th>
-                <th className="px-4 py-3">Target ID</th>
-                <th className="px-4 py-3">Details</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Timestamp</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">User</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Action</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Entity</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Entity ID</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-t animate-pulse">
-                  <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-32" /></td>
-                  <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-24" /></td>
-                  <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-20" /></td>
-                  <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-16" /></td>
-                  <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-28" /></td>
-                  <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-12" /></td>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100 animate-pulse">
+                    <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-32" /></td>
+                    <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-24" /></td>
+                    <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-20" /></td>
+                    <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-16" /></td>
+                    <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-28" /></td>
+                    <td className="px-4 py-3"><div className="h-3 bg-slate-200 rounded w-12" /></td>
+                  </tr>
+                ))
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center text-slate-500">
+                    No records found
+                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-3">📋</div>
-            <div className="text-lg font-medium text-slate-700 mb-1">No audit log entries</div>
-            <div className="text-sm text-slate-500 max-w-xs">No actions match these filters yet.</div>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
-              <tr>
-                <th className="px-4 py-3">Time</th>
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Entity</th>
-                <th className="px-4 py-3">Target ID</th>
-                <th className="px-4 py-3">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const isOpen = expandedId === r.id;
-                const detail = r.details ? prettyJson(r.details) : null;
-                return (
-                  <Fragment key={r.id}>
-                    <tr className="border-t align-top">
+              ) : rows.map((r) => {
+                  const isOpen = expandedId === r.id;
+                  const detail = r.details ? prettyJson(r.details) : null;
+                  return (
+                    <Fragment key={r.id}>
+                      <tr className="border-b border-slate-100 align-top transition-colors hover:bg-slate-50">
                       <td className="px-4 py-3 whitespace-nowrap text-slate-600">
                         {formatDateTime(r.timestamp)}
                       </td>
@@ -269,7 +260,7 @@ export default function AuditLog() {
               })}
             </tbody>
           </table>
-        )}
+        </div>
       </Card>
 
       <div className="mt-4 flex items-center justify-between text-sm text-slate-600">

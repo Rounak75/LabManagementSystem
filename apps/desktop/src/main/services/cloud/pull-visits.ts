@@ -4,8 +4,6 @@
 // echoes.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 
 const SOURCE = "visits";
 const BATCH = 100;
@@ -33,23 +31,14 @@ interface RawVisitTestRow {
   status: string | null;
 }
 
-export async function pullVisits(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullVisits(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawVisitRow[] = [];
   try {
-    rows = (await client.fetchVisitsSince(sinceIso, BATCH)) as unknown as RawVisitRow[];
+    rows = (await client.pullSince("visits", "updated_at", sinceIso, BATCH)) as unknown as RawVisitRow[];
   } catch (e) {
     console.error("[pull-visits] fetch failed", e);
     return;

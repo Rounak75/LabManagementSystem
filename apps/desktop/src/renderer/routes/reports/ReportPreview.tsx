@@ -43,7 +43,7 @@ export default function ReportPreview() {
     mutationFn: () => call<boolean>("reports:print", { visitId, templateId }),
   });
 
-  const dataUrl = useMemo(() => data ? `data:application/pdf;base64,${data.base64}` : "", [data]);
+  const dataUrl = data ? `data:application/pdf;base64,${data.base64}` : "";
 
   return (
     <div className="flex h-full flex-col">

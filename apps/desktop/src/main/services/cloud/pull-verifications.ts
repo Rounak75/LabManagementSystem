@@ -8,9 +8,7 @@
 // so re-running never re-notifies.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
 import * as triggers from "@main/services/notifications/triggers";
-import { createSupabaseClient } from "./supabase-client";
 
 const SOURCE = "verifications";
 const BATCH = 100;
@@ -24,23 +22,14 @@ interface RawVerificationRow {
   updated_at: string;
 }
 
-export async function pullVerifications(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullVerifications(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawVerificationRow[] = [];
   try {
-    rows = (await client.fetchVerificationsSince(sinceIso, BATCH)) as unknown as RawVerificationRow[];
+    rows = (await client.pullSince("visits", "verified_at", sinceIso, BATCH, { source: "admin" })) as unknown as RawVerificationRow[];
   } catch (e) {
     console.error("[pull-verifications] fetch failed", e);
     return;

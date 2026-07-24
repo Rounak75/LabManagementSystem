@@ -1,23 +1,12 @@
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 import { markPaid } from "@main/services/payments/reconcile";
 import type { PaymentEventRow } from "./types";
 
 const BATCH = 50;
 const SOURCE = "razorpay_payments";
 
-export async function pullPaymentEvents(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullPaymentEvents(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 

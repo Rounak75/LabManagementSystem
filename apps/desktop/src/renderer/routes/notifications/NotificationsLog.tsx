@@ -5,6 +5,8 @@ import { useToast } from "@/lib/toast.store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 
 const PAGE_SIZE = 50;
@@ -90,13 +92,11 @@ export default function NotificationsLog() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Notifications log</h1>
-      </div>
+      <PageHeader title="Notifications" subtitle="Log of all SMS and email notifications sent to patients." />
 
       {/* Filters */}
-      <Card className="mb-4 p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <Card noPadding className="mb-6">
+        <div className="flex flex-wrap items-center gap-3 p-4">
           <Select label="Status" value={status} onChange={(e) => onFilterChange(setStatus)(e.target.value)}>
             <option value="">All</option>
             {STATUS_OPTIONS.map((s) => (
@@ -119,7 +119,7 @@ export default function NotificationsLog() {
           </Select>
 
           <div className="flex items-end">
-            <Button variant="secondary" onClick={resetFilters} className="w-full">
+            <Button variant="secondary" onClick={resetFilters}>
               Reset filters
             </Button>
           </div>
@@ -127,19 +127,20 @@ export default function NotificationsLog() {
       </Card>
 
       {/* Table */}
-      <Card className="p-0">
+      <Card noPadding>
+        <div className="overflow-x-auto">
         {isLoading ? (
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
                 {["Created At", "Channel", "Purpose", "To", "Status", "Attempts", "Next Attempt At", "Actions"].map((h) => (
-                  <th key={h} className="px-4 py-3">{h}</th>
+                  <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-t animate-pulse">
+                <tr key={i} className="border-t border-slate-100 animate-pulse">
                   {Array.from({ length: 8 }).map((__, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-3 bg-slate-200 rounded w-24" />
@@ -157,17 +158,17 @@ export default function NotificationsLog() {
           />
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-left">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left">
               <tr>
                 <th className="px-4 py-3 w-6" />
-                <th className="px-4 py-3">Created At</th>
-                <th className="px-4 py-3">Channel</th>
-                <th className="px-4 py-3">Purpose</th>
-                <th className="px-4 py-3">To</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Attempts</th>
-                <th className="px-4 py-3">Next Attempt At</th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Created At</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Channel</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Purpose</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">To</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Status</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Attempts</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Next Attempt At</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -175,7 +176,7 @@ export default function NotificationsLog() {
                 const isOpen = expanded === r.id;
                 return (
                   <Fragment key={r.id}>
-                    <tr className="border-t align-top hover:bg-slate-50 transition-colors">
+                    <tr className="border-b border-slate-100 align-top transition-colors hover:bg-slate-50">
                       {/* Chevron toggle */}
                       <td className="px-4 py-3">
                         <button
@@ -277,6 +278,7 @@ export default function NotificationsLog() {
             </tbody>
           </table>
         )}
+        </div>
       </Card>
 
       {/* Pagination */}

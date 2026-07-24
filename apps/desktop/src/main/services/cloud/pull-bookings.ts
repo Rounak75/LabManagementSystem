@@ -8,8 +8,6 @@
 // BookingCreatedStaff notification trigger so the lab Gmail inbox lights up.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "bookings";
@@ -41,23 +39,14 @@ interface RawBookingRow {
   updated_at: string;
 }
 
-export async function pullBookings(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullBookings(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawBookingRow[] = [];
   try {
-    rows = (await client.fetchBookingsSince(sinceIso, BATCH)) as unknown as RawBookingRow[];
+    rows = (await client.pullSince("bookings", "updated_at", sinceIso, BATCH)) as unknown as RawBookingRow[];
   } catch (e) {
     console.error("[pull-bookings] fetch failed", e);
     return;

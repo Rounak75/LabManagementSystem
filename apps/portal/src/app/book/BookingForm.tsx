@@ -23,6 +23,8 @@ interface Test {
 
 const ALL_SLOTS: readonly Slot[] = ["Morning", "Afternoon", "Evening"];
 
+import { useBookingState } from "./useBookingState";
+
 export function BookingForm({
   tests,
   blackoutDates,
@@ -35,19 +37,18 @@ export function BookingForm({
   closures: ClosureRow[];
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [pincode, setPincode] = useState("");
-  const [date, setDate] = useState("");
-  const [slot, setSlot] = useState<Slot>("Morning");
-  const [notes, setNotes] = useState("");
-  const [testIds, setTestIds] = useState<string[]>([]);
+  
+  const { state, actions } = useBookingState(tests, blackoutDates, cfg, closures);
+  const {
+    name, phone, email, address, pincode, date, slot, notes, testIds,
+    error, submitting, bookingId, selectedTests, total, requiredSlots, restrictedTest, availableSlots
+  } = state;
+  const {
+    setName, setPhone, setEmail, setAddress, setPincode, setDate, setSlot, setNotes,
+    toggleTest, isBlackedOut, submitBooking, setError
+  } = actions;
+
   const [filter, setFilter] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [bookingId, setBookingId] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
 
   const [captchaToken, setCaptchaToken] = useState("");
@@ -77,97 +78,17 @@ export function BookingForm({
     return tests.filter((t) => t.name.toLowerCase().includes(q)).slice(0, 50);
   }, [tests, filter]);
 
-  const total = tests.filter((t) => testIds.includes(t.id)).reduce((s, t) => s + t.price, 0);
-
-  function toggle(id: string) {
-    setTestIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
-  function isBlackedOut(d: string) {
-    return blackoutDates.includes(d);
-  }
-
   const labStatus = cfg ? isOpenNow(cfg, closures) : { open: true, reason: null };
-
-  const selectedTests = tests.filter((t) => testIds.includes(t.id));
-  const requiredSlots = restrictionForSlots(selectedTests);
-  const restrictedTest = selectedTests.find((t) => t.collectionTimeRestriction);
-
-  const availableSlots = useMemo<readonly Slot[]>(() => {
-    if (!cfg || !date) return ALL_SLOTS;
-    const parsed = new Date(date);
-    if (Number.isNaN(parsed.getTime())) return ALL_SLOTS;
-    let slots: readonly Slot[] = slotsAvailableOn(cfg, closures, parsed);
-    if (requiredSlots) slots = slots.filter((s) => requiredSlots.includes(s));
-    return slots;
-  }, [cfg, closures, date, requiredSlots]);
-
-  useEffect(() => {
-    if (availableSlots.length === 0) return;
-    if (!availableSlots.includes(slot)) {
-      setSlot(availableSlots[0]!);
-    }
-  }, [availableSlots, slot]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    if (testIds.length === 0) {
-      setError("Please choose at least one test.");
-      return;
-    }
-    if (!date) {
-      setError("Please pick a preferred date.");
-      return;
-    }
-    if (isBlackedOut(date)) {
-      setError("The lab is closed on that date — please pick another.");
-      return;
-    }
-    if (availableSlots.length === 0) {
-      setError("No slots are available on that date. Please pick another date.");
-      return;
-    }
-
-    const answerNum = parseInt(captchaAnswer, 10);
-    if (!Number.isFinite(answerNum)) {
-      setError("Please answer the question at the bottom.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientName: name,
-          patientPhone: phone,
-          patientEmail: email || null,
-          address,
-          pincode: pincode || null,
-          testIds,
-          preferredDate: date,
-          preferredSlot: slot,
-          notes: notes || null,
-          captchaToken,
-          captchaAnswer: answerNum,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.error === "captcha_failed") {
-          setError("That answer wasn't right. Please try the new question.");
-          await refreshCaptcha();
-        } else {
-          setError(data.message ?? data.error ?? "Could not submit booking.");
-        }
-        return;
+    const createdBookingId = await submitBooking(captchaToken, captchaAnswer);
+    if (createdBookingId) {
+      router.push(`/book/confirmation/${createdBookingId}`);
+    } else {
+      if (error === "That answer wasn't right. Please try the new question.") {
+        await refreshCaptcha();
       }
-      setBookingId(data.bookingId);
-      router.push(`/book/confirmation/${data.bookingId}`);
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -184,7 +105,7 @@ export function BookingForm({
   const submitDisabled = submitting || !captchaToken || availableSlots.length === 0;
 
   const inputCls =
-    "block w-full rounded-lg bg-bg border border-line text-text px-3 py-2 text-[14px] placeholder:text-muted focus:outline-none focus:border-brand";
+    "block w-full rounded-xl bg-surface border border-line/80 px-4 py-3 text-[15px] text-text placeholder:text-muted focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all duration-300 ease-out-fluid shadow-inner-bezel-dark hover:border-line hover:bg-elev";
 
   return (
     <div className="mt-6 space-y-5">
@@ -198,7 +119,7 @@ export function BookingForm({
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-xl border border-line bg-elev p-6 shadow-sm space-y-8"
+        className="space-y-8"
       >
         <Section title="Patient Details" step={1}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -255,7 +176,7 @@ export function BookingForm({
         </Section>
 
         <Section title="Test Selection" step={2}>
-          <div className="relative group">
+          <div className="relative group z-20">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft group-focus-within:text-brand transition-colors">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
             </svg>
@@ -270,7 +191,17 @@ export function BookingForm({
               placeholder="Search or select tests..."
               className={`${inputCls} pl-10 pr-10`}
             />
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft transition-transform duration-200 pointer-events-none ${searchFocused ? "rotate-180 text-brand" : ""}`}>
+            <svg 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              className={`absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft transition-transform duration-200 cursor-pointer ${searchFocused ? "rotate-180 text-brand" : "hover:text-brand"}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setSearchFocused(!searchFocused);
+              }}
+            >
               <polyline points="6 9 12 15 18 9"/>
             </svg>
 
@@ -282,7 +213,8 @@ export function BookingForm({
                   return (
                     <div
                       key={t.id}
-                      onClick={() => {
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // Prevents input onBlur from firing before click
                         if (!isAlreadySelected) toggle(t.id);
                         setFilter("");
                         setSearchFocused(false);
@@ -421,12 +353,14 @@ export function BookingForm({
         <button
           type="submit"
           disabled={submitDisabled}
-          className="w-full rounded-lg bg-brand text-brand-fg py-3 text-[14.5px] font-semibold tap hover:opacity-90 disabled:opacity-50"
+          className="group relative w-full rounded-full bg-brand px-6 py-4 text-center font-semibold text-brand-fg transition-all duration-300 ease-out-fluid hover:-translate-y-1 hover:shadow-ambient active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
         >
-          {submitting ? "Submitting…" : "Request home visit"}
+          <span className="relative z-10 flex items-center justify-center gap-2 text-[15px]">
+            {submitting ? "Submitting…" : "Request home visit"}
+          </span>
         </button>
 
-        <p className="text-[11px] text-muted text-center">
+        <p className="text-[12px] text-soft text-center px-6">
           By submitting you allow us to call you about this booking. No promotional
           messages.
         </p>
@@ -445,16 +379,18 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-3 border-b border-line pb-3">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-brand-fg text-[12px] font-bold">
-          {step}
-        </span>
-        <h3 className="text-[16px] font-semibold text-text tracking-tight">
-          {title}
-        </h3>
+    <section className="rounded-[2rem] border border-line/60 bg-elev p-1.5 shadow-ambient">
+      <div className="rounded-[1.625rem] bg-bg px-6 py-8 md:px-8 shadow-inner-bezel space-y-6">
+        <div className="flex items-center gap-4 border-b border-line/40 pb-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-brand text-[13px] font-bold">
+            {step}
+          </span>
+          <h3 className="font-heading text-xl font-bold tracking-tight text-text">
+            {title}
+          </h3>
+        </div>
+        {children}
       </div>
-      {children}
     </section>
   );
 }
@@ -470,7 +406,7 @@ function Field({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="block text-[12px] text-soft mb-1.5">{label}</span>
+      <span className="block text-[13px] font-medium text-text mb-2 tracking-wide uppercase">{label}</span>
       {children}
     </label>
   );

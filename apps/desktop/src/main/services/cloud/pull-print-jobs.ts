@@ -5,8 +5,6 @@
 // added later) reads Picked jobs from local SQLite and prints them.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 
 const SOURCE = "print_jobs";
 const BATCH = 100;
@@ -22,23 +20,14 @@ interface RawPrintJobRow {
   error_message: string | null;
 }
 
-export async function pullPrintJobs(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullPrintJobs(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawPrintJobRow[] = [];
   try {
-    rows = (await client.fetchPrintJobsSince(sinceIso, BATCH)) as unknown as RawPrintJobRow[];
+    rows = (await client.pullSince("print_jobs", "requested_at", sinceIso, BATCH, { status: "Queued" })) as unknown as RawPrintJobRow[];
   } catch (e) {
     console.error("[pull-print-jobs] fetch failed", e);
     return;

@@ -3,8 +3,6 @@
 // keyed by source="disputes" tracks the last created_at we ingested.
 
 import { prisma } from "@main/db";
-import { decryptSecret } from "@main/services/crypto.service";
-import { createSupabaseClient } from "./supabase-client";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "disputes";
@@ -21,23 +19,14 @@ interface RawDisputeRow {
   resolution_note: string | null;
 }
 
-export async function pullDisputes(): Promise<void> {
-  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s?.cloudSyncEnabled) return;
-  if (!s.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) return;
-
-  const client = createSupabaseClient({
-    url: s.supabaseUrl,
-    serviceKey: decryptSecret(s.supabaseServiceKey),
-    anonKey: s.supabaseAnonKey,
-  });
-
+export async function pullDisputes(client: any): Promise<void> {
+  
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
 
   let rows: RawDisputeRow[] = [];
   try {
-    rows = (await client.fetchDisputesSince(sinceIso, BATCH)) as unknown as RawDisputeRow[];
+    rows = (await client.pullSince("disputes", "updated_at", sinceIso, BATCH)) as unknown as RawDisputeRow[];
   } catch (e) {
     console.error("[pull-disputes] fetch failed", e);
     return;
