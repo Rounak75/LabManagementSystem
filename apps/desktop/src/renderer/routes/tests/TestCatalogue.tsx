@@ -61,12 +61,20 @@ export default function TestCatalogue() {
             const inCat = filteredTests.filter(t => t.category === cat);
           if (inCat.length === 0) return null;
           return (
-            <details key={cat} open className="rounded-md border border-slate-200 bg-white">
-              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden">
+            <details key={cat} open className="group rounded-md border border-slate-200 bg-white">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm font-semibold text-slate-700 [&::-webkit-details-marker]:hidden bg-slate-50 hover:bg-slate-100 transition-colors">
                 <span className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 transition-transform group-open:rotate-90">▶</span>
-                  <span className="uppercase tracking-wide">{cat}</span>
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{inCat.length}</span>
+                  <svg 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2.5" 
+                    className="h-3.5 w-3.5 text-slate-500 transition-transform duration-200 group-open:rotate-90"
+                  >
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <span className="uppercase tracking-wide text-black font-bold">{cat}</span>
+                  <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-medium text-slate-700">{inCat.length}</span>
                 </span>
               </summary>
               <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-3 md:grid-cols-2 lg:grid-cols-3">

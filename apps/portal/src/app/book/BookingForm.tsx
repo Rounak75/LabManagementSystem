@@ -255,7 +255,10 @@ export function BookingForm({
         </Section>
 
         <Section title="Test Selection" step={2}>
-          <div className="relative">
+          <div className="relative group">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft group-focus-within:text-brand transition-colors">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
             <input
               value={filter}
               onChange={(e) => {
@@ -264,11 +267,15 @@ export function BookingForm({
               }}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              placeholder="Search to add tests..."
-              className={inputCls}
+              placeholder="Search or select tests..."
+              className={`${inputCls} pl-10 pr-10`}
             />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft transition-transform duration-200 pointer-events-none ${searchFocused ? "rotate-180 text-brand" : ""}`}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+
             {searchFocused && (filter.length > 0 || visible.length > 0) && (
-              <div className="absolute z-10 w-full mt-1 rounded-lg border border-line bg-bg shadow-lg max-h-64 overflow-y-auto divide-y divide-line">
+              <div className="absolute z-20 w-full mt-2 rounded-xl border border-line bg-bg shadow-2xl max-h-72 overflow-y-auto divide-y divide-line animate-in fade-in slide-in-from-top-1 duration-200">
                 {visible.map((t) => {
                   const isAlreadySelected = testIds.includes(t.id);
                   if (isAlreadySelected) return null;
@@ -280,7 +287,7 @@ export function BookingForm({
                         setFilter("");
                         setSearchFocused(false);
                       }}
-                      className="flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer hover:bg-elev transition-colors"
+                      className="flex items-center gap-3 px-4 py-3 text-[14px] cursor-pointer hover:bg-elev transition-colors"
                     >
                       <span className="flex-1 text-text font-medium">
                         {t.name}
@@ -297,7 +304,7 @@ export function BookingForm({
                   );
                 })}
                 {visible.filter(t => !testIds.includes(t.id)).length === 0 && (
-                  <p className="px-3 py-3 text-[12px] text-muted">No matching tests found (or all matches are already added).</p>
+                  <p className="px-4 py-4 text-[13px] text-muted text-center italic">No matching tests found (or all matches are already added).</p>
                 )}
               </div>
             )}
@@ -305,13 +312,13 @@ export function BookingForm({
           
           {testIds.length > 0 && (
             <div className="mt-4 space-y-2">
-              <div className="rounded-lg border border-line divide-y divide-line bg-bg">
+              <div className="rounded-xl border border-line divide-y divide-line bg-bg overflow-hidden shadow-sm">
                 {selectedTests.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between px-3 py-2.5 text-[13px]">
+                  <div key={t.id} className="flex items-center justify-between px-4 py-3 text-[14px] bg-bg hover:bg-elev/50 transition-colors">
                      <span className="text-text font-medium">{t.name}</span>
                      <div className="flex items-center gap-4">
                        <span className="font-mono text-soft num">₹{t.price.toFixed(0)}</span>
-                       <button type="button" onClick={() => toggle(t.id)} className="text-brand hover:opacity-80 p-1" title="Remove test">
+                       <button type="button" onClick={() => toggle(t.id)} className="text-brand hover:bg-brand/10 p-1.5 rounded-md transition-colors" title="Remove test">
                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                            <line x1="18" y1="6" x2="6" y2="18" />
                            <line x1="6" y1="6" x2="18" y2="18" />
