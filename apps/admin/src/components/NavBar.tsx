@@ -1,32 +1,72 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
 import { SignOutButton } from "./SignOutButton";
 import { NavLinks } from "./NavLinks";
 import type { SessionUser } from "@/lib/auth-session";
 
 export function NavBar({ user }: { user: SessionUser }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto max-w-5xl px-4">
-        <div className="flex h-14 items-center justify-between gap-3">
-          <Link href="/dashboard" prefetch className="flex shrink-0 items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white shadow-sm">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M9 3v6.5L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 9.5V3" />
-                <path d="M8 3h8M8 13h8" />
-              </svg>
-            </span>
-            <span className="text-[15px] font-extrabold tracking-tight text-slate-900">Lab Admin</span>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm font-medium text-slate-600 sm:inline">{user.username}</span>
-            <SignOutButton />
-          </div>
+    <>
+      {/* Mobile Top Bar */}
+      <div className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[#1e232c] bg-[#282d38] px-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white shadow-sm">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M9 3v6.5L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 9.5V3" />
+              <path d="M8 3h8M8 13h8" />
+            </svg>
+          </span>
+          <span className="text-[15px] font-extrabold tracking-tight text-white">Lab Admin</span>
         </div>
-        <div className="overflow-x-auto pb-2">
-          <NavLinks isAdmin={user.role === "Admin"} />
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          className="text-slate-300 hover:text-white"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+      
+      {/* Sidebar Overlay (Mobile) */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 md:hidden" 
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 transform flex-col border-r border-[#1e232c] bg-[#2f3542] text-white shadow-xl transition-transform duration-200 ease-in-out md:static md:flex md:translate-x-0 ${isOpen ? "translate-x-0 flex" : "-translate-x-full hidden"}`}>
+      <div className="flex h-16 items-center px-6 border-b border-[#1e232c] bg-[#282d38]">
+        <Link href="/dashboard" prefetch className="flex items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white shadow-sm">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M9 3v6.5L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 9.5V3" />
+              <path d="M8 3h8M8 13h8" />
+            </svg>
+          </span>
+          <span className="text-[16px] font-extrabold tracking-tight text-white">Lab Admin</span>
+        </Link>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto py-4">
+        <NavLinks isAdmin={user.role === "Admin"} />
+      </div>
+      
+      <div className="p-4 border-t border-[#1e232c] bg-[#282d38]">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold text-white truncate">{user.username}</span>
+            <span className="text-xs font-medium text-slate-400 truncate">{user.role}</span>
+          </div>
+          <SignOutButton />
         </div>
       </div>
-    </header>
+    </aside>
+    </>
   );
 }

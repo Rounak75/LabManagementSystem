@@ -5,7 +5,6 @@ import { decryptSecret } from "@main/services/crypto.service";
 import { createSupabaseClient } from "@main/services/cloud/supabase-client";
 import { runBackfillOnce } from "@main/services/cloud/backfill.service";
 import { runSyncTick } from "@main/services/cloud/sync-worker";
-import { pullPaymentEvents } from "@main/services/cloud/payment-events";
 
 register("cloud:getStatus", async () => {
   requireSession();
@@ -100,9 +99,44 @@ register("cloud:runBackfillNow", async () => {
   return { ok: true, skipped: r.skipped };
 });
 
+import { pullPaymentEvents } from "@main/services/cloud/payment-events";
+import { pullBookings } from "@main/services/cloud/pull-bookings";
+import { pullDisputes } from "@main/services/cloud/pull-disputes";
+import { pullPatients } from "@main/services/cloud/pull-patients";
+import { pullVisits } from "@main/services/cloud/pull-visits";
+import { pullResults } from "@main/services/cloud/pull-results";
+import { pullPayments } from "@main/services/cloud/pull-payments";
+import { pullVerifications } from "@main/services/cloud/pull-verifications";
+import { pullPrintJobs } from "@main/services/cloud/pull-print-jobs";
+
+// ... existing code ...
+
 register("cloud:checkNow", async () => {
-  requireAdmin();
-  await runSyncTick();
-  await pullPaymentEvents();
-  return { ok: true };
+  requireSession();
+  
+  // Create structured logging similar to the sync worker
+  let stats = { pushed: 0, pulled: 0, errors: [] as string[] };
+  const safeRun = async (name: string, fn: () => Promise<void>) => {
+    try {
+      await fn();
+      stats.pulled++;
+    } catch (e) {
+      stats.errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
+      console.error(`[cloud] manual ${name} failed`, e);
+    }
+  };
+
+  try { await runSyncTick(); stats.pushed++; } catch (e) { stats.errors.push(`sync: ${e}`); }
+  
+  await safeRun("pull-payment-events", pullPaymentEvents);
+  await safeRun("pull-bookings", pullBookings);
+  await safeRun("pull-disputes", pullDisputes);
+  await safeRun("pull-patients", pullPatients);
+  await safeRun("pull-visits", pullVisits);
+  await safeRun("pull-results", pullResults);
+  await safeRun("pull-payments", pullPayments);
+  await safeRun("pull-verifications", pullVerifications);
+  await safeRun("pull-print-jobs", pullPrintJobs);
+  
+  return { ok: true, stats };
 });

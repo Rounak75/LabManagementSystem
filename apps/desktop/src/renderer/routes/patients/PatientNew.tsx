@@ -42,23 +42,31 @@ export default function PatientNew() {
       <h1 className="mb-4 text-2xl font-semibold">Register patient</h1>
       <Card className="max-w-2xl">
         <form onSubmit={handleSubmit(v => create.mutate(v))} className="grid grid-cols-2 gap-4">
-          <Input label="Full name" className="col-span-2" {...register("name", { required: "required", minLength: 2 })} error={errors.name?.message as string} />
-          <Input label="Age (years)" type="number" {...register("age", { required: true, min: 0, max: 130 })} />
+          {/* Section: Personal Details */}
+          <div className="col-span-2 mb-2 border-b border-slate-100 pb-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Personal Details</h2>
+          </div>
+          <Input label="Full name" className="col-span-2" {...register("name", { required: "required", minLength: 2 })} error={errors.name?.message as string} placeholder="e.g. John Doe" />
+          <Input label="Age (years)" type="number" {...register("age", { required: true, min: 0, max: 130 })} placeholder="e.g. 35" />
           <Select label="Sex" {...register("sex")}>
             <option>Male</option><option>Female</option><option>Other</option>
           </Select>
-          <Input label="Phone" {...register("phone", { required: true, pattern: /^[0-9+\-\s]{7,}$/ })} error={errors.phone?.message as string} />
+
+          {/* Section: Contact & Reference */}
+          <div className="col-span-2 mt-4 mb-2 border-b border-slate-100 pb-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Contact & Reference</h2>
+          </div>
+          <Input label="Phone (10 digits)" {...register("phone", { required: true, pattern: /^[0-9+\-\s]{7,}$/ })} error={errors.phone?.message as string} placeholder="9876543210" />
           <Input
-            label="Email (optional — used for digital reports)"
+            label="Email (optional — for digital reports)"
             type="email"
-            className="col-span-2"
             placeholder="patient@example.com"
             {...register("email", {
-              validate: v => !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || "Enter a valid email or leave blank"
+              validate: v => !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || "Enter a valid email"
             })}
             error={errors.email?.message as string}
           />
-          <Input label="Address (optional)" className="col-span-2" {...register("address")} />
+          <Input label="Address (optional)" className="col-span-2" {...register("address")} placeholder="Door no., street, locality" />
           <Select label="Referred by" className="col-span-2" {...register("referredById")}>
             {doctors.map(d => <option key={d.id} value={d.id}>{d.name}{d.clinic ? ` — ${d.clinic}` : ""}</option>)}
           </Select>

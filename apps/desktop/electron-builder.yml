@@ -1,5 +1,6 @@
 appId: com.golmurijanchghar.lab
 productName: "Golmuri Janch Ghar Lab"
+electronVersion: "33.0.0"
 directories:
   buildResources: resources
   output: out/dist
@@ -8,6 +9,7 @@ files:
   - "out/preload/**"
   - "out/renderer/**"
   - "package.json"
+  - "!**/.env"
 extraResources:
   - from: "../../packages/db/prisma/dev.sqlite"
     to:   "lab.sqlite"

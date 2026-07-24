@@ -103,19 +103,38 @@ async function tickHeartbeat(): Promise<void> {
 export function startCloudSyncWorker(): void {
   if (timer) return;
   timer = setInterval(async () => {
-    try { await runSyncTick(); } catch (e) { console.error("[cloud] sync tick", e); }
-    try { await pullPaymentEvents(); } catch (e) { console.error("[cloud] pull tick", e); }
-    try { await pullBookings(); } catch (e) { console.error("[cloud] pull-bookings tick", e); }
-    try { await pullDisputes(); } catch (e) { console.error("[cloud] pull-disputes tick", e); }
+    let stats = { pushed: 0, pulled: 0, errors: [] as string[] };
+    
+    // We'll capture any errors in a structured way to prevent silent failures
+    const safeRun = async (name: string, fn: () => Promise<void>) => {
+      try {
+        await fn();
+        stats.pulled++; // Using this as a generic "success" counter for now
+      } catch (e) {
+        stats.errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
+        console.error(`[cloud] ${name} failed`, e);
+      }
+    };
+
+    try { await runSyncTick(); stats.pushed++; } catch (e) { stats.errors.push(`sync: ${e}`); console.error("[cloud] sync tick", e); }
+    
+    await safeRun("pull-payment-events", pullPaymentEvents);
+    await safeRun("pull-bookings", pullBookings);
+    await safeRun("pull-disputes", pullDisputes);
+    
     // Phase 3e Plan A: admin-portal pull modules. Order matters — patients
     // before visits before results, so FK references resolve.
-    try { await pullPatients(); } catch (e) { console.error("[cloud] pull-patients", e); }
-    try { await pullVisits(); } catch (e) { console.error("[cloud] pull-visits", e); }
-    try { await pullResults(); } catch (e) { console.error("[cloud] pull-results", e); }
-    try { await pullPayments(); } catch (e) { console.error("[cloud] pull-payments", e); }
-    try { await pullVerifications(); } catch (e) { console.error("[cloud] pull-verifications", e); }
-    try { await pullPrintJobs(); } catch (e) { console.error("[cloud] pull-print-jobs", e); }
-    try { await tickHeartbeat(); } catch (e) { console.error("[cloud] heartbeat tick", e); }
+    await safeRun("pull-patients", pullPatients);
+    await safeRun("pull-visits", pullVisits);
+    await safeRun("pull-results", pullResults);
+    await safeRun("pull-payments", pullPayments);
+    await safeRun("pull-verifications", pullVerifications);
+    await safeRun("pull-print-jobs", pullPrintJobs);
+    await safeRun("heartbeat", tickHeartbeat);
+    
+    if (stats.errors.length > 0) {
+      console.warn(`[cloud] sync tick completed with ${stats.errors.length} errors:`, stats.errors);
+    }
   }, TICK_MS);
 }
 

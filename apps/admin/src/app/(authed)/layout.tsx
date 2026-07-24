@@ -8,11 +8,19 @@ export default async function AuthedLayout({ children }: { children: React.React
   const user = await getSessionUser();
   if (!user) redirect("/login");
   return (
-    <div>
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
       <ErrorReporterMount />
+      
+      {/* Sidebar Navigation */}
       <NavBar user={user} />
-      <OfflineBanner />
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">{children}</main>
+      
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <OfflineBanner />
+        <main className="flex-1 px-4 sm:px-6 md:px-8 py-6 max-w-6xl mx-auto w-full">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

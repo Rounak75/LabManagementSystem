@@ -24,16 +24,41 @@ export default function TestCatalogue() {
   const { data: tests = [] } = useQuery({ queryKey: ["tests"], queryFn: () => call<Test[]>("tests:list") });
   const [openTest, setOpenTest] = useState<Test | null>(null);
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredTests = tests.filter(t => 
+    t.name.toLowerCase().includes(search.toLowerCase()) || 
+    t.category.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Test catalogue</h1>
-        <Button onClick={() => setCreating(true)}>Add test</Button>
+        <div className="flex flex-1 items-center justify-end gap-3">
+          <div className="relative w-64">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <input 
+              type="text" 
+              placeholder="Search tests..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-md border border-slate-300 py-1.5 pl-9 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+          </div>
+          <Button onClick={() => setCreating(true)}>Add test</Button>
+        </div>
       </div>
       <div className="space-y-3">
-        {TEST_CATEGORIES.map(cat => {
-          const inCat = tests.filter(t => t.category === cat);
+        {filteredTests.length === 0 ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            {search ? "No tests found matching your search." : "No tests in the catalog yet."}
+          </div>
+        ) : (
+          TEST_CATEGORIES.map(cat => {
+            const inCat = filteredTests.filter(t => t.category === cat);
           if (inCat.length === 0) return null;
           return (
             <details key={cat} open className="rounded-md border border-slate-200 bg-white">
@@ -59,7 +84,7 @@ export default function TestCatalogue() {
               </div>
             </details>
           );
-        })}
+        }))}
       </div>
       {creating && <TestForm onClose={() => { setCreating(false); qc.invalidateQueries({ queryKey: ["tests"] }); }} />}
       {openTest && <TestEditor test={openTest} onClose={() => { setOpenTest(null); qc.invalidateQueries({ queryKey: ["tests"] }); }} />}

@@ -14,9 +14,6 @@
     "release:win": "electron-vite build && electron-builder --win --x64 --publish always"
   },
   "dependencies": {
-    "@lab/db": "workspace:*",
-    "@lab/reports": "workspace:*",
-    "@lab/types": "workspace:*",
     "@prisma/client": "^5.20.0",
     "@react-pdf/renderer": "^4.0.0",
     "electron-updater": "^6.3.9",
@@ -36,6 +33,9 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@lab/db": "workspace:*",
+    "@lab/reports": "workspace:*",
+    "@lab/types": "workspace:*",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",

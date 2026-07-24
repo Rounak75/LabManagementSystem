@@ -30,10 +30,19 @@ function patientName(p: VisitRow["patients"]): string {
   return p.name;
 }
 
-export default async function VisitsPage({ searchParams }: { searchParams: { status?: string } }) {
+export default async function VisitsPage({ searchParams }: { searchParams: { status?: string; q?: string } }) {
   const user = (await getSessionUser())!;
   const status = searchParams.status ?? null;
-  const visits = (await listVisits(user.token, status ? { status } : undefined)) as unknown as VisitRow[];
+  const q = searchParams.q?.toLowerCase() || "";
+  let visits = (await listVisits(user.token, status ? { status } : undefined)) as unknown as VisitRow[];
+
+  if (q) {
+    visits = visits.filter(v => {
+      const pName = patientName(v.patients).toLowerCase();
+      const vId = (v.visit_id ?? v.id).toLowerCase();
+      return pName.includes(q) || vId.includes(q);
+    });
+  }
 
   // For the PendingVerify view, compute low-risk (no abnormal result) candidates
   // for the admin-only bulk verify action.
@@ -61,9 +70,26 @@ export default async function VisitsPage({ searchParams }: { searchParams: { sta
         <Link href="/visits/new" className="btn-primary">+ New visit</Link>
       </PageHeader>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <FilterTabs basePath="/visits" param="status" current={status} options={VISIT_TABS} />
-        {showBatch && <PendingVerifyActions candidates={candidates} />}
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {showBatch && <PendingVerifyActions candidates={candidates} />}
+          
+          <form action="/visits" method="get" className="relative flex-1 sm:w-64">
+            {status && <input type="hidden" name="status" value={status} />}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <input 
+              type="text" 
+              name="q"
+              defaultValue={searchParams.q || ""}
+              placeholder="Search patients or IDs..." 
+              className="w-full rounded-full border border-slate-300 py-1.5 pl-9 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand shadow-sm bg-white"
+            />
+          </form>
+        </div>
       </div>
 
       {visits.length === 0 ? (
@@ -71,24 +97,48 @@ export default async function VisitsPage({ searchParams }: { searchParams: { sta
           No visits{status ? " in this view" : " yet"}.
         </div>
       ) : (
-        <ul className="card divide-y divide-slate-100 overflow-hidden">
-          {visits.map((v) => (
-            <li key={v.id}>
-              <Link href={`/visits/${v.id}`} className="row-link">
-                <div className="min-w-0">
-                  <div className="truncate font-semibold text-slate-900">{patientName(v.patients)}</div>
-                  <div className="mt-0.5 text-xs text-slate-500">
-                    {v.visit_id ?? v.id} · {formatDateShort(v.visit_date)}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <SourceBadge source={v.source} />
-                  <StatusBadge status={v.status} />
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="card overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Visit ID</th>
+                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Date</th>
+                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Patient Name</th>
+                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Source</th>
+                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Status</th>
+                <th className="px-4 py-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {visits.map((v) => (
+                <tr key={v.id} className="hover:bg-slate-50 transition-colors group">
+                  <td className="px-4 py-3.5 font-mono text-slate-600">
+                    <Link href={`/visits/${v.id}`} className="block">{v.visit_id ?? v.id}</Link>
+                  </td>
+                  <td className="px-4 py-3.5 text-slate-600">
+                    <Link href={`/visits/${v.id}`} className="block">{formatDateShort(v.visit_date)}</Link>
+                  </td>
+                  <td className="px-4 py-3.5 font-semibold text-slate-900">
+                    <Link href={`/visits/${v.id}`} className="block">{patientName(v.patients)}</Link>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <SourceBadge source={v.source} />
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <StatusBadge status={v.status} />
+                  </td>
+                  <td className="px-4 py-3.5 text-right">
+                    <Link href={`/visits/${v.id}`} className="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-brand hover:bg-brand-50 rounded-md transition-colors opacity-0 group-hover:opacity-100">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                        <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+                      </svg>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

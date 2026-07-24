@@ -3,11 +3,11 @@ import Link from "next/link";
 type Tone = "brand" | "amber" | "sky" | "emerald" | "slate";
 
 const TONES: Record<Tone, { ring: string; value: string; icon: string }> = {
-  brand: { ring: "hover:border-brand/40", value: "text-brand-700", icon: "bg-brand-50 text-brand-700" },
-  amber: { ring: "hover:border-amber-300", value: "text-amber-700", icon: "bg-amber-50 text-amber-700" },
-  sky: { ring: "hover:border-sky-300", value: "text-sky-700", icon: "bg-sky-50 text-sky-700" },
-  emerald: { ring: "hover:border-emerald-300", value: "text-emerald-700", icon: "bg-emerald-50 text-emerald-700" },
-  slate: { ring: "hover:border-slate-300", value: "text-slate-800", icon: "bg-slate-100 text-slate-600" },
+  brand: { ring: "hover:border-brand/40 hover:ring-brand/10", value: "text-brand-700", icon: "bg-brand-50 text-brand-600 group-hover:bg-brand-100 group-hover:text-brand-700" },
+  amber: { ring: "hover:border-amber-300 hover:ring-amber-100", value: "text-amber-700", icon: "bg-amber-50 text-amber-600 group-hover:bg-amber-100 group-hover:text-amber-700" },
+  sky: { ring: "hover:border-sky-300 hover:ring-sky-100", value: "text-sky-700", icon: "bg-sky-50 text-sky-600 group-hover:bg-sky-100 group-hover:text-sky-700" },
+  emerald: { ring: "hover:border-emerald-300 hover:ring-emerald-100", value: "text-emerald-700", icon: "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 group-hover:text-emerald-700" },
+  slate: { ring: "hover:border-slate-300 hover:ring-slate-100", value: "text-slate-800", icon: "bg-slate-100 text-slate-600 group-hover:bg-slate-200 group-hover:text-slate-700" },
 };
 
 export function StatCard({
@@ -31,17 +31,30 @@ export function StatCard({
   return (
     <Link
       href={href}
-      className={`card group flex flex-col gap-3 p-4 transition-all hover:shadow-md ${t.ring} ${
-        urgent ? "ring-1 ring-amber-200" : ""
+      className={`card group relative flex flex-col gap-4 p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:ring-4 ${t.ring} ${
+        urgent ? "ring-2 ring-amber-300 border-amber-200 shadow-sm" : ""
       }`}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-500">{label}</span>
-        {icon && <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.icon}`}>{icon}</span>}
+      {/* Background decoration */}
+      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br from-slate-50 to-transparent opacity-50 group-hover:scale-150 transition-transform duration-500 ease-out" />
+      
+      <div className="relative flex items-center justify-between z-10">
+        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{label}</span>
+        {icon && (
+          <span className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-300 ${t.icon}`}>
+            {icon}
+          </span>
+        )}
       </div>
-      <div className="flex items-end justify-between">
-        <span className={`text-3xl font-extrabold tracking-tight ${t.value}`}>{value}</span>
-        <span className="text-xs text-slate-400 transition-colors group-hover:text-slate-600">{hint ?? "View"} →</span>
+      
+      <div className="relative flex items-end justify-between mt-2 z-10">
+        <span className={`text-4xl font-black tracking-tight ${t.value}`}>{value}</span>
+        <span className="flex items-center gap-1 text-xs font-semibold text-slate-400 transition-all duration-300 group-hover:text-slate-700 group-hover:translate-x-1">
+          {hint ?? "View"} 
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </span>
       </div>
     </Link>
   );

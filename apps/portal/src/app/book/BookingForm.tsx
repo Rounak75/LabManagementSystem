@@ -48,6 +48,7 @@ export function BookingForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaQuestion, setCaptchaQuestion] = useState("");
@@ -71,9 +72,9 @@ export function BookingForm({
   }, []);
 
   const visible = useMemo(() => {
-    if (!filter.trim()) return tests.slice(0, 30);
+    if (!filter.trim()) return tests.slice(0, 50);
     const q = filter.toLowerCase();
-    return tests.filter((t) => t.name.toLowerCase().includes(q)).slice(0, 30);
+    return tests.filter((t) => t.name.toLowerCase().includes(q)).slice(0, 50);
   }, [tests, filter]);
 
   const total = tests.filter((t) => testIds.includes(t.id)).reduce((s, t) => s + t.price, 0);
@@ -197,11 +198,11 @@ export function BookingForm({
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-lg border border-line bg-elev p-5 space-y-4"
+        className="rounded-xl border border-line bg-elev p-6 shadow-sm space-y-8"
       >
-        <Section title="Patient">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Full name" className="col-span-2">
+        <Section title="Patient Details" step={1}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Full name" className="md:col-span-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -231,7 +232,7 @@ export function BookingForm({
                 placeholder="you@example.com"
               />
             </Field>
-            <Field label="Collection address" className="col-span-2">
+            <Field label="Collection address" className="md:col-span-2">
               <textarea
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -253,57 +254,85 @@ export function BookingForm({
           </div>
         </Section>
 
-        <Section title="Tests">
-          <input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Search the catalogue…"
-            className={inputCls}
-          />
-          <div className="mt-2 rounded-lg border border-line bg-bg max-h-64 overflow-y-auto divide-y divide-line">
-            {visible.map((t) => {
-              const checked = testIds.includes(t.id);
-              return (
-                <label
-                  key={t.id}
-                  className={`flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer ${
-                    checked ? "bg-brand-soft" : "hover:bg-elev"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(t.id)}
-                    className="accent-brand"
-                  />
-                  <span className="flex-1 text-text">
-                    {t.name}
-                    {t.collectionTimeRestriction && (
-                      <span className="ml-2 text-[11px] text-notice">
-                        · {restrictionLabel(t.collectionTimeRestriction)}
+        <Section title="Test Selection" step={2}>
+          <div className="relative">
+            <input
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value);
+                setSearchFocused(true);
+              }}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              placeholder="Search to add tests..."
+              className={inputCls}
+            />
+            {searchFocused && (filter.length > 0 || visible.length > 0) && (
+              <div className="absolute z-10 w-full mt-1 rounded-lg border border-line bg-bg shadow-lg max-h-64 overflow-y-auto divide-y divide-line">
+                {visible.map((t) => {
+                  const isAlreadySelected = testIds.includes(t.id);
+                  if (isAlreadySelected) return null;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        if (!isAlreadySelected) toggle(t.id);
+                        setFilter("");
+                        setSearchFocused(false);
+                      }}
+                      className="flex items-center gap-3 px-3 py-2 text-[13px] cursor-pointer hover:bg-elev transition-colors"
+                    >
+                      <span className="flex-1 text-text font-medium">
+                        {t.name}
+                        {t.collectionTimeRestriction && (
+                          <span className="ml-2 text-[11px] font-normal text-notice bg-notice/10 px-1.5 py-0.5 rounded">
+                            {restrictionLabel(t.collectionTimeRestriction)}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <span className="font-mono text-soft num">
-                    ₹{t.price.toFixed(0)}
-                  </span>
-                </label>
-              );
-            })}
-            {visible.length === 0 && (
-              <p className="px-3 py-3 text-[12px] text-muted">No matching tests.</p>
+                      <span className="font-mono text-soft num">
+                        ₹{t.price.toFixed(0)}
+                      </span>
+                    </div>
+                  );
+                })}
+                {visible.filter(t => !testIds.includes(t.id)).length === 0 && (
+                  <p className="px-3 py-3 text-[12px] text-muted">No matching tests found (or all matches are already added).</p>
+                )}
+              </div>
             )}
           </div>
+          
           {testIds.length > 0 && (
-            <p className="text-[13px] text-soft mt-2 num font-mono">
-              {testIds.length} test{testIds.length === 1 ? "" : "s"} selected · approx
-              <span className="text-text"> ₹{total.toFixed(0)}</span>
-            </p>
+            <div className="mt-4 space-y-2">
+              <div className="rounded-lg border border-line divide-y divide-line bg-bg">
+                {selectedTests.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between px-3 py-2.5 text-[13px]">
+                     <span className="text-text font-medium">{t.name}</span>
+                     <div className="flex items-center gap-4">
+                       <span className="font-mono text-soft num">₹{t.price.toFixed(0)}</span>
+                       <button type="button" onClick={() => toggle(t.id)} className="text-brand hover:opacity-80 p-1" title="Remove test">
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                           <line x1="18" y1="6" x2="6" y2="18" />
+                           <line x1="6" y1="6" x2="18" y2="18" />
+                         </svg>
+                       </button>
+                     </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between items-center text-[13px] px-1">
+                <span className="text-soft">{testIds.length} test{testIds.length === 1 ? "" : "s"} selected</span>
+                <span className="text-soft num font-mono">
+                  approx <strong className="text-text text-[14px]">₹{total.toFixed(0)}</strong>
+                </span>
+              </div>
+            </div>
           )}
         </Section>
 
-        <Section title="Schedule">
-          <div className="grid grid-cols-2 gap-3">
+        <Section title="Schedule Appointment" step={3}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Preferred date">
               <input
                 type="date"
@@ -401,16 +430,23 @@ export function BookingForm({
 
 function Section({
   title,
+  step,
   children,
 }: {
   title: string;
+  step: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <p className="text-[10px] uppercase tracking-[0.22em] text-muted">
-        {title}
-      </p>
+    <section className="space-y-4">
+      <div className="flex items-center gap-3 border-b border-line pb-3">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-brand-fg text-[12px] font-bold">
+          {step}
+        </span>
+        <h3 className="text-[16px] font-semibold text-text tracking-tight">
+          {title}
+        </h3>
+      </div>
       {children}
     </section>
   );

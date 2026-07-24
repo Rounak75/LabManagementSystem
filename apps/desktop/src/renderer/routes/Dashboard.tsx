@@ -5,9 +5,7 @@ import { useAuth } from "@/stores/auth.store";
 import { NotificationsFailedBadge } from "@/components/NotificationsFailedBadge";
 import { PaymentLinksCard } from "@/components/PaymentLinksCard";
 import { PaymentLinksFailedBadge } from "@/components/PaymentLinksFailedBadge";
-import { SyncStatusCard } from "@/components/SyncStatusCard";
-import { FreeTierUsageCard } from "@/components/FreeTierUsageCard";
-import { BackfillProgressCard } from "@/components/BackfillProgressCard";
+
 import type { DashboardStats } from "@shared/api";
 
 const inrFmt = new Intl.NumberFormat("en-IN", {
@@ -167,16 +165,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      {user?.role === "Admin" && (
-        <section className="mb-8">
-          <GroupHeading>Cloud sync</GroupHeading>
-          <div className="flex flex-wrap gap-4">
-            <SyncStatusCard />
-            <FreeTierUsageCard />
-            <BackfillProgressCard />
-          </div>
-        </section>
-      )}
+
 
       <section className="mb-8">
         <GroupHeading>Backlog</GroupHeading>
