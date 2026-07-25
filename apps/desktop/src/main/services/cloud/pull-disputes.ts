@@ -63,7 +63,11 @@ export async function pullDisputes(client: any): Promise<void> {
 
       const created = new Date(r.created_at);
       if (created > latest) latest = created;
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.code === "P2002" || e?.code === "P2003") {
+        console.warn("[pull-disputes] skipping row", r.id, "— constraint conflict:", e.meta);
+        continue;
+      }
       console.error("[pull-disputes] row", r.id, "failed", e);
       throw e;
     }

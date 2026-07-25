@@ -67,7 +67,13 @@ export async function pullPatients(client: any): Promise<void> {
         create: data,
         update: data,
       });
-    } catch (e) {
+    } catch (e: any) {
+      // P2002 = unique constraint (patientId collision), P2003 = FK violation.
+      // Skip the conflicting row and keep syncing the rest of the batch.
+      if (e?.code === "P2002" || e?.code === "P2003") {
+        console.warn("[pull-patients] skipping row", r.patient_id, "— constraint conflict:", e.meta);
+        continue;
+      }
       console.error("[pull-patients] row", r.patient_id, "failed", e);
       throw e;
     }

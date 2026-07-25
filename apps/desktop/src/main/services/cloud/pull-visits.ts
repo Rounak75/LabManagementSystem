@@ -93,7 +93,11 @@ export async function pullVisits(client: any): Promise<void> {
           },
         });
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.code === "P2002" || e?.code === "P2003") {
+        console.warn("[pull-visits] skipping row", r.visit_id, "— constraint conflict:", e.meta);
+        continue;
+      }
       console.error("[pull-visits] row", r.visit_id, "failed", e);
       throw e;
     }

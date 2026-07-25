@@ -101,7 +101,11 @@ export async function pullResults(client: any): Promise<void> {
         create: data,
         update: data,
       });
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.code === "P2002" || e?.code === "P2003") {
+        console.warn("[pull-results] skipping row", r.id, "— constraint conflict:", e.meta);
+        continue;
+      }
       console.error("[pull-results] row", r.id, "failed", e);
       throw e;
     }
