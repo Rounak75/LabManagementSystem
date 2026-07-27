@@ -47,14 +47,16 @@ export async function initDatabase() {
   const migrationsDir = app.isPackaged
     ? join(process.resourcesPath, "prisma", "migrations")
     : join(__dirname, "../../../../packages/db/prisma/migrations");
-  try {
-    const applied = await applyPendingMigrations(base, migrationsDir);
-    if (applied.length) console.log("[DB] applied migrations:", applied.join(", "));
-    else console.log("[DB] migrations already up to date");
-  } catch (err) {
-    // Non-fatal: log loudly. A failed migration leaves the prior schema in place.
-    console.error("[DB] migration apply failed (non-fatal):", err);
-  }
+  // Deliberately fatal. This used to be swallowed as "non-fatal", so an
+  // auto-update that shipped a migration which failed to apply started the app
+  // anyway against a schema that did not match the code — the worst outcome for
+  // the machine holding the lab's only master copy, and invisible to the owner.
+  // A failed migration is now rolled back (see applyPendingMigrations) and
+  // rethrown, so boot stops with the fatal dialog instead of running on a schema
+  // the release does not expect.
+  const applied = await applyPendingMigrations(base, migrationsDir);
+  if (applied.length) console.log("[DB] applied migrations:", applied.join(", "));
+  else console.log("[DB] migrations already up to date");
 
   _extended = base.$extends(outboxExtension);
   initialized = true;
