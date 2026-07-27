@@ -21,6 +21,20 @@ const validBody = {
   is_abnormal: false,
   version: 1,
 };
+
+/** Every write first reads the visit test's lock state. Answer that read with
+ *  "unlocked" and delegate everything else to the test's own resolver. */
+function unlocked(
+  rest: Parameters<typeof makeSupabaseStub>[0] = { data: null, error: null },
+): ReturnType<typeof makeSupabaseStub> {
+  return makeSupabaseStub((ctx) =>
+    ctx.table === "visit_tests"
+      ? { data: { is_locked: false }, error: null }
+      : typeof rest === "function"
+        ? rest(ctx)
+        : rest,
+  );
+}
 beforeEach(() => { sessionUser = { id: "staff-1", token: "tok" }; });
 
 describe("POST /api/results/upsert", () => {
@@ -31,7 +45,7 @@ describe("POST /api/results/upsert", () => {
   });
 
   it("updates by id when body.id is present", async () => {
-    stub = makeSupabaseStub({ data: null, error: null });
+    stub = unlocked();
     const res = await POST(req({ ...validBody, id: "existing-id" }));
     expect(res.status).toBe(200);
     expect((await res.json()).id).toBe("existing-id");
@@ -47,7 +61,7 @@ describe("POST /api/results/upsert", () => {
   });
 
   it("inserts a new row when no id (returns generated id)", async () => {
-    stub = makeSupabaseStub({ data: { id: "new-row-id" }, error: null });
+    stub = unlocked({ data: { id: "new-row-id" }, error: null });
     const res = await POST(req(validBody));
     expect(res.status).toBe(200);
     expect((await res.json()).id).toBe("new-row-id");
@@ -60,7 +74,7 @@ describe("POST /api/results/upsert", () => {
 
   it("on unique-violation (23505) reads existing row then updates it", async () => {
     // insert -> 23505; select(...).maybeSingle() -> existing row; update -> ok
-    stub = makeSupabaseStub(({ methods }) => {
+    stub = unlocked(({ methods }) => {
       if (methods.includes("insert")) return { data: null, error: { code: "23505", message: "dup" } };
       if (methods.includes("maybeSingle")) return { data: { id: "found-id" }, error: null };
       return { data: null, error: null }; // the final update
@@ -78,8 +92,24 @@ describe("POST /api/results/upsert", () => {
     expect(stub.calls.filter((c) => c.table === "results" && c.method === "update").length).toBe(1);
   });
 
+  it("409 result_locked when the visit test is verified and locked", async () => {
+    // Distinct from 500 so the UI can say "ask an Admin to unlock" rather than
+    // showing a generic failure the user cannot act on.
+    stub = makeSupabaseStub(({ table }) =>
+      table === "visit_tests"
+        ? { data: { is_locked: true }, error: null }
+        : { data: null, error: null },
+    );
+
+    const res = await POST(req({ ...validBody, id: "existing-id" }));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("result_locked");
+    expect(stub.calls.some((c) => c.table === "results")).toBe(false);
+  });
+
   it("500 when the insert errors with a non-unique-violation", async () => {
-    stub = makeSupabaseStub(({ methods }) => {
+    stub = unlocked(({ methods }) => {
       if (methods.includes("insert")) return { data: null, error: { code: "42501", message: "denied" } };
       return { data: null, error: null };
     });

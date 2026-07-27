@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   testParameterFindMany: vi.fn(),
   visitTestFindMany: vi.fn(),
   isAbnormal: vi.fn(() => false),
+  auditTry: vi.fn(),
 }));
 
 vi.mock("@main/db", () => ({
@@ -20,6 +21,7 @@ vi.mock("@main/db", () => ({
   }),
 }));
 vi.mock("@main/services/abnormality", () => ({ isAbnormal: mocks.isAbnormal }));
+vi.mock("@main/services/audit-best-effort", () => ({ audit: { try: mocks.auditTry } }));
 
 import { pullResults } from "../pull-results";
 
@@ -47,6 +49,7 @@ beforeEach(() => {
   mocks.testParameterFindMany.mockResolvedValue([]);
   mocks.visitTestFindMany.mockResolvedValue([]);
   mocks.isAbnormal.mockReturnValue(false);
+  mocks.auditTry.mockResolvedValue(undefined);
 });
 
 describe("pullResults", () => {
@@ -118,6 +121,80 @@ describe("pullResults", () => {
 
     expect(mocks.isAbnormal).not.toHaveBeenCalled();
     expect(mocks.testResultUpsert.mock.calls[0]![0].create.isAbnormal).toBe(true);
+  });
+
+  // A verified-and-locked test has been signed off, and its report may already
+  // have been printed and handed to the patient. Nothing arriving from the cloud
+  // may silently rewrite it — the desktop write path enforces this
+  // (results.ipc `if (vt.isLocked) throw FORBIDDEN`) and the sync path must too.
+  describe("locked results", () => {
+    const lockedVisitTest = {
+      id: "vt1",
+      isLocked: true,
+      visit: { patient: { sex: "Male", age: 35 } },
+    };
+
+    it("refuses to overwrite a result whose visit test is locked", async () => {
+      mocks.visitTestFindMany.mockResolvedValue([lockedVisitTest]);
+      mocks.testResultFindUnique.mockResolvedValue({ id: "r1", version: 1 });
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ value: "999", version: 9 })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert).not.toHaveBeenCalled();
+    });
+
+    it("advances the cursor past a rejected locked row so the pull cannot wedge", async () => {
+      mocks.visitTestFindMany.mockResolvedValue([lockedVisitTest]);
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ value: "999", version: 9 })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
+    });
+
+    it("records the rejected write so the lab can see it was attempted", async () => {
+      mocks.visitTestFindMany.mockResolvedValue([lockedVisitTest]);
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ value: "999", version: 9 })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.auditTry).toHaveBeenCalledOnce();
+      const [action, input] = mocks.auditTry.mock.calls[0]!;
+      expect(action).toBe("result.locked_write_rejected");
+      expect(input.entityId).toBe("r1");
+    });
+
+    it("still applies results whose visit test is not locked", async () => {
+      mocks.visitTestFindMany.mockResolvedValue([
+        { ...lockedVisitTest, isLocked: false },
+      ]);
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow()]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert).toHaveBeenCalledOnce();
+      expect(mocks.auditTry).not.toHaveBeenCalled();
+    });
+
+    it("applies results when the visit test is not in the local cache yet", async () => {
+      mocks.visitTestFindMany.mockResolvedValue([]);
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow()]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert).toHaveBeenCalledOnce();
+    });
   });
 
   it("queries the results table on the updated_at cursor", async () => {

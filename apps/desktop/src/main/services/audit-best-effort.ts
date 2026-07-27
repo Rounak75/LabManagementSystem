@@ -10,9 +10,11 @@ import { audit as auditServiceCall } from "./audit.service";
  * from the active session. We adapt that here so all call sites can use
  * a single named-arg shape.
  *
- * `userId` is currently informational only (the underlying logger uses
- * the session user). It is still persisted in the audit-errors.log line
- * so a failing audit attempt can be reconciled with the acting user.
+ * `userId` is passed through to the audit service as the acting user. That
+ * matters for background workers (cloud sync, schedulers), which have no
+ * session — without an explicit actor the service has nobody to attribute the
+ * entry to and drops it. It is also persisted in the audit-errors.log line so a
+ * failing audit attempt can be reconciled with the acting user.
  */
 export type AuditInput = {
   entityType: string;
@@ -34,7 +36,7 @@ async function defaultUnderlying(a: AuditCall): Promise<unknown> {
       : typeof a.details === "string"
         ? a.details
         : JSON.stringify(a.details);
-  await auditServiceCall(a.action, a.entityType, a.entityId, detailsStr);
+  await auditServiceCall(a.action, a.entityType, a.entityId, detailsStr, a.userId || undefined);
   return undefined;
 }
 

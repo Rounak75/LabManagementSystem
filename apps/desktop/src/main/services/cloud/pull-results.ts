@@ -8,6 +8,7 @@ import { logger } from "./logger";
 import { prisma } from "@main/db";
 import type { CloudClient } from "./sync-engine";
 import { isAbnormal } from "@main/services/abnormality";
+import { audit } from "@main/services/audit-best-effort";
 import type { ResultType, Sex } from "@lab/types";
 
 const SOURCE = "results";
@@ -69,6 +70,34 @@ export async function pullResults(client: CloudClient): Promise<void> {
 
   for (const r of rows) {
     try {
+      // A locked visit test has been verified and signed off, and its report may
+      // already be printed and handed to the patient. Nothing from the cloud may
+      // rewrite it. The desktop write path enforces this (results.ipc:
+      // `if (vt.isLocked) throw FORBIDDEN`); without the same guard here, sync is
+      // a way around it. Advance the cursor so a rejected row cannot wedge the
+      // pull, and record the attempt — a write arriving for a locked result means
+      // either a bug or misuse, and both need to be visible.
+      const visitTest = vtCache.get(r.visit_test_id);
+      if (visitTest?.isLocked) {
+        logger.warn(
+          "cloud",
+          `[pull-results] rejected cloud write to locked result ${r.id} (visitTest ${r.visit_test_id})`,
+        );
+        await audit.try("result.locked_write_rejected", {
+          entityType: "TestResult",
+          entityId: r.id,
+          userId: r.entered_by_user_id ?? "",
+          details: {
+            visitTestId: r.visit_test_id,
+            rejectedValue: r.value,
+            cloudVersion: r.version ?? null,
+          },
+        });
+        latest = new Date(r.updated_at);
+        latestId = r.id;
+        continue;
+      }
+
       const existing = await prisma().testResult.findUnique({ where: { id: r.id } });
       if (existing && existing.version > (r.version ?? 0)) {
         // Local copy newer — desktop wins.
