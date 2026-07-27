@@ -3,6 +3,8 @@ import { makeFakeCloudClient } from "./helpers/fake-cloud-client";
 
 const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
+  deadLetterFindUnique: vi.fn(),
+  deadLetterUpsert: vi.fn(),
   syncCursorUpsert: vi.fn(),
   invoiceFindUnique: vi.fn(),
   invoiceUpdate: vi.fn(),
@@ -14,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@main/db", () => ({
   prisma: () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
+    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
     invoice: { findUnique: mocks.invoiceFindUnique, update: mocks.invoiceUpdate },
     processedCloudPayment: { findUnique: mocks.processedFindUnique, create: mocks.processedCreate },
     $transaction: mocks.transaction,
@@ -41,6 +44,7 @@ function paymentRow(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindUnique.mockResolvedValue(null);
   mocks.processedFindUnique.mockResolvedValue(null);
   mocks.transaction.mockResolvedValue([]);
 });

@@ -386,6 +386,27 @@ model SyncCursor {
   lastId       String?
 }
 
+// ─── Sync Dead Letters ────────────────────────────────────────────────────
+// A cloud row that repeatedly fails to apply locally. Without this the pull
+// loop rethrew, the cursor was never written, and the same batch was re-fetched
+// every 5s forever — one bad row silently stopped every later row from
+// arriving. Quarantining the row lets the cursor advance; the count is surfaced
+// in the sync status UI so a stuck row is visible instead of invisible.
+model SyncDeadLetter {
+  id          String   @id @default(uuid())
+  source      String // pull handler name, e.g. "results"
+  rowId       String // id of the offending cloud row
+  payload     String // JSON snapshot of the row, for diagnosis and replay
+  error       String
+  attempts    Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  resolvedAt  DateTime?
+
+  @@unique([source, rowId])
+  @@index([resolvedAt])
+}
+
 // ─── Sync Tick Logs (Observability) ───────────────────────────────────────
 model SyncTickLog {
   id         String   @id @default(uuid())

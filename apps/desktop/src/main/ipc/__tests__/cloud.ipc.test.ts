@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   fetchFreeTierStatus: vi.fn(),
   runBackfillOnce: vi.fn(),
   runSyncTick: vi.fn(),
+  getLastTickHealth: vi.fn(),
+  deadLetterCount: vi.fn(),
   pullPaymentEvents: vi.fn(),
   registered: new Map<string, (args: unknown) => unknown>(),
 }));
@@ -35,6 +37,7 @@ vi.mock("@main/db", () => ({
       update: mocks.outboxUpdate,
       count: mocks.outboxCount,
     },
+    syncDeadLetter: { count: mocks.deadLetterCount },
   }),
 }));
 vi.mock("@main/services/crypto.service", () => ({ decryptSecret: mocks.decryptSecret }));
@@ -45,7 +48,10 @@ vi.mock("@main/services/cloud/supabase-client", () => ({
   }),
 }));
 vi.mock("@main/services/cloud/backfill.service", () => ({ runBackfillOnce: mocks.runBackfillOnce }));
-vi.mock("@main/services/cloud/sync-worker", () => ({ runSyncTick: mocks.runSyncTick }));
+vi.mock("@main/services/cloud/sync-worker", () => ({
+  runSyncTick: mocks.runSyncTick,
+  getLastTickHealth: mocks.getLastTickHealth,
+}));
 vi.mock("@main/services/cloud/payment-events", () => ({ pullPaymentEvents: mocks.pullPaymentEvents }));
 
 await import("../cloud.ipc");
@@ -62,6 +68,8 @@ describe("cloud.ipc", () => {
     });
     mocks.outboxCount.mockResolvedValue(0);
     mocks.outboxFindFirst.mockResolvedValue(null);
+    mocks.deadLetterCount.mockResolvedValue(0);
+    mocks.getLastTickHealth.mockReturnValue(null);
   });
 
   it("cloud:getStatus requires session and returns status shape", async () => {
@@ -70,6 +78,34 @@ describe("cloud.ipc", () => {
     const r = (await handler({})) as { enabled: boolean; freeTierBytes: number };
     expect(r.enabled).toBe(true);
     expect(r.freeTierBytes).toBe(1024);
+  });
+
+  // Health used to come only from the outbox, so a pull wedged on one bad row
+  // reported "healthy" while results stopped arriving from the lab.
+  it("cloud:getStatus reports pull-side health, not just the outbox", async () => {
+    mocks.deadLetterCount.mockResolvedValue(3);
+    mocks.getLastTickHealth.mockReturnValue({
+      at: new Date("2026-07-27T10:00:00Z"),
+      errors: ["results: constraint exploded"],
+      unreachable: true,
+    });
+
+    const handler = mocks.registered.get("cloud:getStatus")!;
+    const r = (await handler({})) as {
+      stuckRowCount: number;
+      lastTickErrors: string[];
+      cloudUnreachable: boolean;
+    };
+
+    expect(r.stuckRowCount).toBe(3);
+    expect(r.lastTickErrors).toEqual(["results: constraint exploded"]);
+    expect(r.cloudUnreachable).toBe(true);
+  });
+
+  it("cloud:getStatus counts only unresolved stuck rows", async () => {
+    const handler = mocks.registered.get("cloud:getStatus")!;
+    await handler({});
+    expect(mocks.deadLetterCount).toHaveBeenCalledWith({ where: { resolvedAt: null } });
   });
 
   it("cloud:testConnection requires Admin", async () => {

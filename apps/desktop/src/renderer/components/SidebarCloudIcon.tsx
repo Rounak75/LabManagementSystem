@@ -6,6 +6,9 @@ interface CloudStatus {
   lastPushAt: string | null;
   pendingCount: number;
   failedCount: number;
+  /** Cloud rows quarantined after repeatedly failing to apply locally. */
+  stuckRowCount: number;
+  cloudUnreachable: boolean;
 }
 
 function formatAge(iso: string | null): string {
@@ -26,11 +29,17 @@ export function SidebarCloudIcon() {
   if (!data || !data.enabled) return null;
 
   const ageMs = data.lastPushAt ? Date.now() - new Date(data.lastPushAt).getTime() : Number.POSITIVE_INFINITY;
+  // Include rows stuck coming down: if those are blocked, results typed at the
+  // lab are not reaching this machine even though pushes look fine.
+  const stuck = data.stuckRowCount ?? 0;
   let color = "bg-emerald-500";
-  if (data.failedCount > 0 || ageMs > 5 * 60_000) color = "bg-rose-500";
-  else if (ageMs > 60_000) color = "bg-amber-500";
+  if (data.failedCount > 0 || stuck > 0 || ageMs > 5 * 60_000) color = "bg-rose-500";
+  else if (data.cloudUnreachable || ageMs > 60_000) color = "bg-amber-500";
 
-  const tooltip = `Last sync: ${formatAge(data.lastPushAt)} — ${data.pendingCount} pending, ${data.failedCount} failed`;
+  const tooltip =
+    `Last sync: ${formatAge(data.lastPushAt)} — ${data.pendingCount} pending, ` +
+    `${data.failedCount} failed to send` +
+    (stuck > 0 ? `, ${stuck} incoming stuck` : "");
 
   return (
     <span

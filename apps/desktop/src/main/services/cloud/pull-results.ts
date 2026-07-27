@@ -1,20 +1,20 @@
-import { logger } from "./logger";
 // Phase 3e Plan A — pull admin-portal-entered TestResult rows into local SQLite.
 // Re-runs the local abnormality computation against locally-known parameter
 // reference ranges so the report's "Abnormal" flag is authoritative on the
-// desktop. Falls back to whatever the cloud row carried if the parameter
-// isn't local yet (sync race).
+// desktop. Falls back to whatever the cloud row carried if the parameter isn't
+// local yet (sync race).
 
 import { prisma } from "@main/db";
-import type { CloudClient } from "./sync-engine";
 import { isAbnormal } from "@main/services/abnormality";
 import { audit } from "@main/services/audit-best-effort";
+import { logger } from "./logger";
+import { runPull } from "./pull-runner";
+import type { CloudClient } from "./sync-engine";
 import type { ResultType, Sex } from "@lab/types";
 
 const SOURCE = "results";
-const BATCH = 100;
 
-interface RawResultRow {
+interface RawResultRow extends Record<string, unknown> {
   id: string;
   visit_test_id: string;
   parameter_id: string;
@@ -28,55 +28,50 @@ interface RawResultRow {
   updated_at: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ParameterRow = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type VisitTestRow = any;
+
 export async function pullResults(client: CloudClient): Promise<void> {
-  
-  const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
-  const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
-  const lastId = cursor?.lastId ?? undefined;
+  // Parameters and visit tests for the whole page, so abnormality can be
+  // recomputed without a query per row.
+  let paramsCache = new Map<string, ParameterRow>();
+  let vtCache = new Map<string, VisitTestRow>();
 
-  let rows: RawResultRow[] = [];
-  try {
-    rows = (await client.pullSince("results", "updated_at", sinceIso, BATCH, undefined, lastId)) as unknown as RawResultRow[];
-  } catch (e) {
-    logger.error("cloud", "[pull-results] fetch failed", e);
-    return;
-  }
-  if (rows.length === 0) return;
+  await runPull<RawResultRow>(client, {
+    source: SOURCE,
+    table: "results",
+    cursorColumn: "updated_at",
 
-  let latest = cursor?.lastSyncedAt ?? new Date(0);
-  let latestId = cursor?.lastId ?? null;
-  
-  // Phase 3e Plan A: Fix N+1 — fetch all required parameters and visitTests in one go
-  const paramIds = Array.from(new Set(rows.map(r => r.parameter_id)));
-  const vtIds = Array.from(new Set(rows.map(r => r.visit_test_id)));
-  
-  const paramsCache = new Map<string, any>();
-  const vtCache = new Map<string, any>();
-  
-  try {
-    const params = await prisma().testParameter.findMany({
-      where: { id: { in: paramIds } }
-    });
-    params.forEach(p => paramsCache.set(p.id, p));
-    
-    const vts = await prisma().visitTest.findMany({
-      where: { id: { in: vtIds } },
-      include: { visit: { include: { patient: true } } }
-    });
-    vts.forEach(v => vtCache.set(v.id, v));
-  } catch (e) {
-    logger.error("cloud", "[pull-results] batch cache prep failed", e);
-  }
+    prepare: async (rows) => {
+      paramsCache = new Map();
+      vtCache = new Map();
+      const paramIds = Array.from(new Set(rows.map((r) => r.parameter_id)));
+      const vtIds = Array.from(new Set(rows.map((r) => r.visit_test_id)));
 
-  for (const r of rows) {
-    try {
+      try {
+        const params = await prisma().testParameter.findMany({ where: { id: { in: paramIds } } });
+        params.forEach((p) => paramsCache.set(p.id, p));
+
+        const vts = await prisma().visitTest.findMany({
+          where: { id: { in: vtIds } },
+          include: { visit: { include: { patient: true } } },
+        });
+        vts.forEach((v) => vtCache.set(v.id, v));
+      } catch (e) {
+        // Non-fatal: without the caches we fall back to the cloud's own flag.
+        logger.error("cloud", "[pull-results] batch cache prep failed", e);
+      }
+    },
+
+    applyRow: async (r) => {
       // A locked visit test has been verified and signed off, and its report may
       // already be printed and handed to the patient. Nothing from the cloud may
       // rewrite it. The desktop write path enforces this (results.ipc:
       // `if (vt.isLocked) throw FORBIDDEN`); without the same guard here, sync is
-      // a way around it. Advance the cursor so a rejected row cannot wedge the
-      // pull, and record the attempt — a write arriving for a locked result means
-      // either a bug or misuse, and both need to be visible.
+      // a way around it. Record the attempt — a write arriving for a locked
+      // result means either a bug or misuse, and both need to be visible.
       const visitTest = vtCache.get(r.visit_test_id);
       if (visitTest?.isLocked) {
         logger.warn(
@@ -93,41 +88,39 @@ export async function pullResults(client: CloudClient): Promise<void> {
             cloudVersion: r.version ?? null,
           },
         });
-        latest = new Date(r.updated_at);
-        latestId = r.id;
-        continue;
+        return;
       }
 
       const existing = await prisma().testResult.findUnique({ where: { id: r.id } });
       if (existing && existing.version > (r.version ?? 0)) {
         // Local copy newer — desktop wins.
-        latest = new Date(r.updated_at);
-        latestId = r.id;
-        continue;
+        return;
       }
 
-      // Recompute abnormality using locally-known parameter + patient if
-      // available. If we can't resolve them, fall back to the cloud's flag.
+      // Recompute abnormality from the local parameter + patient when both are
+      // known; otherwise trust the flag the cloud sent.
       let abnormal = r.is_abnormal;
       try {
         const param = paramsCache.get(r.parameter_id);
-        const vt = vtCache.get(r.visit_test_id);
-        if (param && vt?.visit?.patient) {
-          abnormal = isAbnormal({
-            resultType: (param.resultType as ResultType) ?? "Numeric",
-            value: r.value,
-            patientSex: vt.visit.patient.sex as Sex,
-            patientAge: vt.visit.patient.age,
-            childAgeBoundary: 18,
-            refRangeMaleMin: param.refRangeMaleMin ? Number(param.refRangeMaleMin) : null,
-            refRangeMaleMax: param.refRangeMaleMax ? Number(param.refRangeMaleMax) : null,
-            refRangeFemaleMin: param.refRangeFemaleMin ? Number(param.refRangeFemaleMin) : null,
-            refRangeFemaleMax: param.refRangeFemaleMax ? Number(param.refRangeFemaleMax) : null,
-            refRangeChildMin: param.refRangeChildMin ? Number(param.refRangeChildMin) : null,
-            refRangeChildMax: param.refRangeChildMax ? Number(param.refRangeChildMax) : null,
-            qualitativeOptions: param.qualitativeOptions,
-            normalQualitative: param.normalQualitative,
-          }, r.abnormal_override);
+        if (param && visitTest?.visit?.patient) {
+          abnormal = isAbnormal(
+            {
+              resultType: (param.resultType as ResultType) ?? "Numeric",
+              value: r.value,
+              patientSex: visitTest.visit.patient.sex as Sex,
+              patientAge: visitTest.visit.patient.age,
+              childAgeBoundary: 18,
+              refRangeMaleMin: param.refRangeMaleMin ? Number(param.refRangeMaleMin) : null,
+              refRangeMaleMax: param.refRangeMaleMax ? Number(param.refRangeMaleMax) : null,
+              refRangeFemaleMin: param.refRangeFemaleMin ? Number(param.refRangeFemaleMin) : null,
+              refRangeFemaleMax: param.refRangeFemaleMax ? Number(param.refRangeFemaleMax) : null,
+              refRangeChildMin: param.refRangeChildMin ? Number(param.refRangeChildMin) : null,
+              refRangeChildMax: param.refRangeChildMax ? Number(param.refRangeChildMax) : null,
+              qualitativeOptions: param.qualitativeOptions,
+              normalQualitative: param.normalQualitative,
+            },
+            r.abnormal_override,
+          );
         }
       } catch {
         // ignore — fall back to cloud flag
@@ -146,31 +139,7 @@ export async function pullResults(client: CloudClient): Promise<void> {
         enteredAt: new Date(r.entered_at),
       };
 
-      await prisma().testResult.upsert({
-        where: { id: r.id },
-        create: data,
-        update: data,
-      });
-
-      // Success -> advance cursor
-      latest = new Date(r.updated_at);
-      latestId = r.id;
-    } catch (e: any) {
-      if (e?.code === "P2002" || e?.code === "P2003") {
-        logger.warn("cloud", "[pull-results] skipping row" + " " + r.id + " " + "— constraint conflict:" + " " + JSON.stringify(e.meta));
-        // Skipped constraint conflict -> advance cursor
-        latest = new Date(r.updated_at);
-        latestId = r.id;
-        continue;
-      }
-      logger.error("cloud", "[pull-results] row" + " " + r.id + " " + "failed", e);
-      throw e;
-    }
-  }
-
-  await prisma().syncCursor.upsert({
-    where: { source: SOURCE },
-    update: { lastSyncedAt: latest, lastId: latestId },
-    create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
+      await prisma().testResult.upsert({ where: { id: r.id }, create: data, update: data });
+    },
   });
 }

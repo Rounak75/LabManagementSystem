@@ -8,6 +8,10 @@ interface CloudStatus {
   lastPushAt: string | null;
   pendingCount: number;
   failedCount: number;
+  /** Cloud rows quarantined after repeatedly failing to apply locally. */
+  stuckRowCount: number;
+  lastTickErrors: string[];
+  cloudUnreachable: boolean;
 }
 
 function formatAge(iso: string | null): string {
@@ -28,12 +32,19 @@ export function SyncStatusCard() {
   if (!data || !data.enabled) return null;
 
   const ageMs = data.lastPushAt ? Date.now() - new Date(data.lastPushAt).getTime() : Number.POSITIVE_INFINITY;
+  // Pull health counts as much as push health: rows stuck coming *down* mean
+  // results typed at the lab are not reaching this machine.
+  const stuck = data.stuckRowCount ?? 0;
+  const pullErrors = data.lastTickErrors?.length ?? 0;
   let tone: "green" | "yellow" | "red" = "green";
   let label = "Cloud sync: healthy";
-  if (data.failedCount > 0 || ageMs > 5 * 60_000) {
+  if (data.failedCount > 0 || stuck > 0 || ageMs > 5 * 60_000) {
     tone = "red";
     label = "Cloud sync: error";
-  } else if (ageMs > 60_000) {
+  } else if (data.cloudUnreachable) {
+    tone = "yellow";
+    label = "Cloud sync: offline";
+  } else if (pullErrors > 0 || ageMs > 60_000) {
     tone = "yellow";
     label = "Cloud sync: slow";
   }
@@ -51,6 +62,12 @@ export function SyncStatusCard() {
         <Link to="/sync?status=Failed" className="mt-1 inline-block text-xs text-rose-600 underline">
           {data.failedCount} failed
         </Link>
+      )}
+      {stuck > 0 && (
+        <div className="mt-1 text-xs text-rose-600">
+          {stuck} incoming {stuck === 1 ? "row" : "rows"} stuck — results from the lab may be
+          missing
+        </div>
       )}
       {data.pendingCount > 0 && (
         <div className="mt-1 text-xs text-slate-500">{data.pendingCount} pending</div>

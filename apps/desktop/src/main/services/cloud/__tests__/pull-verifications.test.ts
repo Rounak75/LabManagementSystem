@@ -3,6 +3,8 @@ import { makeFakeCloudClient } from "./helpers/fake-cloud-client";
 
 const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
+  deadLetterFindUnique: vi.fn(),
+  deadLetterUpsert: vi.fn(),
   syncCursorUpsert: vi.fn(),
   visitFindUnique: vi.fn(),
   visitUpdate: vi.fn(),
@@ -14,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@main/db", () => ({
   prisma: () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
+    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
     visit: { findUnique: mocks.visitFindUnique, update: mocks.visitUpdate },
     visitTest: { findMany: mocks.visitTestFindMany, updateMany: mocks.visitTestUpdateMany },
   }),
@@ -34,6 +37,7 @@ const row = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindUnique.mockResolvedValue(null);
   mocks.visitFindUnique.mockResolvedValue({ id: "v1", status: "InProgress" });
   mocks.visitTestFindMany.mockResolvedValue([]);
   mocks.reportReady.mockResolvedValue([]);

@@ -4,7 +4,7 @@ import { prisma } from "@main/db";
 import { decryptSecret } from "@main/services/crypto.service";
 import { createSupabaseClient } from "@main/services/cloud/supabase-client";
 import { runBackfillOnce } from "@main/services/cloud/backfill.service";
-import { runSyncTick } from "@main/services/cloud/sync-worker";
+import { runSyncTick, getLastTickHealth } from "@main/services/cloud/sync-worker";
 
 register("cloud:getStatus", async () => {
   requireSession();
@@ -33,6 +33,12 @@ register("cloud:getStatus", async () => {
     }
   }
 
+  // Health used to be derived purely from outbox (push) state, so a pull that
+  // was failing — or wedged on one bad row — showed as "healthy" while results
+  // stopped arriving from the lab. Report the pull side too.
+  const stuckRowCount = await prisma().syncDeadLetter.count({ where: { resolvedAt: null } });
+  const tick = getLastTickHealth();
+
   return {
     enabled: s?.cloudSyncEnabled ?? false,
     lastPushAt: lastSent?.sentAt ?? null,
@@ -42,6 +48,11 @@ register("cloud:getStatus", async () => {
     backfillCompletedAt: s?.backfillCompletedAt ?? null,
     freeTierBytes,
     freeTierLimit: 500 * 1024 * 1024,
+    // Pull-side health.
+    stuckRowCount,
+    lastTickAt: tick?.at ?? null,
+    lastTickErrors: tick?.errors ?? [],
+    cloudUnreachable: tick?.unreachable ?? false,
   };
 });
 
