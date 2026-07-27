@@ -141,6 +141,22 @@ apps\desktop\out\dist\Golmuri Janch Ghar Lab Setup <version>.exe
 
 > To open the folder fast: in PowerShell run `explorer apps\desktop\out\dist` and File Explorer opens right on the installer.
 
+> **The installer is not code-signed.** Two consequences you should expect, and one you should act on.
+>
+> **When installing:** Windows will show a blue "Windows protected your PC" SmartScreen warning saying the publisher is unknown. Click **More info → Run anyway**. This is normal for unsigned software and is not a sign that anything is wrong — but it does mean the lab cannot tell your installer apart from a malicious one someone else sends them.
+>
+> **For updates:** the app updates itself from the GitHub releases of this repository. Because releases are unsigned, anyone who gains access to that GitHub account can publish a release that every lab PC will download and install on its own, with no prompt. Treat access to the release repository as equivalent to access to the lab's computer: use two-factor authentication on the account, and don't share its credentials.
+>
+> **To remove both problems**, buy a Windows code-signing certificate (an OV certificate is roughly ₹15,000–30,000/year; EV certificates clear SmartScreen immediately but cost more) and add it to `apps/desktop/electron-builder.yml`:
+>
+> ```yaml
+> win:
+>   certificateFile: "path\\to\\certificate.pfx"
+>   certificatePassword: "${env.CSC_KEY_PASSWORD}"
+> ```
+>
+> Pass the password by environment variable — never commit it. Once signed, the SmartScreen warning stops appearing and `electron-updater` verifies each update's signature before installing it, so a tampered release is rejected rather than trusted.
+
 ### Step B. Share it with the lab
 
 Copy that single `Setup .exe` file to the lab's computer. Any of these works — pick whatever's easiest:

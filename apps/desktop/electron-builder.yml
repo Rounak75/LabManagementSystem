@@ -11,7 +11,13 @@ files:
   - "package.json"
   - "!**/.env"
 extraResources:
-  - from: "../../packages/db/prisma/dev.sqlite"
+  # Built by `pnpm -F @lab/db build:seed-db`, which the package/release scripts
+  # run first. This used to point at prisma/dev.sqlite — the developer's own
+  # working database — so whatever was in it at package time (test patients, dev
+  # admin accounts) became the lab's starting data. The build script creates this
+  # file from the migrations plus the seed and fails if it contains any patient,
+  # visit or user rows.
+  - from: "../../packages/db/prisma/seed.sqlite"
     to:   "lab.sqlite"
   - from: "../../packages/db/prisma/schema.prisma"
     to:   "prisma/schema.prisma"
