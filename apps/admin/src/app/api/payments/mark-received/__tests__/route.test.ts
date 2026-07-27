@@ -11,9 +11,22 @@ vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 import { POST } from "../route";
 
 function req(body: unknown): Request {
-  return new Request("http://localhost/api/payments/mark-received", { method: "POST", body: JSON.stringify(body) });
+  return new Request("http://localhost/api/payments/mark-received", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
-beforeEach(() => { sessionUser = { id: "admin-1", token: "tok" }; });
+
+/** The RPC returns the payment id and the invoice's new state. */
+function rpcReturns(row: { payment_id: string; amount_paid: number; payment_status: string }) {
+  return makeSupabaseStub(({ table }) =>
+    table === "rpc:record_invoice_payment" ? { data: [row], error: null } : { data: null, error: null },
+  );
+}
+
+beforeEach(() => {
+  sessionUser = { id: "admin-1", token: "tok" };
+});
 
 describe("POST /api/payments/mark-received", () => {
   it("401 when not authenticated", async () => {
@@ -30,66 +43,76 @@ describe("POST /api/payments/mark-received", () => {
   });
 
   it("404 when the invoice is not found", async () => {
-    stub = makeSupabaseStub(({ table }) => {
-      if (table === "invoices") return { data: null, error: { message: "no rows" } };
-      return { data: null, error: null };
-    });
+    stub = makeSupabaseStub(({ table }) =>
+      table === "rpc:record_invoice_payment"
+        ? { data: null, error: { message: "invoice not found: missing", code: "P0002" } }
+        : { data: null, error: null },
+    );
+
     const res = await POST(req({ invoice_id: "missing", amount: 100 }));
+
     expect(res.status).toBe(404);
   });
 
-  it("partial payment: inserts payment (UPI_Direct) and updates invoice to Partial", async () => {
-    stub = makeSupabaseStub(({ table, methods }) => {
-      if (table === "invoices" && methods.includes("select")) {
-        return { data: { id: "inv1", visit_id: "v1", total: 500, amount_paid: 100, payment_status: "Partial" }, error: null };
-      }
-      return { data: null, error: null };
-    });
+  // The balance was previously read, added to in JavaScript, and written back, so
+  // two staff recording payments on one invoice at the same time both started
+  // from the same figure and one payment silently vanished from the invoice while
+  // its payments row survived. The arithmetic has to happen in the database.
+  it("records the payment in a single atomic call", async () => {
+    stub = rpcReturns({ payment_id: "pay-1", amount_paid: 300, payment_status: "Partial" });
+
     const res = await POST(req({ invoice_id: "inv1", amount: 200, reference: "UTR123" }));
+
     expect(res.status).toBe(200);
+    expect(stub.rpcCalls).toHaveLength(1);
+    expect(stub.rpcCalls[0]!.name).toBe("record_invoice_payment");
+    expect(stub.rpcCalls[0]!.args).toMatchObject({
+      p_invoice_id: "inv1",
+      p_amount: 200,
+      p_method: "UPI_Direct",
+      p_reference: "UTR123",
+      p_received_by: "admin-1",
+    });
+  });
+
+  it("never computes the new balance itself", async () => {
+    stub = rpcReturns({ payment_id: "pay-1", amount_paid: 300, payment_status: "Partial" });
+
+    await POST(req({ invoice_id: "inv1", amount: 200 }));
+
+    // No read-modify-write on invoices, and no separate payments insert.
+    expect(stub.calls.some((c) => c.table === "invoices" && c.method === "update")).toBe(false);
+    expect(stub.calls.some((c) => c.table === "payments" && c.method === "insert")).toBe(false);
+  });
+
+  it("reports the status the database computed", async () => {
+    stub = rpcReturns({ payment_id: "pay-2", amount_paid: 500, payment_status: "Paid" });
+
+    const res = await POST(req({ invoice_id: "inv1", amount: 100 }));
+
     const json = await res.json();
     expect(json.ok).toBe(true);
-    expect(json.payment_status).toBe("Partial");
-
-    const pay = stub.calls.find((c) => c.table === "payments" && c.method === "insert");
-    expect(pay).toBeTruthy();
-    expect((pay!.arg as any).method).toBe("UPI_Direct");
-    expect((pay!.arg as any).amount).toBe(200);
-    expect((pay!.arg as any).invoice_id).toBe("inv1");
-    expect((pay!.arg as any).reference).toBe("UTR123");
-    expect((pay!.arg as any).received_by_user_id).toBe("admin-1");
-
-    const upd = stub.calls.find((c) => c.table === "invoices" && c.method === "update");
-    expect(upd).toBeTruthy();
-    expect((upd!.arg as any).amount_paid).toBe(300); // 100 + 200
-    expect((upd!.arg as any).payment_status).toBe("Partial");
+    expect(json.payment_status).toBe("Paid");
   });
 
-  it("full payment: marks invoice Paid when paid >= total", async () => {
-    stub = makeSupabaseStub(({ table, methods }) => {
-      if (table === "invoices" && methods.includes("select")) {
-        return { data: { id: "inv1", visit_id: "v1", total: 500, amount_paid: 400, payment_status: "Partial" }, error: null };
-      }
-      return { data: null, error: null };
-    });
-    const res = await POST(req({ invoice_id: "inv1", amount: 100 }));
-    expect(res.status).toBe(200);
-    expect((await res.json()).payment_status).toBe("Paid");
-    const upd = stub.calls.find((c) => c.table === "invoices" && c.method === "update");
-    expect((upd!.arg as any).amount_paid).toBe(500);
-    expect((upd!.arg as any).payment_status).toBe("Paid");
-  });
+  it("500 when the atomic write fails", async () => {
+    stub = makeSupabaseStub(({ table }) =>
+      table === "rpc:record_invoice_payment"
+        ? { data: null, error: { message: "insert failed" } }
+        : { data: null, error: null },
+    );
 
-  it("500 when the payment insert errors", async () => {
-    stub = makeSupabaseStub(({ table, methods }) => {
-      if (table === "invoices" && methods.includes("select")) {
-        return { data: { id: "inv1", visit_id: "v1", total: 500, amount_paid: 0, payment_status: "Pending" }, error: null };
-      }
-      if (table === "payments" && methods.includes("insert")) return { data: null, error: { message: "insert failed" } };
-      return { data: null, error: null };
-    });
     const res = await POST(req({ invoice_id: "inv1", amount: 100 }));
+
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("insert failed");
+  });
+
+  it("still writes an audit entry", async () => {
+    stub = rpcReturns({ payment_id: "pay-1", amount_paid: 300, payment_status: "Partial" });
+
+    await POST(req({ invoice_id: "inv1", amount: 200 }));
+
+    expect(stub.calls.some((c) => c.table === "audit_logs" && c.method === "insert")).toBe(true);
   });
 });

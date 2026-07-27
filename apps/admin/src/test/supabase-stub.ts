@@ -24,6 +24,17 @@ export function makeSupabaseStub(result: ResultSpec = { data: null, error: null 
     };
     return chain;
   };
-  const client = { from: vi.fn((t: string) => builder(t)) };
-  return { client, calls };
+  const rpcCalls: { name: string; args: unknown }[] = [];
+  const client = {
+    from: vi.fn((t: string) => builder(t)),
+    // Operations that must be atomic (invoice balances, lockout counters) run as
+    // Postgres functions rather than read-modify-write, so the stub models them.
+    rpc: vi.fn(async (name: string, args?: unknown) => {
+      rpcCalls.push({ name, args });
+      const spec =
+        typeof result === "function" ? result({ table: `rpc:${name}`, methods: ["rpc"] }) : result;
+      return { data: spec.data ?? null, error: spec.error ?? null };
+    }),
+  };
+  return { client, calls, rpcCalls };
 }

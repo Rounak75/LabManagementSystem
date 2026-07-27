@@ -4,6 +4,12 @@ import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 
+interface RecordedPayment {
+  payment_id: string;
+  amount_paid: number;
+  payment_status: string;
+}
+
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -13,46 +19,49 @@ export async function POST(req: Request) {
   }
 
   const sb = getServerSupabase(user.token);
-  const now = new Date().toISOString();
 
-  const { data: inv, error: invErr } = await sb
-    .from("invoices")
-    .select("id, visit_id, total, amount_paid, payment_status")
-    .eq("id", body.invoice_id)
-    .single();
-  if (invErr || !inv) return NextResponse.json({ error: "invoice not found" }, { status: 404 });
-
-  const newPaid = Number(inv.amount_paid) + Number(body.amount);
-  const newStatus = newPaid >= Number(inv.total) ? "Paid" : "Partial";
-
-  const { error: pErr } = await sb.from("payments").insert({
-    id: crypto.randomUUID(),
-    invoice_id: body.invoice_id,
-    amount: body.amount,
-    method: "UPI_Direct",
-    reference: body.reference ?? null,
-    received_by_user_id: user.id,
-    received_at: now,
-    source: "admin",
-    created_at: now,
-    updated_at: now,
+  // One atomic call. This previously read `amount_paid`, added the payment in
+  // JavaScript and wrote the total back, so two staff recording payments against
+  // the same invoice at the same time both started from the same figure: one
+  // payment disappeared from the invoice while its `payments` row survived, and
+  // the patient could be chased for money they had already paid. The database now
+  // locks the invoice, appends the payment and recomputes the balance together.
+  const { data, error } = await sb.rpc("record_invoice_payment", {
+    p_invoice_id: body.invoice_id,
+    p_amount: body.amount,
+    p_method: "UPI_Direct",
+    p_reference: body.reference ?? null,
+    p_received_by: user.id,
   });
-  if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 });
 
-  const { error: uErr } = await sb
-    .from("invoices")
-    .update({ amount_paid: newPaid, payment_status: newStatus, updated_at: now })
-    .eq("id", body.invoice_id);
-  if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+  if (error) {
+    // P0002 = no_data_found, raised when the invoice does not exist.
+    const status = error.code === "P0002" || /invoice not found/i.test(error.message) ? 404 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
+
+  const recorded = (Array.isArray(data) ? data[0] : data) as RecordedPayment | undefined;
+  if (!recorded) {
+    return NextResponse.json({ error: "payment not recorded" }, { status: 500 });
+  }
 
   await sb.from("audit_logs").insert({
     user_id: user.id,
     action: "payment.mark_received",
     target_entity: "invoices",
     target_id: body.invoice_id,
-    details: JSON.stringify({ amount: body.amount, reference: body.reference, new_status: newStatus }),
+    details: JSON.stringify({
+      amount: body.amount,
+      reference: body.reference,
+      new_status: recorded.payment_status,
+      payment_id: recorded.payment_id,
+    }),
   });
 
   revalidateTag(CACHE_TAGS.payments);
-  return NextResponse.json({ ok: true, payment_status: newStatus });
+  return NextResponse.json({
+    ok: true,
+    payment_status: recorded.payment_status,
+    amount_paid: recorded.amount_paid,
+  });
 }
