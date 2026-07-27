@@ -9,6 +9,7 @@ import { LabReport } from "@lab/reports";
 import type { ReactElement } from "react";
 import { verifyPatientJwt } from "@portal/lib/jwt";
 import { getServiceClient } from "@portal/lib/supabase-server";
+import { isReportReleasable, type LockableTest } from "@portal/lib/report-release";
 
 export const runtime = "nodejs";
 
@@ -23,11 +24,23 @@ export async function GET(req: NextRequest, { params }: { params: { visitId: str
   const sb = getServiceClient();
   const { data: visit } = await sb
     .from("visits")
-    .select("id, visit_id, visit_date, patient_id, patients(name, age, sex, phone), visit_tests(id, test_id, tests(name, category), results(parameter_id, value, is_abnormal))")
+    .select("id, visit_id, visit_date, patient_id, patients(name, age, sex, phone), visit_tests(id, test_id, is_locked, tests(name, category), results(parameter_id, value, is_abnormal))")
     .eq("id", params.visitId)
     .maybeSingle();
   if (!visit || visit.patient_id !== patientId) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  // This PDF carries the pathologist's name and qualifications, so it reads as a
+  // signed report. Release it only once every test in the visit has been verified
+  // and locked — otherwise a value a staff member is still typing is downloadable
+  // as an apparently authorised result. The patient is only told the report is
+  // ready after verification (the reportReady notification); this is the same
+  // line, enforced server-side rather than relying on the UI not to link here.
+  // 409 rather than 404 so the UI can say "still being verified" instead of
+  // implying the visit does not exist.
+  if (!isReportReleasable(visit.visit_tests as LockableTest[] | null)) {
+    return NextResponse.json({ error: "report_not_ready" }, { status: 409 });
   }
 
   const { data: settings } = await sb.from("lab_settings").select("*").eq("id", "singleton").maybeSingle();

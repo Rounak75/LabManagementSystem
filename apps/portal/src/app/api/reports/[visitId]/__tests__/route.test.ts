@@ -47,19 +47,81 @@ describe("GET /api/reports/[visitId]", () => {
     expect(renderToStream).not.toHaveBeenCalled();
   });
 
-  it("streams a PDF for the visit's owner", async () => {
-    setStub(({ table }) => {
+  function visitWithTests(visitTests: unknown[]) {
+    return ({ table }: { table: string }) => {
       if (table === "visits") {
-        return { data: { id: "v1", patient_id: "patient-1", visit_id: "VST-1", visit_date: "2026-05-01", patients: { name: "A", age: 30, sex: "Male", phone: "9" }, visit_tests: [] } };
+        return {
+          data: {
+            id: "v1",
+            patient_id: "patient-1",
+            visit_id: "VST-1",
+            visit_date: "2026-05-01",
+            patients: { name: "A", age: 30, sex: "Male", phone: "9" },
+            visit_tests: visitTests,
+          },
+        };
       }
       if (table === "lab_settings") return { data: { lab_name: "Lab" } };
       return { data: [] }; // parameters
-    });
+    };
+  }
+
+  const lockedTest = { id: "vt1", test_id: "t1", is_locked: true, tests: { name: "CBC", category: "Hematology" }, results: [] };
+
+  it("streams a PDF for the visit's owner once every test is verified and locked", async () => {
+    setStub(visitWithTests([lockedTest]));
     const token = await mintPatientJwt("patient-1");
     const res = await GET(req(token), ctx);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
     expect(res.headers.get("content-disposition")).toBe('inline; filename="VST-1.pdf"');
     expect(renderToStream).toHaveBeenCalledTimes(1);
+  });
+
+  // The PDF carries the pathologist's name and qualifications, so it reads as a
+  // signed report. It must not be obtainable while any value is still a draft:
+  // the patient is only told the report is ready after verification (the
+  // reportReady notification), and this endpoint must hold the same line.
+  describe("unverified results", () => {
+    it("refuses the report when a test is not yet locked", async () => {
+      setStub(visitWithTests([lockedTest, { ...lockedTest, id: "vt2", is_locked: false }]));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(409);
+      expect((await res.json()).error).toBe("report_not_ready");
+      expect(renderToStream).not.toHaveBeenCalled();
+    });
+
+    it("refuses the report when no test is locked", async () => {
+      setStub(visitWithTests([{ ...lockedTest, is_locked: false }]));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(409);
+      expect(renderToStream).not.toHaveBeenCalled();
+    });
+
+    it("treats a null lock flag as not locked", async () => {
+      setStub(visitWithTests([{ ...lockedTest, is_locked: null }]));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(409);
+      expect(renderToStream).not.toHaveBeenCalled();
+    });
+
+    it("refuses a visit that has no tests at all", async () => {
+      setStub(visitWithTests([]));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(409);
+      expect(renderToStream).not.toHaveBeenCalled();
+    });
   });
 });

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requirePatient } from "@portal/lib/session";
 import { getServiceClient } from "@portal/lib/supabase-server";
+import { isReportReleasable, isTestReleasable } from "@portal/lib/report-release";
 
 export const runtime = "nodejs";
 
@@ -36,8 +37,12 @@ export default async function VisitPage({ params }: { params: { id: string } }) 
 
   const { data: vts } = await sb
     .from("visit_tests")
-    .select("id, test_id, tests(name, category)")
+    .select("id, test_id, is_locked, tests(name, category)")
     .eq("visit_id", visit!.id);
+
+  // Only verified-and-locked tests may be shown. Until an Admin signs a test off
+  // its value is a draft that a staff member may still be editing.
+  const reportReady = isReportReleasable(vts);
 
   const testIds = (vts ?? []).map((vt) => vt.test_id);
   const { data: params2 } = await sb
@@ -71,12 +76,19 @@ export default async function VisitPage({ params }: { params: { id: string } }) 
       </p>
 
       <div className="mt-3">
-        <a
-          href={`/api/reports/${visit!.id}`}
-          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded"
-        >
-          Download PDF
-        </a>
+        {reportReady ? (
+          <a
+            href={`/api/reports/${visit!.id}`}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded"
+          >
+            Download PDF
+          </a>
+        ) : (
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Your report is still being checked by the lab. It will be available to
+            download once a doctor has verified every test.
+          </p>
+        )}
       </div>
 
       <div className="mt-6 space-y-4">
@@ -84,25 +96,32 @@ export default async function VisitPage({ params }: { params: { id: string } }) 
           const params = paramsByTest.get(vt.test_id) ?? [];
           const rs = resultsByVisitTest.get(vt.id) ?? [];
           const test = Array.isArray(vt.tests) ? vt.tests[0] : vt.tests;
+          // Withhold values for a test that has not been signed off yet, rather
+          // than showing the patient a figure that may still change.
+          const released = isTestReleasable(vt);
           return (
             <div key={vt.id} className="bg-white border rounded p-3">
               <h3 className="font-medium">{test?.name ?? "Test"}</h3>
-              <table className="mt-2 w-full text-sm">
-                <tbody>
-                  {params.map((p) => {
-                    const r = rs.find((x) => x.parameter_id === p.id);
-                    return (
-                      <tr key={p.id} className="border-t border-slate-100">
-                        <td className="py-1.5">{p.name}</td>
-                        <td className={`py-1.5 font-medium ${r?.is_abnormal ? "text-red-700" : ""}`}>
-                          {r?.value ?? "—"}
-                        </td>
-                        <td className="py-1.5 text-xs text-slate-500">{p.unit}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {released ? (
+                <table className="mt-2 w-full text-sm">
+                  <tbody>
+                    {params.map((p) => {
+                      const r = rs.find((x) => x.parameter_id === p.id);
+                      return (
+                        <tr key={p.id} className="border-t border-slate-100">
+                          <td className="py-1.5">{p.name}</td>
+                          <td className={`py-1.5 font-medium ${r?.is_abnormal ? "text-red-700" : ""}`}>
+                            {r?.value ?? "—"}
+                          </td>
+                          <td className="py-1.5 text-xs text-slate-500">{p.unit}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="mt-2 text-sm text-slate-500">Awaiting verification by the lab.</p>
+              )}
             </div>
           );
         })}
