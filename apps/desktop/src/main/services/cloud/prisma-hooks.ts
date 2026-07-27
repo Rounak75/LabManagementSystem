@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 // Prisma $extends hook — mirrors successful writes on synced models to the Outbox.
 // Best-effort (fire-and-forget); errors are logged, never thrown.
 
@@ -57,6 +58,12 @@ export function sanitizeForCloud(model: string, row: Record<string, unknown>): R
   let safe: Record<string, unknown> = { ...row };
   if (model === "Visit") delete safe.accessCodePlaintext;
   if (model === "User") delete safe.recoveryCodeHash;
+  if (model === "VisitTest") {
+    delete safe.outsourcedSentTo;
+    delete safe.outsourcedExternalRef;
+    delete safe.outsourcedSentAt;
+    delete safe.outsourcedReceivedAt;
+  }
   if (model === "TestResult") {
     if ("abnormalOverride" in safe) {
       safe.isAbnormalOverride = safe.abnormalOverride;
@@ -153,7 +160,7 @@ export const outboxExtension = Prisma.defineExtension({
 
         // Fire-and-forget — never block or throw into the caller
         mirrorToOutbox({ model, operation, result }).catch((e) =>
-          console.error("[cloud-sync] mirrorToOutbox error:", e)
+          logger.error("cloud", "[cloud-sync] mirrorToOutbox error:", e)
         );
 
         return result;

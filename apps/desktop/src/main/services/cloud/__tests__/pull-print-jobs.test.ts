@@ -46,7 +46,7 @@ describe("pullPrintJobs", () => {
         status: "Queued",
       },
     ]);
-    await pullPrintJobs();
+    await pullPrintJobs({} as any);
     expect(mocks.printJobUpsert).toHaveBeenCalledOnce();
     const arg = mocks.printJobUpsert.mock.calls[0]![0];
     expect(arg.create.status).toBe("Picked");
@@ -65,7 +65,7 @@ describe("pullPrintJobs", () => {
         status: "Queued",
       },
     ]);
-    await pullPrintJobs();
+    await pullPrintJobs({} as any);
     expect(mocks.printJobUpsert).not.toHaveBeenCalled();
   });
 
@@ -79,7 +79,7 @@ describe("pullPrintJobs", () => {
         status: "Queued",
       },
     ]);
-    await pullPrintJobs();
+    await pullPrintJobs({} as any);
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
     const arg = mocks.syncCursorUpsert.mock.calls[0]![0];
     expect(arg.where.source).toBe("print_jobs");

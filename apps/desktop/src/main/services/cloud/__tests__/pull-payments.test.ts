@@ -56,7 +56,7 @@ describe("pullPayments", () => {
         updated_at: "2026-05-20T13:00:00Z",
       },
     ]);
-    await pullPayments();
+    await pullPayments({} as any);
     expect(mocks.invoiceUpdate).toHaveBeenCalledOnce();
     const arg = mocks.invoiceUpdate.mock.calls[0]![0];
     expect(arg.data.amountPaid).toBe(500);
@@ -82,7 +82,7 @@ describe("pullPayments", () => {
         updated_at: "2026-05-20T13:00:00Z",
       },
     ]);
-    await pullPayments();
+    await pullPayments({} as any);
     expect(mocks.invoiceUpdate.mock.calls[0]![0].data.paymentStatus).toBe("Partial");
   });
 
@@ -97,7 +97,7 @@ describe("pullPayments", () => {
         updated_at: "2026-05-20T13:00:00Z",
       },
     ]);
-    await pullPayments();
+    await pullPayments({} as any);
     expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
     // Still advances cursor
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
@@ -115,7 +115,7 @@ describe("pullPayments", () => {
         updated_at: "2026-05-20T13:00:00Z",
       },
     ]);
-    await pullPayments();
+    await pullPayments({} as any);
     expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
   });
 });

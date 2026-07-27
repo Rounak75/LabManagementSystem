@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { call } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Card } from "@/components/ui/Card";
 import { useNavigate } from "react-router-dom";
 
@@ -15,7 +16,7 @@ export default function PatientNew() {
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<{ id: string; patientId: string; name: string } | null>(null);
   const { data: doctors = [] } = useQuery({ queryKey: ["doctors"], queryFn: () => call<Doctor[]>("doctors:list") });
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, watch, control, formState: { errors, isSubmitting } } = useForm({
     defaultValues: { name: "", age: 0, sex: "Male", phone: "", email: "", address: "", referredById: "doctor-self" }
   });
   const phone = watch("phone");
@@ -67,9 +68,23 @@ export default function PatientNew() {
             error={errors.email?.message as string}
           />
           <Input label="Address (optional)" className="col-span-2" {...register("address")} placeholder="Door no., street, locality" />
-          <Select label="Referred by" className="col-span-2" {...register("referredById")}>
-            {doctors.map(d => <option key={d.id} value={d.id}>{d.name}{d.clinic ? ` — ${d.clinic}` : ""}</option>)}
-          </Select>
+          <Controller
+            name="referredById"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                label="Referred by"
+                className="col-span-2"
+                options={doctors.map(d => ({
+                  value: d.id,
+                  label: `${d.name}${d.clinic ? ` — ${d.clinic}` : ""}`
+                }))}
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.referredById?.message as string}
+              />
+            )}
+          />
           {duplicate && (
             <div className="col-span-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               <div className="font-medium">Patient with this phone already registered.</div>

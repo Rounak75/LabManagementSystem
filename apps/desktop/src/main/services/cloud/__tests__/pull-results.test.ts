@@ -61,7 +61,7 @@ describe("pullResults", () => {
         updated_at: "2026-05-20T12:00:00Z",
       },
     ]);
-    await pullResults();
+    await pullResults({} as any);
     expect(mocks.testResultUpsert).toHaveBeenCalledOnce();
     const arg = mocks.testResultUpsert.mock.calls[0]![0];
     expect(arg.create.value).toBe("5.4");
@@ -85,7 +85,7 @@ describe("pullResults", () => {
         updated_at: "2026-05-20T12:00:00Z",
       },
     ]);
-    await pullResults();
+    await pullResults({} as any);
     expect(mocks.testResultUpsert).not.toHaveBeenCalled();
     // cursor still advances
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
@@ -124,7 +124,7 @@ describe("pullResults", () => {
         updated_at: "2026-05-20T12:00:00Z",
       },
     ]);
-    await pullResults();
+    await pullResults({} as any);
     expect(mocks.isAbnormal).toHaveBeenCalledOnce();
     expect(mocks.testResultUpsert.mock.calls[0]![0].create.isAbnormal).toBe(true);
   });

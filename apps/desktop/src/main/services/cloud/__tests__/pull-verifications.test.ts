@@ -55,7 +55,7 @@ describe("pullVerifications", () => {
     mocks.visitTestFindMany.mockResolvedValue([{ id: "vt1", isLocked: false, verifiedAt: null }]);
     mocks.fetchVerificationsSince.mockResolvedValue([row]);
 
-    await pullVerifications();
+    await pullVerifications({} as any);
 
     expect(mocks.visitTestUpdateMany).toHaveBeenCalledOnce();
     const arg = mocks.visitTestUpdateMany.mock.calls[0]![0];
@@ -77,7 +77,7 @@ describe("pullVerifications", () => {
     ]);
     mocks.fetchVerificationsSince.mockResolvedValue([row]);
 
-    await pullVerifications();
+    await pullVerifications({} as any);
 
     expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
     expect(mocks.visitUpdate).not.toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe("pullVerifications", () => {
     mocks.visitFindUnique.mockResolvedValue(null);
     mocks.fetchVerificationsSince.mockResolvedValue([row]);
 
-    await pullVerifications();
+    await pullVerifications({} as any);
 
     expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
     expect(mocks.reportReady).not.toHaveBeenCalled();

@@ -1,6 +1,7 @@
 import { prisma } from "@main/db";
 import { decryptSecret } from "@main/services/crypto.service";
 import { createSupabaseClient } from "./supabase-client";
+import { logger } from "./logger";
 
 export type CloudClient = ReturnType<typeof createSupabaseClient>;
 
@@ -84,7 +85,7 @@ export class SyncEngine {
         stats.pulled++;
       } catch (e) {
         stats.errors.push(`${handler.name}: ${e instanceof Error ? e.message : String(e)}`);
-        console.error(`[cloud] ${handler.name} failed`, e);
+        logger.error("sync-engine", `${handler.name} failed`, e);
       }
     }
 

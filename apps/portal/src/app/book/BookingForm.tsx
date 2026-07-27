@@ -242,7 +242,7 @@ export function BookingForm({
                     <div
                       key={t.id}
                       onClick={() => {
-                        if (!isAlreadySelected) toggle(t.id);
+                        if (!isAlreadySelected) toggleTest(t.id);
                         setFilter("");
                         setDropdownOpen(false);
                       }}
@@ -277,7 +277,7 @@ export function BookingForm({
                      <span className="text-text font-medium">{t.name}</span>
                      <div className="flex items-center gap-4">
                        <span className="font-mono text-soft num">₹{t.price.toFixed(0)}</span>
-                       <button type="button" onClick={() => toggle(t.id)} className="text-brand hover:bg-brand/10 p-1.5 rounded-md transition-colors" title="Remove test">
+                       <button type="button" onClick={() => toggleTest(t.id)} className="text-brand hover:bg-brand/10 p-1.5 rounded-md transition-colors" title="Remove test">
                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                            <line x1="18" y1="6" x2="6" y2="18" />
                            <line x1="6" y1="6" x2="18" y2="18" />

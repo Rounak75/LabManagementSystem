@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 // Phase 3e Plan A — pull admin-portal-entered TestResult rows into local SQLite.
 // Re-runs the local abnormality computation against locally-known parameter
 // reference ranges so the report's "Abnormal" flag is authoritative on the
@@ -29,25 +30,49 @@ export async function pullResults(client: any): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
+  const lastId = cursor?.lastId ?? undefined;
 
   let rows: RawResultRow[] = [];
   try {
-    rows = (await client.pullSince("results", "updated_at", sinceIso, BATCH)) as unknown as RawResultRow[];
+    rows = (await client.pullSince("results", "updated_at", sinceIso, BATCH, undefined, lastId)) as unknown as RawResultRow[];
   } catch (e) {
-    console.error("[pull-results] fetch failed", e);
+    logger.error("cloud", "[pull-results] fetch failed", e);
     return;
   }
   if (rows.length === 0) return;
 
   let latest = cursor?.lastSyncedAt ?? new Date(0);
+  let latestId = cursor?.lastId ?? null;
+  
+  // Phase 3e Plan A: Fix N+1 — fetch all required parameters and visitTests in one go
+  const paramIds = Array.from(new Set(rows.map(r => r.parameter_id)));
+  const vtIds = Array.from(new Set(rows.map(r => r.visit_test_id)));
+  
+  const paramsCache = new Map<string, any>();
+  const vtCache = new Map<string, any>();
+  
+  try {
+    const params = await prisma().testParameter.findMany({
+      where: { id: { in: paramIds } }
+    });
+    params.forEach(p => paramsCache.set(p.id, p));
+    
+    const vts = await prisma().visitTest.findMany({
+      where: { id: { in: vtIds } },
+      include: { visit: { include: { patient: true } } }
+    });
+    vts.forEach(v => vtCache.set(v.id, v));
+  } catch (e) {
+    logger.error("cloud", "[pull-results] batch cache prep failed", e);
+  }
+
   for (const r of rows) {
     try {
-      const rowUpdated = new Date(r.updated_at);
-      if (rowUpdated > latest) latest = rowUpdated;
-
       const existing = await prisma().testResult.findUnique({ where: { id: r.id } });
       if (existing && existing.version > (r.version ?? 0)) {
         // Local copy newer — desktop wins.
+        latest = new Date(r.updated_at);
+        latestId = r.id;
         continue;
       }
 
@@ -55,13 +80,8 @@ export async function pullResults(client: any): Promise<void> {
       // available. If we can't resolve them, fall back to the cloud's flag.
       let abnormal = r.is_abnormal;
       try {
-        const param = await prisma().testParameter.findUnique({
-          where: { id: r.parameter_id },
-        });
-        const vt = await prisma().visitTest.findUnique({
-          where: { id: r.visit_test_id },
-          include: { visit: { include: { patient: true } } },
-        });
+        const param = paramsCache.get(r.parameter_id);
+        const vt = vtCache.get(r.visit_test_id);
         if (param && vt?.visit?.patient) {
           abnormal = isAbnormal({
             resultType: (param.resultType as ResultType) ?? "Numeric",
@@ -101,19 +121,26 @@ export async function pullResults(client: any): Promise<void> {
         create: data,
         update: data,
       });
+
+      // Success -> advance cursor
+      latest = new Date(r.updated_at);
+      latestId = r.id;
     } catch (e: any) {
       if (e?.code === "P2002" || e?.code === "P2003") {
-        console.warn("[pull-results] skipping row", r.id, "— constraint conflict:", e.meta);
+        logger.warn("cloud", "[pull-results] skipping row" + " " + r.id + " " + "— constraint conflict:" + " " + JSON.stringify(e.meta));
+        // Skipped constraint conflict -> advance cursor
+        latest = new Date(r.updated_at);
+        latestId = r.id;
         continue;
       }
-      console.error("[pull-results] row", r.id, "failed", e);
+      logger.error("cloud", "[pull-results] row" + " " + r.id + " " + "failed", e);
       throw e;
     }
   }
 
   await prisma().syncCursor.upsert({
     where: { source: SOURCE },
-    update: { lastSyncedAt: latest },
-    create: { source: SOURCE, lastSyncedAt: latest },
+    update: { lastSyncedAt: latest, lastId: latestId },
+    create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
   });
 }

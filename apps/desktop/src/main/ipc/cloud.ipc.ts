@@ -108,6 +108,7 @@ import { pullResults } from "@main/services/cloud/pull-results";
 import { pullPayments } from "@main/services/cloud/pull-payments";
 import { pullVerifications } from "@main/services/cloud/pull-verifications";
 import { pullPrintJobs } from "@main/services/cloud/pull-print-jobs";
+import { syncEngine } from "@main/services/cloud/sync-engine";
 
 // ... existing code ...
 
@@ -128,15 +129,18 @@ register("cloud:checkNow", async () => {
 
   try { await runSyncTick(); stats.pushed++; } catch (e) { stats.errors.push(`sync: ${e}`); }
   
-  await safeRun("pull-payment-events", pullPaymentEvents);
-  await safeRun("pull-bookings", pullBookings);
-  await safeRun("pull-disputes", pullDisputes);
-  await safeRun("pull-patients", pullPatients);
-  await safeRun("pull-visits", pullVisits);
-  await safeRun("pull-results", pullResults);
-  await safeRun("pull-payments", pullPayments);
-  await safeRun("pull-verifications", pullVerifications);
-  await safeRun("pull-print-jobs", pullPrintJobs);
+  const client = await syncEngine.loadClient();
+  if (!client) return { ok: false, error: "Cloud sync not configured" };
+
+  await safeRun("pull-payment-events", () => pullPaymentEvents(client));
+  await safeRun("pull-bookings", () => pullBookings(client));
+  await safeRun("pull-disputes", () => pullDisputes(client));
+  await safeRun("pull-patients", () => pullPatients(client));
+  await safeRun("pull-visits", () => pullVisits(client));
+  await safeRun("pull-results", () => pullResults(client));
+  await safeRun("pull-payments", () => pullPayments(client));
+  await safeRun("pull-verifications", () => pullVerifications(client));
+  await safeRun("pull-print-jobs", () => pullPrintJobs(client));
   
   return { ok: true, stats };
 });

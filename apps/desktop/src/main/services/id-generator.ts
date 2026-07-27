@@ -10,7 +10,14 @@ async function nextWithPrefix(kind: "LAB" | "VIS", at: Date): Promise<string> {
       orderBy: { number: "desc" },
       select: { number: true },
     });
-    const next = (last?.number ?? 0) + 1;
+    
+    let maxNumber = last?.number ?? 0;
+    if (maxNumber === 0) {
+      const counterId = `${kind === "LAB" ? "patient" : "visit"}:${year}`;
+      const counter = await prisma().idCounter.findUnique({ where: { id: counterId } });
+      if (counter) maxNumber = counter.lastValue;
+    }
+    const next = maxNumber + 1;
     try {
       await prisma().idReservation.create({
         data: {

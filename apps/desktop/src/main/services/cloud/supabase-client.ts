@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { createClient } from "@supabase/supabase-js";
 import ws from "ws";
 import type {
@@ -252,14 +253,21 @@ export function createSupabaseClient(config: SupabaseConfig) {
     cursorColumn: string,
     sinceIso: string,
     limit: number,
-    filters?: Record<string, string>
+    filters?: Record<string, string>,
+    lastId?: string
   ): Promise<Record<string, unknown>[]> {
     let query = sb
       .from(tableName)
       .select("*")
-      .gt(cursorColumn, sinceIso)
       .order(cursorColumn, { ascending: true })
+      .order("id", { ascending: true })
       .limit(limit);
+
+    if (lastId && sinceIso && sinceIso !== new Date(0).toISOString()) {
+      query = query.or(`${cursorColumn}.gt.${sinceIso},and(${cursorColumn}.eq.${sinceIso},id.gt.${lastId})`);
+    } else {
+      query = query.gt(cursorColumn, sinceIso);
+    }
 
     if (filters) {
       for (const [key, value] of Object.entries(filters)) {
@@ -281,6 +289,15 @@ export function createSupabaseClient(config: SupabaseConfig) {
     return unwrap(result) as Record<string, unknown>[];
   }
 
+  // Phase 3e Plan A: Fix N+1 — fetch all visit_tests for a batch of visits
+  async function fetchVisitTestsForVisits(visitIds: string[]): Promise<Record<string, unknown>[]> {
+    const result = await sb
+      .from("visit_tests")
+      .select("*")
+      .in("visit_id", visitIds);
+    return unwrap(result) as Record<string, unknown>[];
+  }
+
   // ── pushHeartbeat ──────────────────────────────────────────────────────────
   // Phase 3d Plan A: portal staleness banner queries cloud_heartbeat.last_pushed_at
   // to know whether the desktop is online. Best-effort — never throws.
@@ -293,9 +310,9 @@ export function createSupabaseClient(config: SupabaseConfig) {
           { id: "singleton", last_pushed_at: new Date().toISOString() },
           { onConflict: "id" }
         );
-      if (error) console.warn("[heartbeat] push failed:", (error as { message?: string }).message);
+      if (error) logger.warn("cloud", "[heartbeat] push failed:", (error as { message?: string }).message);
     } catch (e) {
-      console.warn("[heartbeat] threw:", e);
+      logger.warn("cloud", "[heartbeat] threw:", e);
     }
   }
 
@@ -310,6 +327,7 @@ export function createSupabaseClient(config: SupabaseConfig) {
     pushHeartbeat,
     pullSince,
     fetchVisitTestsForVisit,
+    fetchVisitTestsForVisits,
   };
 }
 

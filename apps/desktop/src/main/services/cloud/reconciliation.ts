@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { prisma } from "@main/db";
 import { enqueue } from "./outbox.service";
 import { MODEL_TO_TABLE } from "./types";
@@ -71,7 +72,7 @@ export async function runReconciliation(): Promise<void> {
     try {
       await reconcileTable(model);
     } catch (e) {
-      console.error(`[cloud] reconciliation failed for ${model}`, e);
+      logger.error("cloud", `[cloud] reconciliation failed for ${model}`, e);
     }
   }
 }

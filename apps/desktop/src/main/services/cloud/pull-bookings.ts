@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 // Phase 3d Plan F — pull portal-created bookings into local SQLite.
 // Mirrors the pullPaymentEvents pattern: a SyncCursor row tracks the last
 // updated_at we ingested. The desktop is source of truth post-approval; if a
@@ -43,25 +44,27 @@ export async function pullBookings(client: any): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
+  const lastId = cursor?.lastId ?? undefined;
 
   let rows: RawBookingRow[] = [];
   try {
-    rows = (await client.pullSince("bookings", "updated_at", sinceIso, BATCH)) as unknown as RawBookingRow[];
+    rows = (await client.pullSince("bookings", "updated_at", sinceIso, BATCH, undefined, lastId)) as unknown as RawBookingRow[];
   } catch (e) {
-    console.error("[pull-bookings] fetch failed", e);
+    logger.error("cloud", "[pull-bookings] fetch failed", e);
     return;
   }
   if (rows.length === 0) return;
 
   let latest = cursor?.lastSyncedAt ?? new Date(0);
+  let latestId = cursor?.lastId ?? null;
   for (const r of rows) {
     try {
       const existing = await prisma().booking.findUnique({ where: { id: r.id } });
       if (existing && existing.version > (r.version ?? 0)) {
         // Local already has a newer copy (staff approved / declined).
         // Don't overwrite — desktop is the source of truth post-approval.
-        const rowUpdated = new Date(r.updated_at);
-        if (rowUpdated > latest) latest = rowUpdated;
+        latest = new Date(r.updated_at);
+        latestId = r.id;
         continue;
       }
 
@@ -99,21 +102,29 @@ export async function pullBookings(client: any): Promise<void> {
       // First time we see this booking, and it's still Pending: notify staff.
       if (!existing && r.status === "Pending") {
         triggers.bookingCreatedStaff(r.id).catch((e) =>
-          console.error("[pull-bookings] bookingCreatedStaff trigger failed", e),
+          logger.error("cloud", "[pull-bookings] bookingCreatedStaff trigger failed", e),
         );
       }
 
-      const rowUpdated = new Date(r.updated_at);
-      if (rowUpdated > latest) latest = rowUpdated;
-    } catch (e) {
-      console.error("[pull-bookings] row", r.booking_id, "failed", e);
+      // Success -> advance cursor
+      latest = new Date(r.updated_at);
+      latestId = r.id;
+    } catch (e: any) {
+      if (e?.code === "P2002" || e?.code === "P2003") {
+        logger.warn("cloud", "[pull-bookings] skipping row" + " " + r.booking_id + " " + "— constraint conflict:" + " " + JSON.stringify(e.meta));
+        // Skipped constraint conflict -> advance cursor
+        latest = new Date(r.updated_at);
+        latestId = r.id;
+        continue;
+      }
+      logger.error("cloud", "[pull-bookings] row" + " " + r.booking_id + " " + "failed", e);
       throw e;
     }
   }
 
   await prisma().syncCursor.upsert({
     where: { source: SOURCE },
-    update: { lastSyncedAt: latest },
-    create: { source: SOURCE, lastSyncedAt: latest },
+    update: { lastSyncedAt: latest, lastId: latestId },
+    create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
   });
 }

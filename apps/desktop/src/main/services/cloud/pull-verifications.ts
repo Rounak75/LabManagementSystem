@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 // Phase 3e Plan A — pull verification events: visits whose verified_at + verified_by_user_id
 // advanced in the cloud (e.g. father tapped Verify in the admin portal).
 //
@@ -26,37 +27,49 @@ export async function pullVerifications(client: any): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
+  const lastId = cursor?.lastId ?? undefined;
 
   let rows: RawVerificationRow[] = [];
   try {
-    rows = (await client.pullSince("visits", "verified_at", sinceIso, BATCH, { source: "admin" })) as unknown as RawVerificationRow[];
+    rows = (await client.pullSince("visits", "verified_at", sinceIso, BATCH, { source: "admin" }, lastId)) as unknown as RawVerificationRow[];
   } catch (e) {
-    console.error("[pull-verifications] fetch failed", e);
+    logger.error("cloud", "[pull-verifications] fetch failed", e);
     return;
   }
   if (rows.length === 0) return;
 
   let latest = cursor?.lastSyncedAt ?? new Date(0);
+  let latestId = cursor?.lastId ?? null;
   for (const r of rows) {
     try {
       if (!r.verified_at) continue;
-      const verifiedAt = new Date(r.verified_at);
-      if (verifiedAt > latest) latest = verifiedAt;
 
       const local = await prisma().visit.findUnique({ where: { id: r.id } });
-      if (!local) continue;
+      if (!local) {
+        latest = new Date(r.verified_at);
+        latestId = r.id;
+        continue;
+      }
 
       const tests = await prisma().visitTest.findMany({ where: { visitId: r.id } });
-      if (tests.length === 0) continue;
+      if (tests.length === 0) {
+        latest = new Date(r.verified_at);
+        latestId = r.id;
+        continue;
+      }
 
       // Idempotent guard: already fully locked-and-verified → nothing to do.
-      if (tests.every((t) => t.isLocked && t.verifiedAt)) continue;
+      if (tests.every((t) => t.isLocked && t.verifiedAt)) {
+        latest = new Date(r.verified_at);
+        latestId = r.id;
+        continue;
+      }
 
       // Mirror the desktop verify-lock end-state.
       await prisma().visitTest.updateMany({
         where: { visitId: r.id },
         data: {
-          verifiedAt,
+          verifiedAt: new Date(r.verified_at),
           verifiedById: r.verified_by_user_id ?? null,
           isLocked: true,
           status: "Ready",
@@ -68,17 +81,28 @@ export async function pullVerifications(client: any): Promise<void> {
       try {
         await triggers.reportReady(r.id);
       } catch (e) {
-        console.error("[pull-verifications] reportReady trigger failed", e);
+        logger.error("cloud", "[pull-verifications] reportReady trigger failed", e);
       }
-    } catch (e) {
-      console.error("[pull-verifications] row", r.id, "failed", e);
+
+      // Success -> advance cursor
+      latest = new Date(r.verified_at!);
+      latestId = r.id;
+    } catch (e: any) {
+      if (e?.code === "P2002" || e?.code === "P2003") {
+        logger.warn("cloud", "[pull-verifications] skipping row" + " " + r.id + " " + "— constraint conflict:" + " " + JSON.stringify(e.meta));
+        // Skipped constraint conflict -> advance cursor
+        latest = new Date(r.verified_at!);
+        latestId = r.id;
+        continue;
+      }
+      logger.error("cloud", "[pull-verifications] row" + " " + r.id + " " + "failed", e);
       throw e;
     }
   }
 
   await prisma().syncCursor.upsert({
     where: { source: SOURCE },
-    update: { lastSyncedAt: latest },
-    create: { source: SOURCE, lastSyncedAt: latest },
+    update: { lastSyncedAt: latest, lastId: latestId },
+    create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
   });
 }

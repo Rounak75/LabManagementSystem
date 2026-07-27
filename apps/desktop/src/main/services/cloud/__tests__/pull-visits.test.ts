@@ -60,7 +60,7 @@ describe("pullVisits", () => {
       { id: "vt1", visit_id: "v1", test_id: "t1", status: "Collected" },
       { id: "vt2", visit_id: "v1", test_id: "t2", status: "Pending" },
     ]);
-    await pullVisits();
+    await pullVisits({} as any);
     expect(mocks.visitUpsert).toHaveBeenCalledOnce();
     expect(mocks.visitUpsert.mock.calls[0]![0].create.visitId).toBe("VIS-2026-00010");
     expect(mocks.fetchVisitTestsForVisit).toHaveBeenCalledWith("v1");
@@ -85,7 +85,7 @@ describe("pullVisits", () => {
         updated_at: "2026-05-20T09:00:00Z",
       },
     ]);
-    await pullVisits();
+    await pullVisits({} as any);
     expect(mocks.visitUpsert).not.toHaveBeenCalled();
     expect(mocks.fetchVisitTestsForVisit).not.toHaveBeenCalled();
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
@@ -107,7 +107,7 @@ describe("pullVisits", () => {
       },
     ]);
     mocks.fetchVisitTestsForVisit.mockResolvedValue([]);
-    await pullVisits();
+    await pullVisits({} as any);
     expect(mocks.visitUpsert).toHaveBeenCalledOnce();
     expect(mocks.visitTestUpsert).not.toHaveBeenCalled();
   });

@@ -2,6 +2,8 @@ import { register } from "@main/ipc";
 import { prisma } from "@main/db";
 import { requireSession, requireAdmin } from "@main/session";
 import { audit } from "@main/services/audit.service";
+import { audit as auditBestEffort } from "@main/services/audit-best-effort";
+import * as triggers from "@main/services/notifications/triggers";
 import type { VisitCreateInput } from "@shared/api";
 import { generateAndHash } from "@main/services/access-code.service";
 import { visitOrchestrator } from "@main/domain/visit-orchestrator";
@@ -25,7 +27,12 @@ register("visits:regenerateAccessCode", async ({ visitId }: { visitId: string })
     where: { id: visitId },
     data: { accessCodeHash: hash, accessCodePlaintext: plaintext }
   });
-  await audit("ACCESS_CODE_REGENERATED", "Visit", visitId);
+  await auditBestEffort.try("RESULT_UNLOCKED", {
+    entityType: "Visit",
+    entityId: visitId,
+    userId: u.id,
+    details: `Admin user ${u.id} regenerated access code for visit`
+  });
   return { accessCode: plaintext };
 });
 

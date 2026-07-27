@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { call } from "@/lib/api";
 import { SidebarCloudIcon } from "@/components/SidebarCloudIcon";
 import { UpdateBanner } from "@/components/UpdateBanner";
+// @ts-ignore
 import logo from "@/assets/logo.png";
 import {
   LayoutDashboard,

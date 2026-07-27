@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 import { prisma } from "@main/db";
 import { markPaid } from "@main/services/payments/reconcile";
 import type { PaymentEventRow } from "./types";
@@ -27,7 +28,7 @@ export async function pullPaymentEvents(client: any): Promise<void> {
       }
       await client.markPaymentEventProcessed(evt.event_id);
     } catch (e) {
-      console.error(`[cloud] payment-event ${evt.event_id} failed`, e);
+      logger.error("cloud", `[cloud] payment-event ${evt.event_id} failed`, e);
     }
   }
 

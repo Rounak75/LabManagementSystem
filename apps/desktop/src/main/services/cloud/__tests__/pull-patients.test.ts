@@ -50,7 +50,7 @@ describe("pullPatients", () => {
         updated_at: "2026-05-20T10:00:00Z",
       },
     ]);
-    await pullPatients();
+    await pullPatients({} as any);
     expect(mocks.patientUpsert).toHaveBeenCalledOnce();
     const arg = mocks.patientUpsert.mock.calls[0]![0];
     expect(arg.where.id).toBe("p1");
@@ -73,7 +73,7 @@ describe("pullPatients", () => {
         updated_at: "2026-05-20T10:00:00Z",
       },
     ]);
-    await pullPatients();
+    await pullPatients({} as any);
     expect(mocks.patientUpsert).not.toHaveBeenCalled();
   });
 
@@ -104,7 +104,7 @@ describe("pullPatients", () => {
         updated_at: "2026-05-20T11:45:00Z",
       },
     ]);
-    await pullPatients();
+    await pullPatients({} as any);
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
     const arg = mocks.syncCursorUpsert.mock.calls[0]![0];
     expect(arg.where.source).toBe("patients");
@@ -113,7 +113,7 @@ describe("pullPatients", () => {
 
   it("noop when cloudSyncEnabled is false", async () => {
     mocks.labSettingsFindUnique.mockResolvedValue({ cloudSyncEnabled: false });
-    await pullPatients();
+    await pullPatients({} as any);
     expect(mocks.fetchPatientsSince).not.toHaveBeenCalled();
     expect(mocks.patientUpsert).not.toHaveBeenCalled();
   });

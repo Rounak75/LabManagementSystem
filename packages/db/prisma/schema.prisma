@@ -383,6 +383,26 @@ model SyncCursor {
   id           String   @id @default(uuid())
   source       String   @unique
   lastSyncedAt DateTime
+  lastId       String?
+}
+
+// ─── Sync Tick Logs (Observability) ───────────────────────────────────────
+model SyncTickLog {
+  id         String   @id @default(uuid())
+  pushed     Int
+  pulled     Int
+  failed     Int
+  durationMs Int
+  errors     String // JSON string
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ─── Processed Cloud Payments (Idempotency) ───────────────────────────────
+model ProcessedCloudPayment {
+  id        String   @id // The UUID from the cloud payments table
+  createdAt DateTime @default(now())
 }
 
 // ─── Report Templates ─────────────────────────────────────────────────────

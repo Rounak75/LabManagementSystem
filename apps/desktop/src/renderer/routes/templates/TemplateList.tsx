@@ -69,7 +69,7 @@ export default function TemplateList() {
           <div className="p-8 text-center text-slate-500">Loading templates...</div>
         ) : templates.length === 0 ? (
           <EmptyState
-            icon={EmptyIcons.reports}
+            icon={EmptyIcons.templates || EmptyIcons.home}
             title="No templates found"
             description="Create a template to customize how your lab reports look."
           />
@@ -86,10 +86,15 @@ export default function TemplateList() {
                 </tr>
               </thead>
               <tbody>
-                {templates.map(t => (
+                {templates.map(t => {
+                  let parsedConfig = { margins: { top: 0, right: 0, bottom: 0, left: 0 } };
+                  try {
+                    parsedConfig = JSON.parse(t.config);
+                  } catch (e) {}
+                  return (
                   <tr key={t.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-900">{t.name}</td>
-                    <td className="px-4 py-3 text-slate-600">{t.marginTop} {t.marginRight} {t.marginBottom} {t.marginLeft} (mm)</td>
+                    <td className="px-4 py-3 text-slate-600">{parsedConfig.margins?.top} {parsedConfig.margins?.right} {parsedConfig.margins?.bottom} {parsedConfig.margins?.left} (mm)</td>
                     <td className="px-4 py-3 text-slate-600">A4</td>
                     <td className="px-4 py-3">
                       <StatusBadge variant={t.isDefault ? "success" : "neutral"}>
@@ -113,9 +118,8 @@ export default function TemplateList() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-danger hover:bg-red-50"
+                          className="text-danger hover:bg-danger/10 hover:text-danger"
                           disabled={t.isDefault}
-                          title={t.isDefault ? "Cannot delete default template" : "Delete template"}
                           onClick={() => setDeletingId(t.id)}
                         >
                           Delete
@@ -123,7 +127,8 @@ export default function TemplateList() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -49,7 +49,7 @@ describe("pullPaymentEvents", () => {
         processed_at: null,
       },
     ]);
-    await pullPaymentEvents();
+    await pullPaymentEvents({} as any);
     expect(mocks.markPaid).toHaveBeenCalledWith("inv-1", "pay_X", 500, "Razorpay");
     expect(mocks.markProcessed).toHaveBeenCalledWith("evt_1");
   });
@@ -69,7 +69,7 @@ describe("pullPaymentEvents", () => {
         processed_at: null,
       },
     ]);
-    await pullPaymentEvents();
+    await pullPaymentEvents({} as any);
     expect(mocks.markPaid).toHaveBeenCalledWith("inv-2", "pay_Y", 250, "Razorpay");
   });
 
@@ -77,7 +77,7 @@ describe("pullPaymentEvents", () => {
     mocks.fetchUnprocessed.mockResolvedValue([
       { event_id: "evt_3", event: "payment.failed", razorpay_payload: { payload: {} }, received_at: "2026-05-18T10:02:00Z", processed_at: null },
     ]);
-    await pullPaymentEvents();
+    await pullPaymentEvents({} as any);
     expect(mocks.markPaid).not.toHaveBeenCalled();
     expect(mocks.markProcessed).toHaveBeenCalledWith("evt_3");
   });
@@ -87,7 +87,7 @@ describe("pullPaymentEvents", () => {
       { event_id: "evt_a", event: "payment.failed", razorpay_payload: { payload: {} }, received_at: "2026-05-18T10:00:00Z", processed_at: null },
       { event_id: "evt_b", event: "payment.failed", razorpay_payload: { payload: {} }, received_at: "2026-05-18T10:01:00Z", processed_at: null },
     ]);
-    await pullPaymentEvents();
+    await pullPaymentEvents({} as any);
     expect(mocks.syncCursorUpsert).toHaveBeenCalledWith({
       where: { source: "razorpay_payments" },
       update: { lastSyncedAt: new Date("2026-05-18T10:01:00Z") },
@@ -97,7 +97,7 @@ describe("pullPaymentEvents", () => {
 
   it("no-op when sync disabled", async () => {
     mocks.labSettingsFindUnique.mockResolvedValue({ cloudSyncEnabled: false });
-    await pullPaymentEvents();
+    await pullPaymentEvents({} as any);
     expect(mocks.fetchUnprocessed).not.toHaveBeenCalled();
   });
 });
