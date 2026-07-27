@@ -78,7 +78,7 @@ export default async function BookPage() {
         Book a home sample collection
       </h1>
       <p className="text-[14px] text-soft mt-3 leading-relaxed max-w-prose">
-        Tell us where you'd like the phlebotomist to come and what tests you need.
+        Tell us where you’d like the phlebotomist to come and what tests you need.
         Staff will call to confirm your slot before a phlebotomist is dispatched.
       </p>
       <BookingForm

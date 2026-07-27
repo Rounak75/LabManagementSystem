@@ -11,7 +11,8 @@ import { getServiceClient } from "@portal/lib/supabase-server";
 
 export const runtime = "nodejs";
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const sb = getServiceClient();
   const { data: row } = await sb
     .from("bookings")

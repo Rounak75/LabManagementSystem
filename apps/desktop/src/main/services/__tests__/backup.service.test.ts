@@ -92,6 +92,14 @@ vi.mock("electron", () => ({
 vi.mock("@main/db", () => ({ prisma: () => fakePrisma }));
 
 import { runBackup, pruneOld, isBackupDue, shouldAttemptAfterFailure } from "../backup.service";
+import type { BackupVerification } from "../backup.service";
+
+// These tests cover what runBackup does with a verdict, not how the verdict is
+// reached — verifyBackup is exercised against real SQLite in backup-verify.test.ts.
+// The fake writes a text file, which no honest verifier would accept, so the
+// verdict is injected here rather than faked at the SQLite level.
+const passes = async (): Promise<BackupVerification> => ({ ok: true, rows: 42 });
+const fails = async (): Promise<BackupVerification> => ({ ok: false, reason: "not a database" });
 
 beforeEach(() => {
   backupLogs.length = 0;
@@ -115,7 +123,7 @@ afterEach(() => {
 
 describe("runBackup", () => {
   it("creates a file in the userData backups dir, inserts a successful BackupLog, updates LabSettings.lastBackupAt", async () => {
-    const log = await runBackup({ kind: "manual" });
+    const log = await runBackup({ kind: "manual", verify: passes });
 
     const backupsDir = join(tempDir, "backups");
     expect(fs.existsSync(backupsDir)).toBe(true);
@@ -135,7 +143,7 @@ describe("runBackup", () => {
 
   it("also writes to secondaryPath when provided", async () => {
     const secondary = fs.mkdtempSync(join(os.tmpdir(), "lab-backup-secondary-"));
-    await runBackup({ kind: "manual", secondaryPath: secondary });
+    await runBackup({ kind: "manual", secondaryPath: secondary, verify: passes });
 
     const primaryFiles = fs.readdirSync(join(tempDir, "backups")).filter((f) => f.endsWith(".sqlite"));
     expect(primaryFiles.length).toBe(1);
@@ -164,6 +172,7 @@ describe("runBackup", () => {
       const log = await runBackup({
         kind: "auto",
         secondaryPath: join(tempDir, "unwritable"),
+        verify: passes,
       });
 
       expect(log.status).not.toBe("success");
@@ -175,6 +184,7 @@ describe("runBackup", () => {
       const log = await runBackup({
         kind: "auto",
         secondaryPath: join(tempDir, "unwritable"),
+        verify: passes,
       });
 
       expect(log.error).toContain("no such volume");
@@ -183,10 +193,58 @@ describe("runBackup", () => {
     it("still keeps the primary copy it managed to write", async () => {
       queryRawShouldThrow = { match: "unwritable", error: "no such volume" };
 
-      await runBackup({ kind: "auto", secondaryPath: join(tempDir, "unwritable") });
+      await runBackup({ kind: "auto", secondaryPath: join(tempDir, "unwritable"), verify: passes });
 
       const files = fs.readdirSync(join(tempDir, "backups")).filter((f) => f.endsWith(".sqlite"));
       expect(files.length).toBe(1);
+    });
+  });
+
+  // A backup nothing has read back is a guess, not a backup. VACUUM INTO
+  // succeeding only means bytes were written without an error — a disk that
+  // fills mid-write or a failing USB stick still leaves a plausible file that
+  // the old code logged as a clean success.
+  describe("when the written backup cannot be read back", () => {
+    it("does not report the run as a success", async () => {
+      const log = await runBackup({ kind: "manual", verify: fails });
+
+      expect(log.status).not.toBe("success");
+    });
+
+    it("names the verification failure in the log", async () => {
+      const log = await runBackup({ kind: "manual", verify: fails });
+
+      expect(log.error).toContain("not a database");
+    });
+
+    // lastBackupAt is what the scheduler and the UI both read to decide the lab
+    // is protected. An unreadable file must not move it.
+    it("does not record the lab as backed up", async () => {
+      await runBackup({ kind: "manual", verify: fails });
+
+      expect(fakePrisma.labSettings.update).not.toHaveBeenCalled();
+    });
+
+    it("reports a success once the backup verifies", async () => {
+      const log = await runBackup({ kind: "manual", verify: passes });
+
+      expect(log.status).toBe("success");
+      expect(fakePrisma.labSettings.update).toHaveBeenCalled();
+    });
+
+    // The off-machine copy is the one that survives the disk dying, so a USB
+    // stick that writes garbage is exactly the case worth catching.
+    it("does not report a success when only the off-machine copy is unreadable", async () => {
+      const secondary = fs.mkdtempSync(join(os.tmpdir(), "lab-backup-bad-"));
+      const verify = async (path: string) =>
+        path.startsWith(secondary)
+          ? ({ ok: false, reason: "usb stick is failing" } as const)
+          : ({ ok: true, rows: 42 } as const);
+
+      const log = await runBackup({ kind: "auto", secondaryPath: secondary, verify });
+
+      expect(log.status).not.toBe("success");
+      expect(log.error).toContain("usb stick is failing");
     });
   });
 });

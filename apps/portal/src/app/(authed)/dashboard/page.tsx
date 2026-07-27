@@ -58,7 +58,7 @@ export default async function DashboardPage() {
 
       {stale && (
         <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded p-3">
-          The lab's desktop may be offline — information shown here was last synced{" "}
+          The lab’s desktop may be offline — information shown here was last synced{" "}
           {lastSeen ? `${Math.round((Date.now() - lastSeen.getTime()) / 60_000)} minutes ago` : "a while ago"}.
         </div>
       )}

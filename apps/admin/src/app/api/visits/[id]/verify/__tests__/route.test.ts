@@ -14,7 +14,7 @@ import { POST } from "../route";
 function req(): Request {
   return new Request("http://localhost/api/visits/visit-1/verify", { method: "POST" });
 }
-const ctx = { params: { id: "visit-1" } };
+const ctx = { params: Promise.resolve({ id: "visit-1" }) };
 beforeEach(() => { sessionUser = { id: "admin-1", token: "tok", role: "Admin" }; });
 
 describe("POST /api/visits/[id]/verify", () => {
@@ -46,7 +46,14 @@ describe("POST /api/visits/[id]/verify", () => {
     expect(vUpd).toBeTruthy();
     expect((vUpd!.arg as any).status).toBe("Verified");
     expect((vUpd!.arg as any).verified_by_user_id).toBe("admin-1");
-    expect(stub.calls.some((c) => c.table === "visits" && c.method === "eq" && c.arg === "id")).toBe(true);
+    // Asserting the column alone ("id") would pass even if the value were
+    // undefined — which is exactly what an unawaited Next 15 `params` produces.
+    // The value is the part that says the right visit was verified.
+    expect(
+      stub.calls.some(
+        (c) => c.table === "visits" && c.method === "eq" && c.args[0] === "id" && c.args[1] === "visit-1",
+      ),
+    ).toBe(true);
 
     // results were locked (verified_at) keyed on the visit_test ids
     const rUpd = stub.calls.find((c) => c.table === "results" && c.method === "update");

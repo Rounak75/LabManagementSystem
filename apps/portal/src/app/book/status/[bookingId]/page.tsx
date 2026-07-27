@@ -34,7 +34,8 @@ function statusMessage(status: string, declineReason: string | null): string {
   }
 }
 
-export default async function StatusPage({ params }: { params: { bookingId: string } }) {
+export default async function StatusPage({ params: paramsPromise }: { params: Promise<{ bookingId: string }> }) {
+  const params = await paramsPromise;
   const sb = getServiceClient();
   const { data: row } = await sb
     .from("bookings")

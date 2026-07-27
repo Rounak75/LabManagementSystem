@@ -46,7 +46,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-5 border-t border-line text-[12px] text-muted">
-          Reports digitally signed by our consulting pathologist. We don't share
+          Reports digitally signed by our consulting pathologist. We don’t share
           your data with anyone outside the lab.
         </div>
       </div>

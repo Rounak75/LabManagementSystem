@@ -4,7 +4,8 @@ import { getPatient } from "@/lib/data-patients";
 import { NewVisitForm } from "./NewVisitForm";
 import { PageHeader } from "@/components/PageHeader";
 
-export default async function NewVisitPage({ searchParams }: { searchParams: { patientId?: string } }) {
+export default async function NewVisitPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ patientId?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const user = (await getSessionUser())!;
   const patientId = searchParams.patientId;
   const tests = await listActiveTests(user.token);

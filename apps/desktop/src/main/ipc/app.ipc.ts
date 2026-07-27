@@ -1,6 +1,6 @@
 import { register } from "@main/ipc";
 import { logError } from "@main/services/logger";
-import { quitAndInstall, checkNow } from "@main/services/updater";
+import { quitAndInstall, checkNow, downloadUpdate } from "@main/services/updater";
 import type { LogErrorInput } from "@shared/api";
 import { app, dialog } from "electron";
 import { writeFile } from "fs/promises";
@@ -35,3 +35,5 @@ register("app:getVersion", () => ({ version: app.getVersion() }));
 register("updater:quitAndInstall", () => { quitAndInstall(); return { ok: true }; });
 
 register("updater:checkNow", async () => { await checkNow(); return { ok: true }; });
+
+register("updater:download", async () => { await downloadUpdate(); return { ok: true }; });

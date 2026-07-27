@@ -13,7 +13,8 @@ import { isReportReleasable, type LockableTest } from "@portal/lib/report-releas
 
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest, { params }: { params: { visitId: string } }) {
+export async function GET(req: NextRequest, { params: paramsPromise }: { params: Promise<{ visitId: string }> }) {
+  const params = await paramsPromise;
   const cookie = req.cookies.get("portal_session")?.value;
   if (!cookie) return NextResponse.json({ error: "not_logged_in" }, { status: 401 });
 

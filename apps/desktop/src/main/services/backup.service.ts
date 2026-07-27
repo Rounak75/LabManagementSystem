@@ -16,20 +16,105 @@ function timestamp(): string {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
+export type BackupVerification =
+  | { ok: true; rows: number }
+  | { ok: false; reason: string };
+
+/** Alias the backup is attached under while being checked. */
+const VERIFY_ALIAS = "backup_verify";
+
+/**
+ * Open a written backup and read data back out of it.
+ *
+ * `VACUUM INTO` succeeding only means SQLite wrote bytes without erroring. A
+ * file that is truncated by a disk filling mid-write, or silently corrupted by
+ * a failing USB stick, still leaves a plausible-looking file behind — and the
+ * old code logged that as a success. The owner would discover it on the one day
+ * it matters. So: attach it, run an integrity check, and count a real table.
+ *
+ * The DETACH is in a `finally` because a database left attached would make every
+ * subsequent verification on this connection fail, turning a single bad backup
+ * into a permanently broken backup system.
+ */
+export async function verifyBackup(
+  path: string,
+  opts?: { table?: string; query?: (sql: string) => Promise<unknown> },
+): Promise<BackupVerification> {
+  const table = opts?.table ?? "Patient";
+  const query = opts?.query ?? ((sql: string) => prisma().$queryRawUnsafe(sql));
+  const escaped = path.replace(/'/g, "''");
+
+  if (!existsSync(path)) return { ok: false, reason: `backup file is missing: ${path}` };
+  if (statSync(path).size === 0) return { ok: false, reason: "backup file is empty" };
+
+  let attached = false;
+  try {
+    await query(`ATTACH DATABASE '${escaped}' AS ${VERIFY_ALIAS}`);
+    attached = true;
+
+    const check = (await query(`PRAGMA ${VERIFY_ALIAS}.integrity_check`)) as
+      | { integrity_check?: string }[]
+      | undefined;
+    const verdict = check?.[0]?.integrity_check;
+    if (verdict !== "ok") {
+      return { ok: false, reason: `integrity check failed: ${verdict ?? "no result"}` };
+    }
+
+    const counted = (await query(`SELECT count(*) AS n FROM ${VERIFY_ALIAS}."${table}"`)) as
+      | { n?: number | bigint }[]
+      | undefined;
+    const raw = counted?.[0]?.n;
+    if (raw === undefined || raw === null) {
+      return { ok: false, reason: `could not read ${table} out of the backup` };
+    }
+
+    return { ok: true, rows: Number(raw) };
+  } catch (err) {
+    return { ok: false, reason: String(err) };
+  } finally {
+    if (attached) {
+      try {
+        await query(`DETACH DATABASE ${VERIFY_ALIAS}`);
+      } catch {
+        // Nothing useful to do — the next verification's ATTACH will surface it.
+      }
+    }
+  }
+}
+
 export async function runBackup(opts: {
   kind: "auto" | "manual";
   secondaryPath?: string | null;
   filenamePrefix?: string;
+  /** Injectable for tests; defaults to reading the file back with SQLite. */
+  verify?: (path: string) => Promise<BackupVerification>;
 }) {
   const prefix = opts.filenamePrefix ?? "lab";
   const filename = `${prefix}-${timestamp()}.sqlite`;
   const primary = join(backupDir(), filename);
+  const verify = opts.verify ?? ((path: string) => verifyBackup(path));
   try {
     // VACUUM INTO doesn't accept a parameterized path in all SQLite builds;
     // path is server-controlled, but escape single quotes defensively.
     const safePrimary = primary.replace(/'/g, "''");
     await prisma().$queryRawUnsafe(`VACUUM INTO '${safePrimary}'`);
     const sizeBytes = BigInt(statSync(primary).size);
+
+    // Written is not the same as readable. If the copy we just made cannot be
+    // opened, the lab has no backup — say so rather than logging a success and
+    // advancing lastBackupAt, which is what tells the owner they are covered.
+    const verdict = await verify(primary);
+    if (!verdict.ok) {
+      return prisma().backupLog.create({
+        data: {
+          kind: opts.kind,
+          destination: primary,
+          sizeBytes,
+          status: "failed",
+          error: `Backup was written but could not be read back: ${verdict.reason}`,
+        },
+      });
+    }
 
     // The primary copy sits on the same disk as the live database, so the
     // off-machine copy is the one that survives a disk failure. If it fails we
@@ -42,6 +127,13 @@ export async function runBackup(opts: {
         const secondary = join(opts.secondaryPath, filename);
         const safeSecondary = secondary.replace(/'/g, "''");
         await prisma().$queryRawUnsafe(`VACUUM INTO '${safeSecondary}'`);
+
+        // A failing USB stick accepts the write and returns garbage. Since this
+        // is the copy that outlives the machine, it gets read back too.
+        const secondaryVerdict = await verify(secondary);
+        if (!secondaryVerdict.ok) {
+          throw new Error(`could not be read back: ${secondaryVerdict.reason}`);
+        }
       } catch (err) {
         secondaryError = String(err);
         await prisma().backupLog.create({

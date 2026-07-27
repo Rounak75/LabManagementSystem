@@ -18,7 +18,8 @@ function testName(t: VisitTest["tests"]): string {
   return t.name;
 }
 
-export default async function VisitDetailPage({ params }: { params: { id: string } }) {
+export default async function VisitDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = (await getSessionUser())!;
   const v = await getVisit(user.token, params.id);
   if (!v) notFound();

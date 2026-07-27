@@ -4,7 +4,8 @@ import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { reason } = await req.json();

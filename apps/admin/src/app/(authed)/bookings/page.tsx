@@ -6,7 +6,8 @@ import { FilterTabs } from "@/components/FilterTabs";
 
 const TABS: BookingStatus[] = ["Pending", "Approved", "Declined", "Completed"];
 
-export default async function BookingsPage({ searchParams }: { searchParams: { status?: string } }) {
+export default async function BookingsPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const user = (await getSessionUser())!;
   const status = (TABS.includes(searchParams.status as BookingStatus)
     ? (searchParams.status as BookingStatus)

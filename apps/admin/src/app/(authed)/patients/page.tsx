@@ -4,7 +4,8 @@ import { PatientList } from "./PatientList";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 
-export default async function PatientsPage({ searchParams }: { searchParams: { q?: string } }) {
+export default async function PatientsPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ q?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const user = (await getSessionUser())!;
   const q = searchParams.q;
   const patients = await listPatients(user.token, q);

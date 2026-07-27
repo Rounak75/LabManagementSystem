@@ -1,6 +1,9 @@
 import { vi } from "vitest";
 
-export type Captured = { table: string; method: string; arg: unknown };
+// `args` carries every argument, not just the first. Without it a test can
+// see that `.eq()` was called but not what it was called *with* — so a route
+// querying the wrong id, or `undefined`, looks identical to a correct one.
+export type Captured = { table: string; method: string; arg: unknown; args: unknown[] };
 export type StubResult = { data?: unknown; error?: unknown };
 /** Either a single fixed result for every query, or a per-table resolver.
  *  When a function is passed it receives the table name and the methods called
@@ -15,8 +18,8 @@ export function makeSupabaseStub(result: ResultSpec = { data: null, error: null 
     const methods: string[] = [];
     const resolve = () =>
       typeof result === "function" ? result({ table, methods }) : result;
-    const make = (method: string) => (arg?: unknown) => {
-      calls.push({ table, method, arg });
+    const make = (method: string) => (...args: unknown[]) => {
+      calls.push({ table, method, arg: args[0], args });
       methods.push(method);
       return chain;
     };

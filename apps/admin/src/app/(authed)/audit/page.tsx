@@ -4,7 +4,8 @@ import { AuditList } from "./AuditList";
 import { PageHeader } from "@/components/PageHeader";
 import { redirect } from "next/navigation";
 
-export default async function AuditPage({ searchParams }: { searchParams: { action?: string } }) {
+export default async function AuditPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ action?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const user = (await getSessionUser())!;
   if (user.role !== "Admin") redirect("/dashboard");
   const action = searchParams.action;

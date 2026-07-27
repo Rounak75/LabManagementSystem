@@ -16,7 +16,7 @@ beforeEach(() => { stub = makeSupabaseStub(); });
 function req(): NextRequest {
   return new NextRequest("http://localhost/api/bookings/booking-1/cancel", { method: "POST" });
 }
-const ctx = { params: { id: "booking-1" } };
+const ctx = { params: Promise.resolve({ id: "booking-1" }) };
 
 describe("POST /api/bookings/[id]/cancel", () => {
   it("404 when the booking does not exist", async () => {
@@ -56,6 +56,13 @@ describe("POST /api/bookings/[id]/cancel", () => {
     expect(eqCols).toContain("booking_id"); // the public lookup
     expect(eqCols).toContain("id"); // optimistic-update guard
     expect(eqCols).toContain("version"); // optimistic-update guard
+    // The booking id from the route must be what the lookup filters on; an
+    // unawaited Next 15 `params` would leave it undefined and still land here.
+    expect(
+      stub.calls.some(
+        (c) => c.method === "eq" && c.args[0] === "booking_id" && c.args[1] === "booking-1",
+      ),
+    ).toBe(true);
   });
 
   it("409 conflict when the optimistic update matches no rows", async () => {

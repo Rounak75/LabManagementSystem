@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth-session";
 import { getServerSupabase } from "@/lib/supabase-client";
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = await getSessionUser();
   if (!user || user.role !== "Admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const sb = getServerSupabase(user.token);

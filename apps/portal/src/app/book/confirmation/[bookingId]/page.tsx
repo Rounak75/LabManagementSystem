@@ -5,7 +5,8 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default function ConfirmationPage({ params }: { params: { bookingId: string } }) {
+export default async function ConfirmationPage({ params: paramsPromise }: { params: Promise<{ bookingId: string }> }) {
+  const params = await paramsPromise;
   return (
     <div className="mt-6 max-w-md mx-auto space-y-4 text-center">
       <div className="mx-auto h-14 w-14 rounded-full bg-green-100 text-green-700 grid place-items-center text-3xl">

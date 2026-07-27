@@ -68,10 +68,11 @@ export function decodeSessionPayload(enc: string): { token: string; expiresAt: n
   return JSON.parse(Buffer.from(enc, "base64url").toString("utf-8"));
 }
 
-// Next 14 `cookies()` is synchronous; these stay async for call-site ergonomics.
+// Next 15 `cookies()` returns a Promise; these were already async, so awaiting
+// it changes no call site.
 export async function setSessionCookie(token: string, expiresAtSec: number): Promise<void> {
   const enc = encodeSessionPayload({ token, expiresAt: expiresAtSec * 1000 });
-  cookies().set({
+  (await cookies()).set({
     name: COOKIE_NAME,
     value: enc,
     httpOnly: true,
@@ -83,14 +84,14 @@ export async function setSessionCookie(token: string, expiresAtSec: number): Pro
 }
 
 export async function clearSessionCookie(): Promise<void> {
-  cookies().delete(COOKIE_NAME);
+  (await cookies()).delete(COOKIE_NAME);
 }
 
 // Per-request memoized: the authed layout and the page it renders both call
 // this, so without caching every navigation pays two JWT verifies + two
 // session_epoch network round-trips. cache() collapses them into one.
 export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
-  const c = cookies().get(COOKIE_NAME);
+  const c = (await cookies()).get(COOKIE_NAME);
   if (!c?.value) return null;
   try {
     const { token, expiresAt } = decodeSessionPayload(c.value);

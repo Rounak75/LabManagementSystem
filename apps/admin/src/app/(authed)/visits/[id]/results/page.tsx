@@ -9,7 +9,8 @@ function one<T>(v: Embedded<T>): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-export default async function ResultsPage({ params }: { params: { id: string } }) {
+export default async function ResultsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = (await getSessionUser())!;
   const data = await getVisitForResults(user.token, params.id);
   if (!data) notFound();

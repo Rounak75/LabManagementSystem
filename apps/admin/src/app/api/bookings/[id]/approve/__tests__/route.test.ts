@@ -13,7 +13,7 @@ import { POST } from "../route";
 function req(body: unknown = {}): Request {
   return new Request("http://localhost/api/bookings/b1/approve", { method: "POST", body: JSON.stringify(body) });
 }
-const ctx = { params: { id: "b1" } };
+const ctx = { params: Promise.resolve({ id: "b1" }) };
 beforeEach(() => { sessionUser = { id: "admin-1", token: "tok" }; });
 
 describe("POST /api/bookings/[id]/approve", () => {
@@ -38,6 +38,14 @@ describe("POST /api/bookings/[id]/approve", () => {
     expect((upd!.arg as any).status).toBe("Approved");
     expect((upd!.arg as any).approved_by_user_id).toBe("admin-1");
     expect((upd!.arg as any).assigned_to_user_id).toBe("u9");
+
+    // The booking id has to reach the filter. An unawaited Next 15 `params`
+    // leaves it undefined, which every other assertion here tolerates.
+    expect(
+      stub.calls.some(
+        (c) => c.table === "bookings" && c.method === "eq" && c.args[0] === "id" && c.args[1] === "b1",
+      ),
+    ).toBe(true);
     expect((upd!.arg as any).version).toBe(5);
     expect(stub.calls.some((c) => c.table === "bookings" && c.method === "eq" && c.arg === "id")).toBe(true);
   });

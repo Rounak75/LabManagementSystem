@@ -23,7 +23,8 @@ interface Param {
 
 interface ResultRow { value: string; is_abnormal: boolean; parameter_id: string; }
 
-export default async function VisitPage({ params }: { params: { id: string } }) {
+export default async function VisitPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   let session;
   try { session = await requirePatient(); } catch { redirect("/login"); }
   const sb = getServiceClient();

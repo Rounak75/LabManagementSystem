@@ -9,7 +9,7 @@ export default function AccountPage() {
         Set or change password
       </Link>
       <Link href="/account/dispute" className="block bg-white border rounded p-3 hover:bg-slate-50">
-        This isn't me
+        This isn’t me
       </Link>
       <LogoutButton />
     </div>

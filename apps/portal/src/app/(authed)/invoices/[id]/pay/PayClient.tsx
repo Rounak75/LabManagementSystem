@@ -118,7 +118,7 @@ export function PayClient({ invoice, lab }: { invoice: Invoice; lab: Lab }) {
 
       {!upiActive && !razorpayActive && (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded text-sm">
-          Online payment isn't set up yet. Please call the lab at
+          Online payment isn’t set up yet. Please call the lab at
           <a className="text-blue-700 ml-1" href="tel:6202924306">6202924306</a> to pay.
         </div>
       )}
@@ -126,8 +126,8 @@ export function PayClient({ invoice, lab }: { invoice: Invoice; lab: Lab }) {
       <div className="bg-white border rounded p-4">
         <h2 className="font-medium text-sm">Already paid?</h2>
         <p className="text-sm text-slate-600 mt-1">
-          If you've paid recently and the status hasn't updated yet, let the lab know.
-          They'll check and update your bill manually.
+          If you’ve paid recently and the status hasn’t updated yet, let the lab know.
+          They’ll check and update your bill manually.
         </p>
         {claimSent ? (
           <p className="mt-2 text-sm text-green-700">Thanks — the lab has been notified.</p>
@@ -136,7 +136,7 @@ export function PayClient({ invoice, lab }: { invoice: Invoice; lab: Lab }) {
             onClick={handleAlreadyPaid}
             className="mt-2 px-3 py-1.5 text-sm bg-slate-200 hover:bg-slate-300 rounded"
           >
-            I've already paid
+            I’ve already paid
           </button>
         )}
       </div>

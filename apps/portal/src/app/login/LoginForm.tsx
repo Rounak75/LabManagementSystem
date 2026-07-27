@@ -15,15 +15,36 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
   // page round-trips through sessionStorage, and a password must not be written
   // there. Keeping it in memory means the patient picks and we resubmit.
   const [choices, setChoices] = useState<{ id: string; name: string; age: number }[] | null>(null);
+  // Only shown once the server says this origin has been failing repeatedly —
+  // a patient signing in normally never sees it.
+  const [captchaQuestion, setCaptchaQuestion] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+
+  async function refreshCaptcha() {
+    try {
+      const res = await fetch("/api/captcha", { cache: "no-store" });
+      const data = await res.json();
+      setCaptchaQuestion(data.question ?? "");
+      setCaptchaToken(data.token ?? "");
+      setCaptchaAnswer("");
+    } catch {
+      setCaptchaQuestion("");
+      setCaptchaToken("");
+    }
+  }
 
   async function submit(patientId?: string) {
     setError(null);
     setSubmitting(true);
     try {
+      const captcha = captchaToken
+        ? { captchaToken, captchaAnswer: parseInt(captchaAnswer, 10) }
+        : {};
       const body =
         mode === "code"
-          ? { phone, code, next: nextUrl, patientId }
-          : { phone, password, next: nextUrl, patientId };
+          ? { phone, code, next: nextUrl, patientId, ...captcha }
+          : { phone, password, next: nextUrl, patientId, ...captcha };
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,6 +72,16 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         setLockedUntil(data.until);
         return;
       }
+      if (data.captchaRequired) {
+        // Always a fresh puzzle: the previous token is spent, and reusing it
+        // would fail on the next submit for a reason the patient can't see.
+        await refreshCaptcha();
+        setError("Please answer the question below to continue.");
+        return;
+      }
+      // A spent answer left in the box would fail the next submit for a reason
+      // the patient cannot see.
+      if (captchaToken) await refreshCaptcha();
       setError(
         data.error?.code === "no_patient_found"
           ? "We can't find a patient with this phone number. Please contact the lab."
@@ -189,6 +220,21 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         </Field>
       )}
 
+      {captchaQuestion && (
+        <Field label={captchaQuestion} hint="A quick check that you're not a script">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={captchaAnswer}
+            onChange={(e) => setCaptchaAnswer(e.target.value.replace(/\D/g, ""))}
+            required
+            autoComplete="off"
+            className={`${inputCls} font-mono num`}
+            placeholder="Your answer"
+          />
+        </Field>
+      )}
+
       {error && (
         <div className="rounded-lg border border-brand/40 bg-brand-soft text-[13.5px] text-text px-3 py-2.5">
           {error}
@@ -205,7 +251,7 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
 
       <details className="text-[12.5px] text-soft pt-2 border-t border-line">
         <summary className="cursor-pointer hover:text-text">
-          I don't have my receipt
+          I don’t have my receipt
         </summary>
         <p className="mt-2 leading-relaxed">
           Call the lab at{" "}

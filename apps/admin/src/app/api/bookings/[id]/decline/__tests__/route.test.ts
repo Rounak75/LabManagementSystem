@@ -13,7 +13,7 @@ import { POST } from "../route";
 function req(body: unknown = {}): Request {
   return new Request("http://localhost/api/bookings/b1/decline", { method: "POST", body: JSON.stringify(body) });
 }
-const ctx = { params: { id: "b1" } };
+const ctx = { params: Promise.resolve({ id: "b1" }) };
 beforeEach(() => { sessionUser = { id: "admin-1", token: "tok" }; });
 
 describe("POST /api/bookings/[id]/decline", () => {
@@ -37,7 +37,13 @@ describe("POST /api/bookings/[id]/decline", () => {
     expect((upd!.arg as any).status).toBe("Declined");
     expect((upd!.arg as any).decline_reason).toBe("duplicate");
     expect((upd!.arg as any).version).toBe(3);
-    expect(stub.calls.some((c) => c.table === "bookings" && c.method === "eq" && c.arg === "id")).toBe(true);
+    // Column alone would pass with an undefined value — which is what an
+    // unawaited Next 15 `params` produces. The value is the real assertion.
+    expect(
+      stub.calls.some(
+        (c) => c.table === "bookings" && c.method === "eq" && c.args[0] === "id" && c.args[1] === "b1",
+      ),
+    ).toBe(true);
   });
 
   it("defaults reason to null and version to 1 when missing", async () => {

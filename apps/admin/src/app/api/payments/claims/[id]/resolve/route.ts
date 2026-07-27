@@ -7,7 +7,8 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 // A payment claim is a soft "I already paid" signal with no amount, so resolving
 // it just records that a human handled it — it does NOT create a payment. The
 // actual payment is recorded via /api/payments/mark-received.
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { status } = await req.json();

@@ -159,6 +159,16 @@ prisma/migrations/migration_lock.toml.bak
 *.pfx
 *.p12
 
+# Database dumps (never commit)
+# The nightly cloud backup is downloaded and decrypted into whatever directory
+# you happen to be standing in, and the plaintext is every patient record the
+# lab holds. Both the encrypted artifact and the decrypted dump are ignored so
+# a restore performed inside the repo cannot end up in a commit.
+*.sql.gpg
+*.dump
+backup*.sql
+SHA256SUMS.txt
+
 # Vercel
 .vercel
 

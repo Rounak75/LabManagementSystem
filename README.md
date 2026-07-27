@@ -145,7 +145,7 @@ apps\desktop\out\dist\Golmuri Janch Ghar Lab Setup <version>.exe
 >
 > **When installing:** Windows will show a blue "Windows protected your PC" SmartScreen warning saying the publisher is unknown. Click **More info → Run anyway**. This is normal for unsigned software and is not a sign that anything is wrong — but it does mean the lab cannot tell your installer apart from a malicious one someone else sends them.
 >
-> **For updates:** the app updates itself from the GitHub releases of this repository. Because releases are unsigned, anyone who gains access to that GitHub account can publish a release that every lab PC will download and install on its own, with no prompt. Treat access to the release repository as equivalent to access to the lab's computer: use two-factor authentication on the account, and don't share its credentials.
+> **For updates:** the app checks the GitHub releases of this repository for new versions. Because releases are unsigned, `electron-updater` has no signature to verify — so nothing is downloaded until the owner clicks **Download** on the update banner. That click is deliberately the only way an update reaches the lab PC: it means an unexpected version is something the owner sees and decides about, rather than something that installs overnight. Treat access to the release repository as equivalent to access to the lab's computer: use two-factor authentication on the account, and don't share its credentials.
 >
 > **To remove both problems**, buy a Windows code-signing certificate (an OV certificate is roughly ₹15,000–30,000/year; EV certificates clear SmartScreen immediately but cost more) and add it to `apps/desktop/electron-builder.yml`:
 >
@@ -200,7 +200,9 @@ The desktop icon is created for you, but you can make it more convenient:
 
 ### Updating to a newer version later
 
-You don't reinstall. Once the lab PC has the app, it **updates itself**: when you publish a new release, the app downloads it in the background and shows a **"Restart to update"** banner in the sidebar. The owner clicks it and the update applies. The full publish steps are in `docs/deployment/desktop-release.md`.
+You don't reinstall. Once the lab PC has the app, it checks for new versions on its own — but it never installs one behind your back. When you publish a release, a banner appears in the sidebar saying **"Version X is available"** with a **Download** button. The owner clicks it, the download runs, and the banner changes to **"Restart to update"**. The update applies on that restart.
+
+If a banner ever names a version you didn't publish, don't click Download — that is the signal that someone else has access to the release account. The full publish steps are in `docs/deployment/desktop-release.md`.
 
 ---
 
@@ -383,6 +385,14 @@ The app makes a copy of your database **every day automatically**. You don't hav
 
 The full database file (`lab.sqlite`) — every patient, visit, result, invoice, and setting. Backups are timestamped, like `lab-2026-05-06-0200.sqlite`.
 
+### Every backup is opened and checked
+
+After writing each copy, the app opens it again, runs SQLite's own integrity check, and counts the patient records inside. Only a copy that passes both is recorded as a success.
+
+This matters because writing a file and having a usable backup are not the same thing. A disk that fills up part-way through, or a USB stick that has started to fail, still leaves a file of roughly the right size behind. Without the check, that file is logged as a good backup, and you find out it is empty on the one day you need it.
+
+If a copy fails the check, **Settings → Backups** shows it as failed and says why, and the "last backed up" date does *not* move forward — so the app keeps telling you a backup is due rather than quietly claiming you are protected.
+
 ### When the daily backup runs
 
 By default, **2:00 AM** every night. The PC must be on and the app must be running (or installed as a startup app) for the backup to happen at that time. If the PC was off at 2 AM, the backup runs the next time the app opens.
@@ -415,6 +425,23 @@ A backup on the same computer dies with the computer. Add a **secondary location
 From now on, every daily backup is **also** copied to the USB drive. **Plug the USB in before 2 AM each night** so it's there when the backup runs.
 
 You can also point the secondary location at a synced folder like Google Drive or OneDrive on the PC.
+
+### The cloud is backed up too (set this up once)
+
+Everything above protects the **PC**. The **cloud** database — the copy the staff portal and patient portal read from — used to have no backup at all, because Supabase's free plan does not include one.
+
+It does now. Every night a job dumps the cloud database, **restores it into a fresh test database to prove the dump actually works**, encrypts it, and keeps it for 90 days. If it ever fails, GitHub emails you. That email means either the database is unreachable or the backup no longer restores — both worth stopping for.
+
+It needs two one-time settings before it can run. On GitHub, go to the project → **Settings → Secrets and variables → Actions → New repository secret**, and add:
+
+| Name | What to paste |
+|------|---------------|
+| `SUPABASE_DB_URL` | Supabase → Project Settings → Database → Connection string (**URI**). Use the one on port **5432**, not 6543. |
+| `BACKUP_PASSPHRASE` | Any long random password you make up. **Write it down somewhere that is not this project and not the lab PC** — without it the backups cannot be opened. |
+
+Then go to **Actions → Cloud backup → Run workflow** to test it once. If it goes green, you're done; it runs by itself from then on.
+
+Full details, and how to actually restore from one of these backups, are in `docs/deployment/backup-and-restore.md`.
 
 ### Back up right now
 
@@ -614,6 +641,22 @@ Press **Ctrl + Shift + I** to open the developer tools, click the **Console** ta
 
 A patient with that phone number is already registered. Cancel the form and **search for the patient** by phone — they'll show up. Open their profile and create a new visit there.
 
+### Red banner: "The lab desktop last synced X hours ago"
+
+The staff portal shows this when the desktop app has stopped sending its data to the cloud. Everything the staff portal and the patient portal show comes from the desktop, so while this banner is up, **both are showing an old picture** — results entered on a phone may also not be reaching the desktop.
+
+Almost always the cause is one of:
+
+1. **The lab PC is off, asleep, or the app is closed.** Turn it on and open the app. The banner clears within a few minutes.
+2. **The lab PC has no internet.** Check the connection on that machine.
+3. **Cloud sync got switched off.** In the desktop app, check **Settings → Cloud sync** is still enabled.
+
+If the PC is on, online, and syncing is enabled but the banner stays up, open **Settings → Cloud sync** on the desktop and look at the sync health panel — a row that keeps failing is quarantined there with the reason.
+
+### A patient says the portal is asking them a maths question
+
+That is the anti-guessing check. It appears after repeated failed sign-ins from the same internet connection, and it is normal on a shared connection — a hospital or hostel wi-fi where several people sign in. They answer the sum and continue. It disappears once they sign in successfully.
+
 ---
 
 ## Glossary
@@ -701,10 +744,12 @@ packages/
 | `pnpm -r typecheck` | Type-check the whole workspace |
 | `pnpm --filter @lab/desktop package:win` | Build the Windows installer `.exe` |
 
-**Deployment runbooks** (in the `docs/` folder next to the repo):
+**Deployment runbooks** (in the `docs/` folder in this repo):
 - `docs/deployment/admin-vercel-setup.md` — staff portal → Vercel + Supabase
 - `docs/deployment/portal-vercel-setup.md` — patient portal → Vercel + Supabase (migration order, env-var table, 17-point launch smoke)
 - `docs/deployment/desktop-release.md` — build & publish the desktop installer + auto-update
+- `docs/deployment/backup-and-restore.md` — the nightly encrypted cloud backup, and how to restore either copy
+- `docs/deployment/key-rotation.md` — what to do when a key leaks, in the order to do it
 
 The desktop app needs no special action on deploy day — once **Settings → Cloud sync** is enabled and pointed at the same Supabase project, the 10-second outbox worker pushes everything the portals read.
 

@@ -9,7 +9,8 @@ import { PayClient } from "./PayClient";
 
 export const runtime = "nodejs";
 
-export default async function PayPage({ params }: { params: { id: string } }) {
+export default async function PayPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   let session;
   try { session = await requirePatient(); } catch { redirect("/login"); }
   const sb = getServiceClient();

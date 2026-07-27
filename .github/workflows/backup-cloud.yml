@@ -1,0 +1,158 @@
+name: Cloud backup
+
+# The free Supabase plan includes no backups of any kind — no daily snapshot, no
+# point-in-time recovery. Everything the desktop has not yet pulled exists in
+# exactly one place, and that place has no undo.
+#
+# This job takes an encrypted dump every night and, crucially, *restores it into
+# a real Postgres* before calling it good. Backups that were never restored are
+# a belief, not a protection: the previous audit listed "rehearse a restore" as
+# blocked on owning a spare machine. A GitHub Actions runner is a spare machine,
+# for free, every night.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL     Direct connection string, port 5432 — NOT the 6543
+#                       transaction pooler, which cannot hold the consistent
+#                       snapshot pg_dump needs.
+#   BACKUP_PASSPHRASE   Long random string. Losing it loses every backup, so
+#                       store it somewhere that is not this repository and not
+#                       the lab PC.
+
+on:
+  schedule:
+    # 02:40 UTC = 08:10 IST — after the desktop's 02:00 local backup window and
+    # before the lab opens, so a restore test never races the morning rush.
+    - cron: "40 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cloud-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt, and prove it restores
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # The machine the restore is rehearsed on. Keep the major version in step
+      # with the Supabase project — a dump from a newer server will not restore
+      # into an older one.
+      verify-target:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: verify-only-not-a-secret
+          POSTGRES_DB: verify
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Guard against missing secrets
+        # Without this the job "succeeds" having dumped nothing, which is the
+        # exact failure this whole workflow exists to prevent elsewhere.
+        run: |
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "::error::SUPABASE_DB_URL is not set. See docs/deployment/backup-and-restore.md"
+            exit 1
+          fi
+          if [ -z "${{ secrets.BACKUP_PASSPHRASE }}" ]; then
+            echo "::error::BACKUP_PASSPHRASE is not set. See docs/deployment/backup-and-restore.md"
+            exit 1
+          fi
+
+      - name: Install a matching Postgres client
+        # ubuntu-latest ships an older client than Supabase runs. pg_dump refuses
+        # to dump from a server newer than itself, so pin the client explicitly
+        # rather than discovering the mismatch on the night it is needed.
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump the database
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          pg_dump "$DB_URL" \
+            --format=plain \
+            --no-owner \
+            --no-privileges \
+            --schema=public \
+            --file=backup.sql
+          echo "DUMP_BYTES=$(stat -c%s backup.sql)" >> "$GITHUB_ENV"
+
+      - name: Reject an implausibly small dump
+        # A dump that failed authentication, or hit an empty schema, still exits
+        # 0 and leaves a short but syntactically valid file behind. The desktop's
+        # own backup service learned this lesson the hard way; apply it here too.
+        run: |
+          set -euo pipefail
+          echo "Dump is ${DUMP_BYTES} bytes"
+          if [ "${DUMP_BYTES}" -lt 10000 ]; then
+            echo "::error::Dump is only ${DUMP_BYTES} bytes — treating as a failed dump, not a small database."
+            exit 1
+          fi
+          grep -q "CREATE TABLE" backup.sql || {
+            echo "::error::Dump contains no CREATE TABLE statements."
+            exit 1
+          }
+
+      - name: Restore into a real Postgres and count what came back
+        # The rehearsal. A dump that cannot be replayed is not a backup, and the
+        # only way to know is to replay it.
+        env:
+          PGPASSWORD: verify-only-not-a-secret
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d verify -v ON_ERROR_STOP=1 -q -f backup.sql
+
+          read -r tables <<< "$(psql -h localhost -U postgres -d verify -tAc \
+            "select count(*) from information_schema.tables where table_schema='public'")"
+          echo "Restored ${tables} tables"
+          if [ "${tables}" -lt 10 ]; then
+            echo "::error::Only ${tables} tables restored — the dump is incomplete."
+            exit 1
+          fi
+
+          # Named explicitly: these are the tables whose loss would actually end
+          # the lab. A restore that "succeeds" without patients in it is not one.
+          for t in patients visits results invoices; do
+            n=$(psql -h localhost -U postgres -d verify -tAc "select count(*) from public.${t}")
+            echo "  ${t}: ${n} rows"
+          done
+
+      - name: Encrypt
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --symmetric \
+              --cipher-algo AES256 \
+              --passphrase "$PASSPHRASE" \
+              --output "backup-$(date -u +%Y%m%d).sql.gpg" \
+              backup.sql
+          # The plaintext holds every patient record in the lab. It must not
+          # survive into the upload step.
+          shred -u backup.sql
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-backup-${{ github.run_id }}
+          path: "*.sql.gpg"
+          # 90 days is the free-plan maximum. Anything older should have been
+          # copied to the owner's own storage — see the runbook.
+          retention-days: 90
+          if-no-files-found: error

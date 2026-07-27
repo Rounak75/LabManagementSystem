@@ -30,7 +30,8 @@ function patientName(p: VisitRow["patients"]): string {
   return p.name;
 }
 
-export default async function VisitsPage({ searchParams }: { searchParams: { status?: string; q?: string } }) {
+export default async function VisitsPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+  const searchParams = await searchParamsPromise;
   const user = (await getSessionUser())!;
   const status = searchParams.status ?? null;
   const q = searchParams.q?.toLowerCase() || "";

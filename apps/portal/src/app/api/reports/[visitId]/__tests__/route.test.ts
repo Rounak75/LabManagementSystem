@@ -23,7 +23,7 @@ function req(token?: string): NextRequest {
   if (token) headers.set("cookie", `portal_session=${token}`);
   return new NextRequest("http://localhost/api/reports/v1", { method: "GET", headers });
 }
-const ctx = { params: { visitId: "v1" } };
+const ctx = { params: Promise.resolve({ visitId: "v1" }) };
 
 describe("GET /api/reports/[visitId]", () => {
   it("401 when not logged in", async () => {
@@ -76,6 +76,12 @@ describe("GET /api/reports/[visitId]", () => {
     expect(res.headers.get("content-type")).toBe("application/pdf");
     expect(res.headers.get("content-disposition")).toBe('inline; filename="VST-1.pdf"');
     expect(renderToStream).toHaveBeenCalledTimes(1);
+    // The visit id from the route must reach the query. With an unawaited Next 15
+    // `params` this is undefined, and every assertion above still passes — which
+    // on this endpoint would mean serving a report for the wrong visit.
+    expect(
+      stub.calls.some((c) => c.method === "eq" && c.args[0] === "id" && c.args[1] === "v1"),
+    ).toBe(true);
   });
 
   // The PDF carries the pathologist's name and qualifications, so it reads as a

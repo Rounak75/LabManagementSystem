@@ -1,6 +1,7 @@
 import { LoginForm } from "./LoginForm";
 
-export default function LoginPage({ searchParams }: { searchParams: { next?: string } }) {
+export default async function LoginPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ next?: string }> }) {
+  const searchParams = await searchParamsPromise;
   return (
     <div className="max-w-md mx-auto pt-4 pb-10">
       <h1 className="text-[28px] sm:text-[32px] font-heading font-bold tracking-tighter text-text leading-[1.1]">

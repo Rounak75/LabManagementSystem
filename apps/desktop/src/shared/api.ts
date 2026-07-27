@@ -42,7 +42,7 @@ export type Channel =
   | "audit:list" | "audit:distinctActions"
   // app utilities
   | "app:saveTextFile" | "app:pickDirectory" | "app:pickFile" | "app:logError"
-  | "app:getVersion" | "updater:quitAndInstall" | "updater:checkNow"
+  | "app:getVersion" | "updater:quitAndInstall" | "updater:checkNow" | "updater:download"
   // backup
   | "backup:runNow" | "backup:list" | "backup:restore"
   // dashboard
@@ -274,6 +274,7 @@ export type TemplateIdInput = { id: string };
 
 export type Api = {
   invoke<T = unknown>(channel: Channel, payload?: unknown): Promise<IpcResult<T>>;
+  onUpdateAvailable(cb: (info: { version: string }) => void): () => void;
   onUpdateDownloaded(cb: (info: { version: string }) => void): () => void;
 };
 

@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { verifyPatientJwt } from "./jwt";
 
 export async function requirePatient(): Promise<{ patientId: string; jwt: string }> {
-  const cookie = cookies().get("portal_session")?.value;
+  const cookie = (await cookies()).get("portal_session")?.value;
   if (!cookie) throw new Error("NOT_LOGGED_IN");
   const payload = await verifyPatientJwt(cookie);
   return { patientId: payload.patient_id, jwt: cookie };

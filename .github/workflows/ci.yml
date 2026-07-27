@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  # Advisories land against code that has not changed, so the audit job also
+  # runs on a schedule rather than only when someone pushes.
+  schedule:
+    - cron: "0 3 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The desktop app's types come from the generated Prisma client, so this
+      # has to happen before anything typechecks. There is no postinstall hook
+      # that does it, and a fresh clone has no generated client.
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Blocking. The project is at zero criticals and must stay there.
+      - name: Fail on critical advisories
+        run: pnpm audit --prod --audit-level=critical
+
+      # Reporting only. Eight high advisories against Next.js currently have no
+      # fix below Next 15, so failing on `high` would leave CI permanently red
+      # and train everyone to ignore it. Read this output; don't let it rot.
+      - name: Report high and moderate advisories
+        if: always()
+        run: pnpm audit --prod --audit-level=moderate || true
