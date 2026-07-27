@@ -91,7 +91,7 @@ vi.mock("electron", () => ({
 
 vi.mock("@main/db", () => ({ prisma: () => fakePrisma }));
 
-import { runBackup, pruneOld } from "../backup.service";
+import { runBackup, pruneOld, isBackupDue, shouldAttemptAfterFailure } from "../backup.service";
 
 beforeEach(() => {
   backupLogs.length = 0;
@@ -152,6 +152,106 @@ describe("runBackup", () => {
     // labSettings.update should NOT have been called for failed primary
     expect(fakePrisma.labSettings.update).not.toHaveBeenCalled();
   });
+
+  // The primary copy lives on the same disk as the live database, so the
+  // off-machine copy is the one that survives a disk failure. Reporting the run
+  // as a plain success when that copy silently failed tells the owner they are
+  // protected when they are not.
+  describe("when the off-machine copy fails", () => {
+    it("does not report the run as a success", async () => {
+      queryRawShouldThrow = { match: "unwritable", error: "no such volume" };
+
+      const log = await runBackup({
+        kind: "auto",
+        secondaryPath: join(tempDir, "unwritable"),
+      });
+
+      expect(log.status).not.toBe("success");
+    });
+
+    it("names the off-machine failure in the returned log", async () => {
+      queryRawShouldThrow = { match: "unwritable", error: "no such volume" };
+
+      const log = await runBackup({
+        kind: "auto",
+        secondaryPath: join(tempDir, "unwritable"),
+      });
+
+      expect(log.error).toContain("no such volume");
+    });
+
+    it("still keeps the primary copy it managed to write", async () => {
+      queryRawShouldThrow = { match: "unwritable", error: "no such volume" };
+
+      await runBackup({ kind: "auto", secondaryPath: join(tempDir, "unwritable") });
+
+      const files = fs.readdirSync(join(tempDir, "backups")).filter((f) => f.endsWith(".sqlite"));
+      expect(files.length).toBe(1);
+    });
+  });
+});
+
+// The scheduler used to fire only when the clock string equalled backupTime
+// exactly, checked once a minute, with the "already ran" marker held in memory.
+// If the app was not running at 02:00 — PC off, app closed, machine asleep, or
+// the tick simply drifting past the minute — that day had no backup at all and
+// nothing ever caught up. On a lab whose only master copy is one SQLite file,
+// that is silent data-loss exposure.
+describe("isBackupDue", () => {
+  const at = (iso: string) => new Date(iso);
+
+  it("is due when the lab has never been backed up", () => {
+    expect(isBackupDue(at("2026-07-27T02:30:00"), "02:00", null)).toBe(true);
+  });
+
+  it("is not due before the scheduled time", () => {
+    expect(isBackupDue(at("2026-07-27T01:30:00"), "02:00", at("2026-07-26T02:05:00"))).toBe(false);
+  });
+
+  it("is due at the scheduled time", () => {
+    expect(isBackupDue(at("2026-07-27T02:00:00"), "02:00", at("2026-07-26T02:05:00"))).toBe(true);
+  });
+
+  it("is not due again once today's backup has run", () => {
+    expect(isBackupDue(at("2026-07-27T05:00:00"), "02:00", at("2026-07-27T02:05:00"))).toBe(false);
+  });
+
+  // The core fix: the owner opens the app at 09:00 having missed 02:00 entirely.
+  it("catches up when the scheduled time was missed", () => {
+    expect(isBackupDue(at("2026-07-27T09:00:00"), "02:00", at("2026-07-26T02:05:00"))).toBe(true);
+  });
+
+  it("catches up after the machine was off for days", () => {
+    expect(isBackupDue(at("2026-07-27T09:00:00"), "02:00", at("2026-07-20T02:05:00"))).toBe(true);
+  });
+
+  it("does not fire on an unparseable backupTime", () => {
+    expect(isBackupDue(at("2026-07-27T09:00:00"), "nonsense", null)).toBe(false);
+  });
+});
+
+// A backup that keeps failing (full disk, missing volume) is still due, so
+// without a throttle the once-a-minute scheduler would retry it 1,440 times a
+// day and fill BackupLog with identical failures. It should keep retrying — just
+// not every minute.
+describe("shouldAttemptAfterFailure", () => {
+  const at = (iso: string) => new Date(iso);
+
+  it("allows the first attempt when none has been made", () => {
+    expect(shouldAttemptAfterFailure(at("2026-07-27T09:00:00"), null)).toBe(true);
+  });
+
+  it("does not retry immediately after a failure", () => {
+    expect(
+      shouldAttemptAfterFailure(at("2026-07-27T09:01:00"), at("2026-07-27T09:00:00")),
+    ).toBe(false);
+  });
+
+  it("retries once the back-off has elapsed", () => {
+    expect(
+      shouldAttemptAfterFailure(at("2026-07-27T10:00:00"), at("2026-07-27T09:00:00")),
+    ).toBe(true);
+  });
 });
 
 describe("pruneOld", () => {
@@ -178,5 +278,35 @@ describe("pruneOld", () => {
     expect(fs.existsSync(oldFile)).toBe(false);
     expect(fs.existsSync(newFile)).toBe(true);
     expect(fs.existsSync(otherFile)).toBe(true);
+  });
+
+  // runBackup accepts a custom filenamePrefix, but pruning only matched "lab-",
+  // so any backup written under another prefix accumulated forever.
+  it("also prunes old backups written with a custom filename prefix", () => {
+    const dir = join(tempDir, "backups");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const oldCustom = join(dir, "pre-restore-20200101-0000.sqlite");
+    fs.writeFileSync(oldCustom, "old");
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 3600 * 1000;
+    fs.utimesSync(oldCustom, new Date(thirtyDaysAgo), new Date(thirtyDaysAgo));
+
+    const removed = pruneOld(14);
+
+    expect(removed).toBe(1);
+    expect(fs.existsSync(oldCustom)).toBe(false);
+  });
+
+  it("still leaves non-backup files alone", () => {
+    const dir = join(tempDir, "backups");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const notes = join(dir, "notes.txt");
+    fs.writeFileSync(notes, "keep me");
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 3600 * 1000;
+    fs.utimesSync(notes, new Date(thirtyDaysAgo), new Date(thirtyDaysAgo));
+
+    pruneOld(14);
+
+    expect(fs.existsSync(notes)).toBe(true);
   });
 });

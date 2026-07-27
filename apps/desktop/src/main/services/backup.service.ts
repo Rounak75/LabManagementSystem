@@ -31,6 +31,11 @@ export async function runBackup(opts: {
     await prisma().$queryRawUnsafe(`VACUUM INTO '${safePrimary}'`);
     const sizeBytes = BigInt(statSync(primary).size);
 
+    // The primary copy sits on the same disk as the live database, so the
+    // off-machine copy is the one that survives a disk failure. If it fails we
+    // must not report the run as a success — that tells the owner they are
+    // protected when they are not.
+    let secondaryError: string | null = null;
     if (opts.secondaryPath) {
       try {
         if (!existsSync(opts.secondaryPath)) mkdirSync(opts.secondaryPath, { recursive: true });
@@ -38,20 +43,31 @@ export async function runBackup(opts: {
         const safeSecondary = secondary.replace(/'/g, "''");
         await prisma().$queryRawUnsafe(`VACUUM INTO '${safeSecondary}'`);
       } catch (err) {
+        secondaryError = String(err);
         await prisma().backupLog.create({
           data: {
             kind: opts.kind,
             destination: opts.secondaryPath,
             sizeBytes: BigInt(0),
             status: "failed",
-            error: String(err),
+            error: secondaryError,
           },
         });
       }
     }
 
     const log = await prisma().backupLog.create({
-      data: { kind: opts.kind, destination: primary, sizeBytes, status: "success" },
+      data: {
+        kind: opts.kind,
+        destination: primary,
+        sizeBytes,
+        // "partial": the local copy exists but the off-machine copy does not.
+        // The UI treats anything other than "success" as needing attention.
+        status: secondaryError ? "partial" : "success",
+        error: secondaryError
+          ? `Saved locally, but the off-machine copy failed: ${secondaryError}`
+          : null,
+      },
     });
     await prisma().labSettings.update({
       where: { id: "singleton" },
@@ -76,7 +92,10 @@ export function pruneOld(retentionDays: number): number {
   const cutoff = Date.now() - retentionDays * 24 * 3600 * 1000;
   let removed = 0;
   for (const name of readdirSync(dir)) {
-    if (!name.startsWith("lab-") || !name.endsWith(".sqlite")) continue;
+    // Match on the extension, not a "lab-" prefix: runBackup accepts a custom
+    // filenamePrefix, and those backups were never pruned. Only .sqlite files in
+    // the managed backups directory are touched, so unrelated files are safe.
+    if (!name.endsWith(".sqlite")) continue;
     const full = join(dir, name);
     if (statSync(full).mtimeMs < cutoff) {
       unlinkSync(full);
@@ -87,7 +106,55 @@ export function pruneOld(retentionDays: number): number {
 }
 
 let timer: NodeJS.Timeout | null = null;
-let lastDayRan: string | null = null;
+
+/**
+ * Whether today's scheduled backup still needs to run.
+ *
+ * The scheduler used to fire only when the wall-clock string equalled
+ * `backupTime` exactly, checked once a minute, with the "already ran today"
+ * marker held in memory. If the app was not running at that precise minute — PC
+ * off, app closed, machine asleep, or the interval simply drifting past it — the
+ * day had no backup and nothing ever caught up. On a lab whose only master copy
+ * is one SQLite file, that is silent data-loss exposure.
+ *
+ * This asks "is today's scheduled time in the past, and is the last recorded
+ * backup older than it?" — so a missed window is caught up the moment the app
+ * next runs, and the persisted `lastBackupAt` (rather than in-memory state)
+ * keeps a restart from repeating or forgetting a run.
+ */
+export function isBackupDue(now: Date, backupTime: string, lastBackupAt: Date | null): boolean {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(backupTime?.trim() ?? "");
+  if (!match) return false;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return false;
+
+  const scheduledToday = new Date(now);
+  scheduledToday.setHours(hours, minutes, 0, 0);
+
+  if (now < scheduledToday) return false;
+  if (!lastBackupAt) return true;
+  return lastBackupAt < scheduledToday;
+}
+
+/** Back-off between retries of a backup that failed outright. */
+export const FAILED_RETRY_MS = 30 * 60 * 1000;
+
+/**
+ * Whether enough time has passed to retry after a failed attempt.
+ *
+ * A backup that fails (full disk, missing volume) leaves `lastBackupAt`
+ * untouched and therefore stays due, so the once-a-minute scheduler would retry
+ * it 1,440 times a day and fill BackupLog with identical failures. It should
+ * keep trying — a disk that is full at 02:00 may have room by morning — just not
+ * every minute.
+ */
+export function shouldAttemptAfterFailure(now: Date, lastFailedAttemptAt: Date | null): boolean {
+  if (!lastFailedAttemptAt) return true;
+  return now.getTime() - lastFailedAttemptAt.getTime() >= FAILED_RETRY_MS;
+}
+
+let lastFailedAttemptAt: Date | null = null;
 
 export function startScheduler() {
   if (timer) return;
@@ -96,11 +163,14 @@ export function startScheduler() {
       const settings = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
       if (!settings) return;
       const now = new Date();
-      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const today = now.toDateString();
-      if (hhmm === settings.backupTime && lastDayRan !== today) {
-        lastDayRan = today;
-        await runBackup({ kind: "auto", secondaryPath: settings.backupPath });
+      if (
+        isBackupDue(now, settings.backupTime, settings.lastBackupAt ?? null) &&
+        shouldAttemptAfterFailure(now, lastFailedAttemptAt)
+      ) {
+        const log = await runBackup({ kind: "auto", secondaryPath: settings.backupPath });
+        // "partial" already advanced lastBackupAt, so only a total failure needs
+        // throttling; anything else clears the back-off.
+        lastFailedAttemptAt = log.status === "failed" ? new Date() : null;
         pruneOld(settings.backupRetentionDays);
         try {
           const n = await paymentDueScan();

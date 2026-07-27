@@ -163,6 +163,16 @@ export function BackupPanel() {
             </Button>
           )}
         </div>
+        {!settings?.backupPath && (
+          // Automatic backups go to this PC's own disk. Without a second
+          // location, one disk failure takes the live database and every backup
+          // of it at the same time.
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            No second location is set, so every backup is stored on this PC's own disk. If that
+            disk fails you lose the lab's data and all of its backups together. Pick a folder on a
+            USB drive or network share.
+          </p>
+        )}
       </section>
 
       {/* Manual backup */}
