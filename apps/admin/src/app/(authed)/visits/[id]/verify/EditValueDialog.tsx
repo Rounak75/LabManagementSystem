@@ -57,13 +57,24 @@ export function EditValueDialog({
                   parameter_id: row.parameter.id,
                   value,
                   is_abnormal: flag.isAbnormal,
-                  version: (row.result?.version ?? 0) + 1,
+                  // The version this edit was based on; the server assigns the
+                  // stored one and rejects the write if the row has moved on.
+                  base_version: row.result?.version ?? 0,
                 };
                 const r = await fetch("/api/results/upsert", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(body),
                 });
+                if (r.status === 409) {
+                  const j = (await r.json()) as { code?: string; error?: string };
+                  setError(
+                    j.code === "result_locked"
+                      ? "This test is verified and locked — unlock it before editing."
+                      : "Someone else changed this value. Close and reopen to see it.",
+                  );
+                  return;
+                }
                 if (!r.ok) {
                   setError(await r.text());
                   return;

@@ -22,18 +22,21 @@ const validBody = {
   version: 1,
 };
 
-/** Every write first reads the visit test's lock state. Answer that read with
- *  "unlocked" and delegate everything else to the test's own resolver. */
+/** Every write reads the visit test's lock state, then the current result row to
+ *  assign the next version. Answer the first with "unlocked" and the second with
+ *  `current`, delegating everything else to the test's own resolver. */
 function unlocked(
   rest: Parameters<typeof makeSupabaseStub>[0] = { data: null, error: null },
+  current: { id: string; version: number } | null = null,
 ): ReturnType<typeof makeSupabaseStub> {
-  return makeSupabaseStub((ctx) =>
-    ctx.table === "visit_tests"
-      ? { data: { is_locked: false }, error: null }
-      : typeof rest === "function"
-        ? rest(ctx)
-        : rest,
-  );
+  return makeSupabaseStub((ctx) => {
+    if (ctx.table === "visit_tests") return { data: { is_locked: false }, error: null };
+    // The version read; the insert chain also selects, so exclude it.
+    if (ctx.table === "results" && ctx.methods.includes("select") && !ctx.methods.includes("insert")) {
+      return { data: current, error: null };
+    }
+    return typeof rest === "function" ? rest(ctx) : rest;
+  });
 }
 beforeEach(() => { sessionUser = { id: "staff-1", token: "tok" }; });
 
@@ -45,7 +48,7 @@ describe("POST /api/results/upsert", () => {
   });
 
   it("updates by id when body.id is present", async () => {
-    stub = unlocked();
+    stub = unlocked({ data: null, error: null }, { id: "existing-id", version: 0 });
     const res = await POST(req({ ...validBody, id: "existing-id" }));
     expect(res.status).toBe(200);
     expect((await res.json()).id).toBe("existing-id");
@@ -72,23 +75,33 @@ describe("POST /api/results/upsert", () => {
     expect(stub.calls.some((c) => c.method === "single")).toBe(true);
   });
 
-  it("on unique-violation (23505) reads existing row then updates it", async () => {
-    // insert -> 23505; select(...).maybeSingle() -> existing row; update -> ok
-    stub = unlocked(({ methods }) => {
+  it("on unique-violation (23505) reads the raced row then updates it", async () => {
+    // Models a real race: the first version read finds nothing, so we insert;
+    // a concurrent debounced save has created the row meanwhile, so the insert
+    // hits 23505 and the re-read now finds it.
+    let resultReads = 0;
+    stub = makeSupabaseStub(({ table, methods }) => {
+      if (table === "visit_tests") return { data: { is_locked: false }, error: null };
       if (methods.includes("insert")) return { data: null, error: { code: "23505", message: "dup" } };
-      if (methods.includes("maybeSingle")) return { data: { id: "found-id" }, error: null };
-      return { data: null, error: null }; // the final update
+      if (table === "results" && methods.includes("select")) {
+        resultReads += 1;
+        return resultReads === 1
+          ? { data: null, error: null }
+          : { data: { id: "found-id", version: 4 }, error: null };
+      }
+      return { data: null, error: null }; // the recovery update
     });
+
     const res = await POST(req(validBody));
+
     expect(res.status).toBe(200);
-    expect((await res.json()).id).toBe("found-id");
-    // an insert was attempted first
+    const bodyJson = await res.json();
+    expect(bodyJson.id).toBe("found-id");
+    // The raced row was at 4, so this write lands on 5 — not the client's number.
+    expect(bodyJson.version).toBe(5);
     expect(stub.calls.some((c) => c.table === "results" && c.method === "insert")).toBe(true);
-    // it then read keyed on visit_test_id + parameter_id
     expect(stub.calls.some((c) => c.method === "eq" && c.arg === "visit_test_id")).toBe(true);
     expect(stub.calls.some((c) => c.method === "eq" && c.arg === "parameter_id")).toBe(true);
-    expect(stub.calls.some((c) => c.method === "maybeSingle")).toBe(true);
-    // followed by a recovery update on results
     expect(stub.calls.filter((c) => c.table === "results" && c.method === "update").length).toBe(1);
   });
 

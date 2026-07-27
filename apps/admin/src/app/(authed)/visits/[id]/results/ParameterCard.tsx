@@ -85,14 +85,16 @@ export function ParameterCard({
     if (value === initialValue && resultId.current === initialResultId) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
-      const nextVersion = version.current + 1;
+      // `base_version` is the version this edit was based on. The server assigns
+      // the stored version and rejects the write if the row moved on meanwhile,
+      // so two people editing the same value can no longer overwrite each other.
       const body = {
         id: resultId.current,
         visit_test_id: visitTestId,
         parameter_id: parameter.id,
         value,
         is_abnormal: flag.isAbnormal,
-        version: nextVersion,
+        base_version: version.current,
       };
       try {
         const r = await fetch("/api/results/upsert", {
@@ -100,15 +102,28 @@ export function ParameterCard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+        if (r.status === 409) {
+          const j = (await r.json()) as { code?: string; error?: string };
+          setSavingError(
+            j.code === "result_locked"
+              ? "This test is verified and locked — ask an Admin to unlock it."
+              : "Someone else changed this value. Reload the page to see it.",
+          );
+          return;
+        }
         if (!r.ok) throw new Error(await r.text());
-        const j = (await r.json()) as { id: string };
+        const j = (await r.json()) as { id: string; version: number };
         resultId.current = j.id;
-        version.current = nextVersion;
+        version.current = j.version;
         setSavedAt(Date.now());
         setSavingError(null);
       } catch (e: unknown) {
         if (typeof navigator !== "undefined" && !navigator.onLine) {
-          await enqueue({ kind: "result.upsert", body });
+          // A base_version captured now would almost certainly be stale by the
+          // time the queue drains, so the replay is deliberately unconditional.
+          // The server still assigns the version — the client never dictates it.
+          const { base_version: _unused, ...offlineBody } = body;
+          await enqueue({ kind: "result.upsert", body: offlineBody });
           setSavingError("Saved offline. Will sync when online.");
         } else {
           setSavingError("Save failed — retype to retry.");

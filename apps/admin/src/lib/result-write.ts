@@ -6,7 +6,37 @@ export interface ResultUpsertBody {
   parameter_id: string;
   value: string;
   is_abnormal: boolean;
-  version: number;
+  /**
+   * @deprecated Ignored — the server assigns the stored version. Retained so
+   * requests queued offline by an older client still parse.
+   */
+  version?: number;
+  /**
+   * The version the client based this edit on; omit for a new value. When
+   * supplied, the write is rejected if the row has moved on since.
+   */
+  base_version?: number;
+}
+
+/**
+ * Thrown when the row changed after the client read it.
+ *
+ * The stored version decides who wins a desktop-vs-cloud conflict in
+ * `pull-results` (`existing.version > r.version`), so it must be assigned by the
+ * server. Previously the client sent `read + 1` and the server stored it
+ * verbatim: a client could claim version 9999 and win every future conflict
+ * against the master copy, and two staff editing the same value both sent the
+ * same number, so one silently overwrote the other.
+ */
+export class VersionConflictError extends Error {
+  readonly code = "version_conflict" as const;
+  constructor(
+    readonly expected: number,
+    readonly actual: number,
+  ) {
+    super("Someone else changed this value while you were editing it. Reload to see the current value.");
+    this.name = "VersionConflictError";
+  }
 }
 
 /** Thrown when a write targets a verified-and-locked visit test. */
@@ -45,28 +75,39 @@ async function assertNotLocked(sb: SupabaseClient, visitTestId: string): Promise
 /** Idempotently writes a result row. Updates by id when known; otherwise inserts
  *  a new row, falling back to an update keyed on (visit_test_id, parameter_id)
  *  if a concurrent debounced save already created it (unique-violation 23505).
- *  Returns the row id. */
+ *  Returns the row id and the version the server assigned. */
 export async function upsertResult(
   sb: SupabaseClient,
   userId: string,
   body: ResultUpsertBody,
-): Promise<string> {
+): Promise<{ id: string; version: number }> {
   await assertNotLocked(sb, body.visit_test_id);
+
+  const current = await readCurrent(sb, body);
+  const currentVersion = current?.version ?? 0;
+
+  // Optimistic concurrency. `base_version` is the version the client based its
+  // edit on; if the row has moved on since, someone else changed the value and
+  // this write would silently discard theirs.
+  if (body.base_version !== undefined && body.base_version !== currentVersion) {
+    throw new VersionConflictError(body.base_version, currentVersion);
+  }
 
   const now = new Date().toISOString();
   const writable = {
     value: body.value,
     is_abnormal: body.is_abnormal,
-    version: body.version,
+    // Server-assigned, never taken from the request — see VersionConflictError.
+    version: currentVersion + 1,
     entered_by_user_id: userId,
     entered_at: now,
     updated_at: now,
   };
 
-  if (body.id) {
-    const { error } = await sb.from("results").update(writable).eq("id", body.id);
+  if (current) {
+    const { error } = await sb.from("results").update(writable).eq("id", current.id);
     if (error) throw new Error(error.message);
-    return body.id;
+    return { id: current.id, version: writable.version };
   }
 
   const id = crypto.randomUUID();
@@ -76,23 +117,58 @@ export async function upsertResult(
     .select("id")
     .single();
 
-  if (!error && data) return data.id as string;
+  if (!error && data) return { id: data.id as string, version: writable.version };
 
-  // Unique violation → the row already exists for this (visit_test, parameter).
+  // Unique violation → a concurrent debounced save created the row between our
+  // read and this insert. Re-read to get its version and update instead.
   if (error && error.code === "23505") {
-    const { data: existing, error: selErr } = await sb
-      .from("results")
-      .select("id")
-      .eq("visit_test_id", body.visit_test_id)
-      .eq("parameter_id", body.parameter_id)
-      .maybeSingle();
-    if (selErr) throw new Error(selErr.message);
-    if (existing) {
-      const { error: updErr } = await sb.from("results").update(writable).eq("id", existing.id);
+    const raced = await readByParameter(sb, body);
+    if (raced) {
+      const racedVersion = raced.version + 1;
+      const { error: updErr } = await sb
+        .from("results")
+        .update({ ...writable, version: racedVersion })
+        .eq("id", raced.id);
       if (updErr) throw new Error(updErr.message);
-      return existing.id as string;
+      return { id: raced.id, version: racedVersion };
     }
   }
 
   throw new Error(error?.message ?? "result upsert failed");
+}
+
+interface CurrentResult {
+  id: string;
+  version: number;
+}
+
+/** Reads the row this write targets: by id when known, else by its natural key. */
+async function readCurrent(
+  sb: SupabaseClient,
+  body: ResultUpsertBody,
+): Promise<CurrentResult | null> {
+  if (body.id) {
+    const { data, error } = await sb
+      .from("results")
+      .select("id, version")
+      .eq("id", body.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? { id: data.id as string, version: Number(data.version ?? 0) } : null;
+  }
+  return readByParameter(sb, body);
+}
+
+async function readByParameter(
+  sb: SupabaseClient,
+  body: ResultUpsertBody,
+): Promise<CurrentResult | null> {
+  const { data, error } = await sb
+    .from("results")
+    .select("id, version")
+    .eq("visit_test_id", body.visit_test_id)
+    .eq("parameter_id", body.parameter_id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? { id: data.id as string, version: Number(data.version ?? 0) } : null;
 }

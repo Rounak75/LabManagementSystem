@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { makeSupabaseStub } from "@/test/supabase-stub";
-import { upsertResult, ResultLockedError } from "./result-write";
+import { upsertResult, ResultLockedError, VersionConflictError } from "./result-write";
 
 const body = {
   visit_test_id: "vt1",
@@ -50,27 +50,120 @@ describe("upsertResult", () => {
   });
 
   describe("when the visit test is unlocked", () => {
+    /** No existing result → the version read must answer null, not a row. */
+    function freshInsert(lockFlag: boolean | null) {
+      return makeSupabaseStub(({ table, methods }) => {
+        if (table === "visit_tests") return { data: { is_locked: lockFlag }, error: null };
+        if (table === "results" && methods.includes("select") && !methods.includes("insert")) {
+          return { data: null, error: null };
+        }
+        return { data: { id: "new-id" }, error: null };
+      });
+    }
+
     it("inserts the result", async () => {
-      const stub = makeSupabaseStub(({ table }) =>
-        table === "visit_tests"
-          ? { data: { is_locked: false }, error: null }
-          : { data: { id: "new-id" }, error: null },
-      );
+      const stub = freshInsert(false);
 
-      const id = await upsertResult(stub.client as never, "staff-1", body);
+      const written = await upsertResult(stub.client as never, "staff-1", body);
 
-      expect(id).toBe("new-id");
+      expect(written).toEqual({ id: "new-id", version: 1 });
       expect(stub.calls.some((c) => c.table === "results" && c.method === "insert")).toBe(true);
     });
 
     it("treats a missing lock column as unlocked so an unmigrated cloud still works", async () => {
-      const stub = makeSupabaseStub(({ table }) =>
-        table === "visit_tests"
-          ? { data: { is_locked: null }, error: null }
-          : { data: { id: "new-id" }, error: null },
-      );
+      const stub = freshInsert(null);
 
-      await expect(upsertResult(stub.client as never, "staff-1", body)).resolves.toBe("new-id");
+      await expect(upsertResult(stub.client as never, "staff-1", body)).resolves.toEqual({
+        id: "new-id",
+        version: 1,
+      });
+    });
+  });
+
+  // The stored version decides who wins a desktop-vs-cloud conflict in
+  // pull-results (`existing.version > r.version`). It must therefore be assigned
+  // by the server: a client that sends its own number can inflate it and win
+  // every future conflict against the master copy, and two clients that both
+  // send `read + 1` silently overwrite one another.
+  describe("version handling", () => {
+    /** visit_tests → unlocked; results read → `current`; writes → ok. */
+    function withCurrentVersion(current: number | null, over: Record<string, unknown> = {}) {
+      return makeSupabaseStub(({ table, methods }) => {
+        if (table === "visit_tests") return { data: { is_locked: false }, error: null };
+        // The insert chain also calls .select("id"), so exclude it here —
+        // otherwise the insert is answered by the read branch.
+        if (table === "results" && methods.includes("select") && !methods.includes("insert")) {
+          return { data: current === null ? null : { id: "r1", version: current }, error: null };
+        }
+        return { data: { id: "r1" }, error: null, ...over };
+      });
+    }
+
+    it("ignores a client-supplied version and stores current + 1", async () => {
+      const stub = withCurrentVersion(3);
+
+      await upsertResult(stub.client as never, "staff-1", {
+        ...body,
+        id: "r1",
+        version: 9999, // client claims a huge version to win all future conflicts
+      });
+
+      const upd = stub.calls.find((c) => c.table === "results" && c.method === "update");
+      expect((upd!.arg as { version: number }).version).toBe(4);
+    });
+
+    it("starts a brand-new result at version 1", async () => {
+      const stub = withCurrentVersion(null);
+
+      await upsertResult(stub.client as never, "staff-1", { ...body, version: 500 });
+
+      const ins = stub.calls.find((c) => c.table === "results" && c.method === "insert");
+      expect((ins!.arg as { version: number }).version).toBe(1);
+    });
+
+    it("rejects the write when the client edited a stale version", async () => {
+      const stub = withCurrentVersion(5);
+
+      await expect(
+        upsertResult(stub.client as never, "staff-1", { ...body, id: "r1", base_version: 3 }),
+      ).rejects.toBeInstanceOf(VersionConflictError);
+    });
+
+    it("writes nothing when the version conflicts", async () => {
+      const stub = withCurrentVersion(5);
+
+      await upsertResult(stub.client as never, "staff-1", {
+        ...body,
+        id: "r1",
+        base_version: 3,
+      }).catch(() => {});
+
+      expect(stub.calls.some((c) => c.table === "results" && c.method === "update")).toBe(false);
+    });
+
+    it("accepts the write when the client edited the current version", async () => {
+      const stub = withCurrentVersion(5);
+
+      await upsertResult(stub.client as never, "staff-1", {
+        ...body,
+        id: "r1",
+        base_version: 5,
+      });
+
+      const upd = stub.calls.find((c) => c.table === "results" && c.method === "update");
+      expect((upd!.arg as { version: number }).version).toBe(6);
+    });
+
+    // Requests queued offline by an older client carry no base_version. They must
+    // still apply, but the server still assigns the version rather than trusting
+    // whatever number the old client put in the payload.
+    it("applies a legacy payload with no base_version, server-assigning the version", async () => {
+      const stub = withCurrentVersion(7);
+
+      await upsertResult(stub.client as never, "staff-1", { ...body, id: "r1", version: 2 });
+
+      const upd = stub.calls.find((c) => c.table === "results" && c.method === "update");
+      expect((upd!.arg as { version: number }).version).toBe(8);
     });
   });
 
