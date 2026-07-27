@@ -4,6 +4,8 @@ import { existsSync, mkdirSync, copyFileSync } from "fs";
 import { getPrisma } from "@lab/db";
 import { outboxExtension } from "@main/services/cloud/prisma-hooks";
 import { applyPendingMigrations } from "@main/services/apply-migrations";
+import { applySqlitePragmas } from "@main/services/sqlite-pragmas";
+import { logError } from "@main/services/logger";
 
 let initialized = false;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,13 +35,15 @@ export async function initDatabase() {
 
   const base = getPrisma(dbUrl);
 
-  // WAL: better concurrent read/write + crash resilience. Persistent once set; safe every boot.
-  try {
-    await base.$executeRawUnsafe("PRAGMA journal_mode=WAL");
-    await base.$executeRawUnsafe("PRAGMA synchronous=NORMAL");
-  } catch (err) {
-    console.warn("[DB] could not set WAL pragma (non-fatal):", err);
-  }
+  // WAL + relaxed sync. Persistent once set; safe to run every boot.
+  // Failures are reported into the error log rather than only stdout — the
+  // previous version's console.warn is why a broken pragma went unnoticed.
+  const pragmas = await applySqlitePragmas(base, {
+    onError: (err) => logError("db:pragma", err),
+  });
+  console.log(
+    `[DB] journal_mode=${pragmas.journalMode} synchronous=${pragmas.synchronousRelaxed ? "NORMAL" : "FULL"}`,
+  );
 
   // Apply pending migrations IN-PROCESS (works in dev AND the packaged app, unlike
   // `npx prisma migrate deploy` which can't run on an end-user machine). This is
