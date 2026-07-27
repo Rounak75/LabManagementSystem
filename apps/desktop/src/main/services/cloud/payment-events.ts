@@ -1,12 +1,13 @@
 import { logger } from "./logger";
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 import { markPaid } from "@main/services/payments/reconcile";
 import type { PaymentEventRow } from "./types";
 
 const BATCH = 50;
 const SOURCE = "razorpay_payments";
 
-export async function pullPaymentEvents(client: any): Promise<void> {
+export async function pullPaymentEvents(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

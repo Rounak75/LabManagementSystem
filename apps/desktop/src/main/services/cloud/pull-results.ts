@@ -6,6 +6,7 @@ import { logger } from "./logger";
 // isn't local yet (sync race).
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 import { isAbnormal } from "@main/services/abnormality";
 import type { ResultType, Sex } from "@lab/types";
 
@@ -26,7 +27,7 @@ interface RawResultRow {
   updated_at: string;
 }
 
-export async function pullResults(client: any): Promise<void> {
+export async function pullResults(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

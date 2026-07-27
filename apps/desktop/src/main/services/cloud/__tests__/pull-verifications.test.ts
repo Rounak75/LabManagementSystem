@@ -1,45 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { makeFakeCloudClient } from "./helpers/fake-cloud-client";
 
 const mocks = vi.hoisted(() => ({
-  labSettingsFindUnique: vi.fn(),
   syncCursorFindUnique: vi.fn(),
   syncCursorUpsert: vi.fn(),
   visitFindUnique: vi.fn(),
   visitUpdate: vi.fn(),
   visitTestFindMany: vi.fn(),
   visitTestUpdateMany: vi.fn(),
-  fetchVerificationsSince: vi.fn(),
   reportReady: vi.fn(),
 }));
 
 vi.mock("@main/db", () => ({
   prisma: () => ({
-    labSettings: { findUnique: mocks.labSettingsFindUnique },
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
     visit: { findUnique: mocks.visitFindUnique, update: mocks.visitUpdate },
     visitTest: { findMany: mocks.visitTestFindMany, updateMany: mocks.visitTestUpdateMany },
   }),
 }));
-vi.mock("@main/services/crypto.service", () => ({ decryptSecret: (s: string) => s }));
-vi.mock("../supabase-client", () => ({
-  createSupabaseClient: () => ({ fetchVerificationsSince: mocks.fetchVerificationsSince }),
-}));
 vi.mock("@main/services/notifications/triggers", () => ({ reportReady: mocks.reportReady }));
 
 import { pullVerifications } from "../pull-verifications";
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.labSettingsFindUnique.mockResolvedValue({
-    cloudSyncEnabled: true,
-    supabaseUrl: "u",
-    supabaseAnonKey: "a",
-    supabaseServiceKey: "s",
-  });
-  mocks.syncCursorFindUnique.mockResolvedValue(null);
-  mocks.visitFindUnique.mockResolvedValue({ id: "v1", status: "InProgress" });
-  mocks.reportReady.mockResolvedValue([]);
-});
 
 const row = {
   id: "v1",
@@ -50,12 +31,33 @@ const row = {
   updated_at: "2026-05-20T12:00:00Z",
 };
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.syncCursorFindUnique.mockResolvedValue(null);
+  mocks.visitFindUnique.mockResolvedValue({ id: "v1", status: "InProgress" });
+  mocks.visitTestFindMany.mockResolvedValue([]);
+  mocks.reportReady.mockResolvedValue([]);
+});
+
 describe("pullVerifications", () => {
+  it("asks only for admin-source visits on the verified_at cursor", async () => {
+    const cloud = makeFakeCloudClient();
+    await pullVerifications(cloud);
+    expect(cloud.pullSince).toHaveBeenCalledWith(
+      "visits",
+      "verified_at",
+      new Date(0).toISOString(),
+      100,
+      { source: "admin" },
+      undefined,
+    );
+  });
+
   it("locks tests, completes the visit, and fires reportReady on a new verify", async () => {
     mocks.visitTestFindMany.mockResolvedValue([{ id: "vt1", isLocked: false, verifiedAt: null }]);
-    mocks.fetchVerificationsSince.mockResolvedValue([row]);
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
 
-    await pullVerifications({} as any);
+    await pullVerifications(cloud);
 
     expect(mocks.visitTestUpdateMany).toHaveBeenCalledOnce();
     const arg = mocks.visitTestUpdateMany.mock.calls[0]![0];
@@ -65,7 +67,10 @@ describe("pullVerifications", () => {
     expect(arg.data.verifiedById).toBe("u1");
     expect((arg.data.verifiedAt as Date).toISOString()).toBe("2026-05-20T12:00:00.000Z");
 
-    expect(mocks.visitUpdate).toHaveBeenCalledWith({ where: { id: "v1" }, data: { status: "Completed" } });
+    expect(mocks.visitUpdate).toHaveBeenCalledWith({
+      where: { id: "v1" },
+      data: { status: "Completed" },
+    });
     expect(mocks.reportReady).toHaveBeenCalledOnce();
     expect(mocks.reportReady).toHaveBeenCalledWith("v1");
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
@@ -75,9 +80,9 @@ describe("pullVerifications", () => {
     mocks.visitTestFindMany.mockResolvedValue([
       { id: "vt1", isLocked: true, verifiedAt: new Date("2026-05-20T12:00:00Z") },
     ]);
-    mocks.fetchVerificationsSince.mockResolvedValue([row]);
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
 
-    await pullVerifications({} as any);
+    await pullVerifications(cloud);
 
     expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
     expect(mocks.visitUpdate).not.toHaveBeenCalled();
@@ -87,11 +92,35 @@ describe("pullVerifications", () => {
 
   it("skips rows whose visit is not present locally", async () => {
     mocks.visitFindUnique.mockResolvedValue(null);
-    mocks.fetchVerificationsSince.mockResolvedValue([row]);
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
 
-    await pullVerifications({} as any);
+    await pullVerifications(cloud);
 
     expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
     expect(mocks.reportReady).not.toHaveBeenCalled();
+    expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
+  });
+
+  it("skips rows that carry no verified_at", async () => {
+    mocks.visitTestFindMany.mockResolvedValue([{ id: "vt1", isLocked: false, verifiedAt: null }]);
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([{ ...row, verified_at: null }]),
+    });
+
+    await pullVerifications(cloud);
+
+    expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.reportReady).not.toHaveBeenCalled();
+  });
+
+  it("still locks the visit when the reportReady notification fails", async () => {
+    mocks.visitTestFindMany.mockResolvedValue([{ id: "vt1", isLocked: false, verifiedAt: null }]);
+    mocks.reportReady.mockRejectedValue(new Error("smtp down"));
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
+
+    await pullVerifications(cloud);
+
+    expect(mocks.visitTestUpdateMany).toHaveBeenCalledOnce();
+    expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 });

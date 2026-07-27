@@ -6,6 +6,7 @@ import { logger } from "./logger";
 // admin-portal payments are insert-only so we won't see the same row twice.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "payments";
 const BATCH = 100;
@@ -24,7 +25,7 @@ interface RawPaymentRow {
   updated_at: string;
 }
 
-export async function pullPayments(client: any): Promise<void> {
+export async function pullPayments(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

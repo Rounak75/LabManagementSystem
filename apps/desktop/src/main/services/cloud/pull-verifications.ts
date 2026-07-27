@@ -9,6 +9,7 @@ import { logger } from "./logger";
 // so re-running never re-notifies.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "verifications";
@@ -23,7 +24,7 @@ interface RawVerificationRow {
   updated_at: string;
 }
 
-export async function pullVerifications(client: any): Promise<void> {
+export async function pullVerifications(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

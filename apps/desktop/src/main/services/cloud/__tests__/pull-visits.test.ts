@@ -1,114 +1,138 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { makeFakeCloudClient } from "./helpers/fake-cloud-client";
 
 const mocks = vi.hoisted(() => ({
-  labSettingsFindUnique: vi.fn(),
   syncCursorFindUnique: vi.fn(),
   syncCursorUpsert: vi.fn(),
   visitUpsert: vi.fn(),
   visitTestUpsert: vi.fn(),
-  fetchVisitsSince: vi.fn(),
-  fetchVisitTestsForVisit: vi.fn(),
 }));
 
 vi.mock("@main/db", () => ({
   prisma: () => ({
-    labSettings: { findUnique: mocks.labSettingsFindUnique },
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
     visit: { upsert: mocks.visitUpsert },
     visitTest: { upsert: mocks.visitTestUpsert },
   }),
 }));
-vi.mock("@main/services/crypto.service", () => ({ decryptSecret: (s: string) => s }));
-vi.mock("../supabase-client", () => ({
-  createSupabaseClient: () => ({
-    fetchVisitsSince: mocks.fetchVisitsSince,
-    fetchVisitTestsForVisit: mocks.fetchVisitTestsForVisit,
-  }),
-}));
 
 import { pullVisits } from "../pull-visits";
 
+function visitRow(over: Record<string, unknown> = {}) {
+  return {
+    id: "v1",
+    visit_id: "VIS-2026-00010",
+    patient_id: "p1",
+    type: "WalkIn",
+    visit_date: "2026-05-20T08:00:00Z",
+    status: "Open",
+    staff_id: "u1",
+    access_code_hash: null,
+    source: "admin",
+    verified_by_user_id: null,
+    verified_at: null,
+    created_at: "2026-05-20T08:00:00Z",
+    updated_at: "2026-05-20T08:00:00Z",
+    ...over,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.labSettingsFindUnique.mockResolvedValue({
-    cloudSyncEnabled: true,
-    supabaseUrl: "u",
-    supabaseAnonKey: "a",
-    supabaseServiceKey: "s",
-  });
   mocks.syncCursorFindUnique.mockResolvedValue(null);
-  mocks.fetchVisitTestsForVisit.mockResolvedValue([]);
 });
 
 describe("pullVisits", () => {
   it("inserts admin-source visit + its VisitTests (from the visit_tests table)", async () => {
-    mocks.fetchVisitsSince.mockResolvedValue([
-      {
-        id: "v1",
-        visit_id: "VIS-2026-00010",
-        patient_id: "p1",
-        type: "WalkIn",
-        visit_date: "2026-05-20T08:00:00Z",
-        status: "Open",
-        staff_id: "u1",
-        source: "admin",
-        created_at: "2026-05-20T08:00:00Z",
-        updated_at: "2026-05-20T08:00:00Z",
-      },
-    ]);
-    mocks.fetchVisitTestsForVisit.mockResolvedValue([
-      { id: "vt1", visit_id: "v1", test_id: "t1", status: "Collected" },
-      { id: "vt2", visit_id: "v1", test_id: "t2", status: "Pending" },
-    ]);
-    await pullVisits({} as any);
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow()]),
+      fetchVisitTestsForVisits: vi.fn().mockResolvedValue([
+        { id: "vt1", visit_id: "v1", test_id: "t1", status: "Collected" },
+        { id: "vt2", visit_id: "v1", test_id: "t2", status: "Pending" },
+      ]),
+    });
+
+    await pullVisits(cloud);
+
     expect(mocks.visitUpsert).toHaveBeenCalledOnce();
     expect(mocks.visitUpsert.mock.calls[0]![0].create.visitId).toBe("VIS-2026-00010");
-    expect(mocks.fetchVisitTestsForVisit).toHaveBeenCalledWith("v1");
+    expect(cloud.fetchVisitTestsForVisits).toHaveBeenCalledWith(["v1"]);
     expect(mocks.visitTestUpsert).toHaveBeenCalledTimes(2);
     expect(mocks.visitTestUpsert.mock.calls[0]![0].where.id).toBe("vt1");
     expect(mocks.visitTestUpsert.mock.calls[0]![0].create.testId).toBe("t1");
     expect(mocks.visitTestUpsert.mock.calls[1]![0].create.status).toBe("Pending");
   });
 
+  it("fetches visit_tests for the whole batch in one call (no N+1)", async () => {
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([
+        visitRow({ id: "v1" }),
+        visitRow({ id: "v2", visit_id: "VIS-2026-00011" }),
+        visitRow({ id: "v3", visit_id: "VIS-2026-00012" }),
+      ]),
+    });
+
+    await pullVisits(cloud);
+
+    expect(cloud.fetchVisitTestsForVisits).toHaveBeenCalledOnce();
+    expect(cloud.fetchVisitTestsForVisits).toHaveBeenCalledWith(["v1", "v2", "v3"]);
+  });
+
+  it("assigns each child visit_test to its own visit", async () => {
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([
+        visitRow({ id: "v1" }),
+        visitRow({ id: "v2", visit_id: "VIS-2026-00011" }),
+      ]),
+      fetchVisitTestsForVisits: vi.fn().mockResolvedValue([
+        { id: "vt1", visit_id: "v1", test_id: "t1", status: "Collected" },
+        { id: "vt2", visit_id: "v2", test_id: "t2", status: "Collected" },
+      ]),
+    });
+
+    await pullVisits(cloud);
+
+    const byId = new Map(
+      mocks.visitTestUpsert.mock.calls.map((c) => [c[0].where.id, c[0].create.visitId]),
+    );
+    expect(byId.get("vt1")).toBe("v1");
+    expect(byId.get("vt2")).toBe("v2");
+  });
+
   it("skips desktop-source visits but still advances cursor", async () => {
-    mocks.fetchVisitsSince.mockResolvedValue([
-      {
-        id: "v2",
-        visit_id: "VIS-2026-00011",
-        patient_id: "p1",
-        type: "WalkIn",
-        visit_date: "2026-05-20T09:00:00Z",
-        status: "Open",
-        staff_id: "u1",
-        source: "desktop",
-        created_at: "2026-05-20T09:00:00Z",
-        updated_at: "2026-05-20T09:00:00Z",
-      },
-    ]);
-    await pullVisits({} as any);
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow({ id: "v2", source: "desktop" })]),
+    });
+
+    await pullVisits(cloud);
+
     expect(mocks.visitUpsert).not.toHaveBeenCalled();
-    expect(mocks.fetchVisitTestsForVisit).not.toHaveBeenCalled();
+    expect(mocks.visitTestUpsert).not.toHaveBeenCalled();
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 
   it("upserts no children when the visit has no visit_tests", async () => {
-    mocks.fetchVisitsSince.mockResolvedValue([
-      {
-        id: "v3",
-        visit_id: "VIS-2026-00012",
-        patient_id: "p1",
-        type: "WalkIn",
-        visit_date: "2026-05-20T10:00:00Z",
-        status: "Open",
-        staff_id: "u1",
-        source: "admin",
-        created_at: "2026-05-20T10:00:00Z",
-        updated_at: "2026-05-20T10:00:00Z",
-      },
-    ]);
-    mocks.fetchVisitTestsForVisit.mockResolvedValue([]);
-    await pullVisits({} as any);
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow({ id: "v3" })]),
+      fetchVisitTestsForVisits: vi.fn().mockResolvedValue([]),
+    });
+
+    await pullVisits(cloud);
+
     expect(mocks.visitUpsert).toHaveBeenCalledOnce();
     expect(mocks.visitTestUpsert).not.toHaveBeenCalled();
+  });
+
+  it("skips soft-deleted visits", async () => {
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([
+        visitRow({ id: "v4", deleted_at: "2026-05-21T08:00:00Z" }),
+      ]),
+    });
+
+    await pullVisits(cloud);
+
+    expect(mocks.visitUpsert).not.toHaveBeenCalled();
+    expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 });

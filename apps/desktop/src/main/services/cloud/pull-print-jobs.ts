@@ -6,6 +6,7 @@ import { logger } from "./logger";
 // added later) reads Picked jobs from local SQLite and prints them.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "print_jobs";
 const BATCH = 100;
@@ -21,7 +22,7 @@ interface RawPrintJobRow {
   error_message: string | null;
 }
 
-export async function pullPrintJobs(client: any): Promise<void> {
+export async function pullPrintJobs(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

@@ -9,6 +9,7 @@ import { logger } from "./logger";
 // BookingCreatedStaff notification trigger so the lab Gmail inbox lights up.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "bookings";
@@ -40,7 +41,7 @@ interface RawBookingRow {
   updated_at: string;
 }
 
-export async function pullBookings(client: any): Promise<void> {
+export async function pullBookings(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

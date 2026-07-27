@@ -5,6 +5,7 @@ import { logger } from "./logger";
 // echoes.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "visits";
 const BATCH = 100;
@@ -33,7 +34,7 @@ interface RawVisitTestRow {
   status: string | null;
 }
 
-export async function pullVisits(client: any): Promise<void> {
+export async function pullVisits(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

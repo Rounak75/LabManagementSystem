@@ -4,6 +4,7 @@ import { logger } from "./logger";
 // keyed by source="disputes" tracks the last created_at we ingested.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "disputes";
@@ -21,7 +22,7 @@ interface RawDisputeRow {
   resolution_note: string | null;
 }
 
-export async function pullDisputes(client: any): Promise<void> {
+export async function pullDisputes(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();

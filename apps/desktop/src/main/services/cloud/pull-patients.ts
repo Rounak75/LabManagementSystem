@@ -4,6 +4,7 @@ import { logger } from "./logger";
 // echoing back our own outbox-pushed rows.
 
 import { prisma } from "@main/db";
+import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "patients";
 const BATCH = 100;
@@ -26,7 +27,7 @@ interface RawPatientRow {
   deleted_at?: string | null;
 }
 
-export async function pullPatients(client: any): Promise<void> {
+export async function pullPatients(client: CloudClient): Promise<void> {
   
   const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
   const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
