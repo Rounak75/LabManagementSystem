@@ -11,16 +11,19 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+  // Password-mode chooser is handled here rather than on /select-patient: that
+  // page round-trips through sessionStorage, and a password must not be written
+  // there. Keeping it in memory means the patient picks and we resubmit.
+  const [choices, setChoices] = useState<{ id: string; name: string; age: number }[] | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(patientId?: string) {
     setError(null);
     setSubmitting(true);
     try {
       const body =
         mode === "code"
-          ? { phone, code, next: nextUrl }
-          : { phone, password, next: nextUrl };
+          ? { phone, code, next: nextUrl, patientId }
+          : { phone, password, next: nextUrl, patientId };
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -32,6 +35,11 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         return;
       }
       if (data.needsChooser) {
+        if (mode === "password") {
+          // Keep the password in memory and pick inline.
+          setChoices(data.patients);
+          return;
+        }
         sessionStorage.setItem(
           "login_chooser",
           JSON.stringify({ phone, code, patients: data.patients })
@@ -55,6 +63,45 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await submit();
+  }
+
+  if (choices) {
+    return (
+      <div className="rounded-xl border border-line bg-surface p-4">
+        <h2 className="text-[15px] font-semibold text-text">Who is signing in?</h2>
+        <p className="mt-1 text-[13px] text-text-muted">
+          This phone number is shared by more than one patient.
+        </p>
+        <ul className="mt-3 space-y-2">
+          {choices.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => submit(p.id)}
+                className="w-full rounded-lg border border-line px-3 py-2 text-left text-[14px] hover:bg-surface-2 disabled:opacity-50"
+              >
+                <span className="font-medium text-text">{p.name}</span>
+                <span className="ml-2 text-text-muted">age {p.age}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
+        <button
+          type="button"
+          onClick={() => setChoices(null)}
+          className="mt-3 text-[13px] text-text-muted underline"
+        >
+          Back
+        </button>
+      </div>
+    );
   }
 
   if (lockedUntil) {

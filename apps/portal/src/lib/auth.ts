@@ -11,6 +11,17 @@ import { mintPatientJwt } from "./jwt";
 const MAX_FAILED = 5;
 const LOCKOUT_MINUTES = 15;
 
+/**
+ * How long a printed access code keeps working.
+ *
+ * The code is a bearer credential on a slip of paper the lab cannot take back,
+ * and login used to match it against *every* visit the patient had ever had, with
+ * no expiry — so a receipt found in a drawer years later still opened the whole
+ * record. Codes now only unlock the portal for this long after the visit they
+ * were printed for; after that the patient sets a password or asks the lab.
+ */
+export const ACCESS_CODE_VALID_DAYS = 180;
+
 export type PatientSummary = { id: string; name: string; age: number; sex: string };
 
 export type LoginResult =
@@ -36,55 +47,47 @@ async function getAccount(patientId: string) {
   return data;
 }
 
-async function isLocked(account: { locked_until: string | null } | null): Promise<string | null> {
+function lockedUntil(account: { locked_until?: string | null } | null): string | null {
   if (!account?.locked_until) return null;
-  if (new Date(account.locked_until) > new Date()) return account.locked_until;
-  return null;
+  return new Date(account.locked_until) > new Date() ? account.locked_until : null;
 }
 
-async function bumpFailed(patientId: string, account: { id?: string; failed_attempts?: number; version?: number } | null) {
+/**
+ * Counts a failed attempt.
+ *
+ * This was a read-modify-write: read `failed_attempts`, add one, write it back.
+ * Attempts issued in parallel all read the same value and all wrote the same
+ * value, so the counter sat at 1 however many guesses were made and the lockout
+ * never engaged against a concurrent attacker — the only kind worth stopping.
+ * The increment now happens in one statement inside Postgres.
+ */
+async function recordFailure(patientId: string): Promise<void> {
   const sb = getServiceClient();
-  const nowFailed = (account?.failed_attempts ?? 0) + 1;
-  const updates: Record<string, unknown> = { failed_attempts: nowFailed };
-  if (nowFailed >= MAX_FAILED) {
-    updates.locked_until = new Date(Date.now() + LOCKOUT_MINUTES * 60_000).toISOString();
-  }
-  if (account?.id) {
-    await sb
-      .from("patient_accounts")
-      .update({ ...updates, version: (account.version ?? 0) + 1, updated_at: new Date().toISOString() })
-      .eq("id", account.id);
-  } else {
-    await sb.from("patient_accounts").insert({
-      id: crypto.randomUUID(),
-      patient_id: patientId,
-      failed_attempts: nowFailed,
-      locked_until: updates.locked_until ?? null,
-      version: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  }
+  await sb.rpc("record_failed_patient_login", {
+    p_patient_id: patientId,
+    p_max_failed: MAX_FAILED,
+    p_lockout_minutes: LOCKOUT_MINUTES,
+  });
 }
 
-async function clearAndStamp(patientId: string, account: { id?: string; version?: number } | null) {
+async function recordSuccess(patientId: string): Promise<void> {
   const sb = getServiceClient();
-  const now = new Date().toISOString();
-  if (account?.id) {
-    await sb
-      .from("patient_accounts")
-      .update({ failed_attempts: 0, locked_until: null, last_login_at: now, updated_at: now, version: (account.version ?? 0) + 1 })
-      .eq("id", account.id);
-  } else {
-    await sb.from("patient_accounts").insert({
-      id: crypto.randomUUID(),
-      patient_id: patientId,
-      last_login_at: now,
-      created_at: now,
-      updated_at: now,
-      version: 0,
-    });
+  await sb.rpc("record_successful_patient_login", { p_patient_id: patientId });
+}
+
+/** Picks the patient this login is for, or asks when a phone is shared. */
+function resolvePatient(
+  patients: PatientSummary[],
+  patientId?: string,
+): { kind: "one"; patient: PatientSummary } | { kind: "choose" } | { kind: "unknown" } {
+  if (patientId) {
+    const chosen = patients.find((p) => p.id === patientId);
+    // A patient id that is not on this phone is not a hint to be helpful about.
+    return chosen ? { kind: "one", patient: chosen } : { kind: "unknown" };
   }
+  if (patients.length > 1) return { kind: "choose" };
+  const only = patients[0];
+  return only ? { kind: "one", patient: only } : { kind: "unknown" };
 }
 
 export async function tryLogin(input: {
@@ -95,61 +98,77 @@ export async function tryLogin(input: {
   const patients = await lookupPatientsByPhone(input.phone);
   if (patients.length === 0) return { kind: "no_patient" };
 
-  if (patients.length > 1 && !input.patientId) {
-    return { kind: "needs_chooser", patients };
-  }
-  const candidate = input.patientId
-    ? patients.find((p) => p.id === input.patientId)
-    : patients[0];
-  if (!candidate) return { kind: "invalid_code" };
+  const resolved = resolvePatient(patients, input.patientId);
+  if (resolved.kind === "choose") return { kind: "needs_chooser", patients };
+  if (resolved.kind === "unknown") return { kind: "invalid_code" };
+  const candidate = resolved.patient;
 
   const account = await getAccount(candidate.id);
-  const lockedUntil = await isLocked(account);
-  if (lockedUntil) return { kind: "locked", until: lockedUntil };
+  const until = lockedUntil(account);
+  if (until) return { kind: "locked", until };
 
   const sb = getServiceClient();
   const { data: visits } = await sb
     .from("visits")
-    .select("id, access_code_hash")
+    .select("id, access_code_hash, visit_date")
     .eq("patient_id", candidate.id)
     .not("access_code_hash", "is", null);
 
+  const cutoff = Date.now() - ACCESS_CODE_VALID_DAYS * 24 * 60 * 60 * 1000;
   const codeUpper = input.code.trim().toUpperCase();
+
   let matched = false;
   for (const v of visits ?? []) {
-    if (v.access_code_hash && (await bcrypt.compare(codeUpper, v.access_code_hash))) {
+    if (!v.access_code_hash) continue;
+    // Ignore codes printed on visits older than the validity window.
+    const visitAt = v.visit_date ? new Date(v.visit_date).getTime() : NaN;
+    if (!Number.isFinite(visitAt) || visitAt < cutoff) continue;
+    if (await bcrypt.compare(codeUpper, v.access_code_hash)) {
       matched = true;
       break;
     }
   }
+
   if (!matched) {
-    await bumpFailed(candidate.id, account);
+    await recordFailure(candidate.id);
     return { kind: "invalid_code" };
   }
 
-  await clearAndStamp(candidate.id, account);
+  await recordSuccess(candidate.id);
   const jwt = await mintPatientJwt(candidate.id);
   return { kind: "success", jwt, patientId: candidate.id };
 }
 
-export async function tryPasswordLogin(phone: string, password: string): Promise<LoginResult> {
+export async function tryPasswordLogin(
+  phone: string,
+  password: string,
+  patientId?: string,
+): Promise<LoginResult> {
   const patients = await lookupPatientsByPhone(phone);
   if (patients.length === 0) return { kind: "no_patient" };
-  if (patients.length > 1) return { kind: "needs_chooser", patients };
 
-  const patient = patients[0]!;
+  // Households share one phone number — the unique constraint on patients.phone
+  // was dropped deliberately for that. This path returned the chooser but took no
+  // patient id, so anyone sharing a phone could never complete a password login:
+  // it always came back asking which patient, forever.
+  const resolved = resolvePatient(patients, patientId);
+  if (resolved.kind === "choose") return { kind: "needs_chooser", patients };
+  if (resolved.kind === "unknown") return { kind: "invalid_code" };
+  const patient = resolved.patient;
+
   const account = await getAccount(patient.id);
   if (!account?.password_hash) return { kind: "invalid_code" };
 
-  const lockedUntil = await isLocked(account);
-  if (lockedUntil) return { kind: "locked", until: lockedUntil };
+  const until = lockedUntil(account);
+  if (until) return { kind: "locked", until };
 
   const ok = await bcrypt.compare(password, account.password_hash);
   if (!ok) {
-    await bumpFailed(patient.id, account);
+    await recordFailure(patient.id);
     return { kind: "invalid_code" };
   }
-  await clearAndStamp(patient.id, account);
+
+  await recordSuccess(patient.id);
   const jwt = await mintPatientJwt(patient.id);
   return { kind: "success", jwt, patientId: patient.id };
 }

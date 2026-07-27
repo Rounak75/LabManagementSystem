@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
   if (phone.length !== 10) return apiError("invalid_phone", 400);
 
   const result = body.password
-    ? await tryPasswordLogin(phone, String(body.password))
+    ? // patientId matters here too: households share a phone number, and without
+      // it the password path could only ever return the chooser.
+      await tryPasswordLogin(phone, String(body.password), body.patientId)
     : await tryLogin({ phone, code: String(body.code ?? ""), patientId: body.patientId });
 
   if (result.kind === "no_patient") return apiError("no_patient_found", 401);

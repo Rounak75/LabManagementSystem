@@ -4,6 +4,7 @@ import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { getServerSupabase } from "./supabase-client";
 import { CACHE_TAGS } from "./cache-tags";
+import { assertStaffClaims } from "./jwt-claims";
 
 const COOKIE_NAME = "admin_session";
 const COOKIE_MAX_AGE = 14 * 24 * 60 * 60;
@@ -46,6 +47,7 @@ export const JoseTokenValidator: TokenValidator = {
   async verify(token: string, secret: string): Promise<JWTPayload> {
     const key = new TextEncoder().encode(secret);
     const { payload } = await jwtVerify(token, key);
+    assertStaffClaims(payload as Record<string, unknown>);
     return payload as unknown as JWTPayload;
   },
 };

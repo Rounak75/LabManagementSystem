@@ -50,22 +50,21 @@ Deno.serve(async (req) => {
   // is unavailable in the Supabase Edge (Deno Deploy) runtime.
   const ok = bcrypt.compareSync(body.password, user.password_hash);
   if (!ok) {
-    const attempts = (user.failed_attempts ?? 0) + 1;
-    const lockedUntil = attempts >= LOCKOUT_THRESHOLD
-      ? new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString()
-      : null;
-    await supabase
-      .from("users")
-      .update({ failed_attempts: attempts, locked_until: lockedUntil })
-      .eq("id", user.id);
+    // Counting used to be read-modify-write: read failed_attempts, add one,
+    // write it back. Attempts issued in parallel all read the same value and all
+    // wrote the same value, so the counter stayed at 1 however many guesses were
+    // made and the 5-attempt lockout never engaged against a concurrent
+    // attacker. Postgres does the increment in one statement now.
+    await supabase.rpc("record_failed_staff_login", {
+      p_user_id: user.id,
+      p_max_failed: LOCKOUT_THRESHOLD,
+      p_lockout_minutes: LOCKOUT_DURATION_MS / 60_000,
+    });
     return new Response("Invalid credentials", { status: 401 });
   }
 
   // Successful login — reset the lockout counters.
-  await supabase
-    .from("users")
-    .update({ failed_attempts: 0, locked_until: null })
-    .eq("id", user.id);
+  await supabase.rpc("record_successful_staff_login", { p_user_id: user.id });
 
   // Mint a Supabase-compatible JWT.
   const key = await crypto.subtle.importKey(
