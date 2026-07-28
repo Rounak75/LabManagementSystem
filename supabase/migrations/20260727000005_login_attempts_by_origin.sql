@@ -87,6 +87,13 @@ grant execute on function clear_failed_logins_origin(text) to service_role;
 
 -- Rows outside every window are dead weight; without this the table only grows.
 -- pg_cron is already used by this project (see 20260518000006_pg_cron_jobs.sql).
+--
+-- Unscheduled first so a re-run cannot fail or leave a duplicate job. Matches
+-- the guard used in 20260727000009; a migration that cannot be applied twice
+-- blocks every migration behind it the moment a queue is half-applied.
+select cron.unschedule('purge-login-attempts')
+ where exists (select 1 from cron.job where jobname = 'purge-login-attempts');
+
 select cron.schedule(
   'purge-login-attempts',
   '17 * * * *',
