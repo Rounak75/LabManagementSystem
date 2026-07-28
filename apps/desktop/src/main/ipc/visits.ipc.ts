@@ -36,6 +36,64 @@ register("visits:regenerateAccessCode", async ({ visitId }: { visitId: string })
   return { accessCode: plaintext };
 });
 
+/**
+ * Hand a verified report to the patient even though the bill is unpaid — or take
+ * that permission back.
+ *
+ * The portal withholds a verified report while a balance remains. That is right
+ * for a walk-in and wrong for a regular the lab has always extended credit to, or
+ * a patient who paid in a way the system has not caught up with. Without this the
+ * only options would be to record a payment that never happened, which corrupts
+ * the day's takings, or to tell the patient their report does not exist.
+ *
+ * Admin-only and audited: it is a decision about money someone may have to answer
+ * for later. The flag reaches the portal through the ordinary outbox sync, so no
+ * extra push is needed here.
+ *
+ * This does not touch printing. The owner is standing in the lab and knows the
+ * patient; blocking a legitimate handover is worse than the money risk the gate
+ * exists to manage.
+ */
+export async function setReportReleaseOverride({
+  visitId,
+  release,
+  reason,
+}: {
+  visitId: string;
+  release: boolean;
+  reason?: string;
+}): Promise<{ released: boolean }> {
+  const u = requireAdmin();
+  const visit = await prisma().visit.findUnique({ where: { id: visitId } });
+  if (!visit) throw new Error("NOT_FOUND");
+
+  await prisma().visit.update({
+    where: { id: visitId },
+    data: {
+      reportReleaseOverride: release,
+      // Clearing the trail alongside the flag keeps a stale "released by X on Y"
+      // from sitting against a visit that is being withheld again.
+      reportReleaseOverrideByUserId: release ? u.id : null,
+      reportReleaseOverrideAt: release ? new Date() : null,
+      reportReleaseOverrideReason: release ? (reason?.slice(0, 500) ?? null) : null,
+    },
+  });
+
+  await auditBestEffort.try(
+    release ? "REPORT_RELEASE_OVERRIDDEN" : "REPORT_RELEASE_OVERRIDE_REVOKED",
+    {
+      entityType: "Visit",
+      entityId: visitId,
+      userId: u.id,
+      details: { reason: reason ?? null },
+    },
+  );
+
+  return { released: release };
+}
+
+register("visits:setReportReleaseOverride", setReportReleaseOverride);
+
 register("visits:get", async ({ id }: { id: string }) => {
   requireSession();
   const v = await prisma().visit.findUnique({

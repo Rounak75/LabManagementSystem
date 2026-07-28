@@ -18,7 +18,7 @@ export type Channel =
   | "patients:create" | "patients:get" | "patients:search" | "patients:history" | "patients:update"
   // visits
   | "visits:create" | "visits:get" | "visits:listForPatient"
-  | "visits:regenerateAccessCode"
+  | "visits:regenerateAccessCode" | "visits:setReportReleaseOverride"
   | "visitTests:getOne" | "visitTests:updateStatus" | "visitTests:lock"
   | "visitTests:unlock"
   // outsourced

@@ -16,7 +16,8 @@ type Visit = {
   staff: { name: string };
   visitTests: { id: string; status: string; isLocked: boolean; outsourcedSentTo: string | null; verifiedAt: string | null;
     test: { name: string; isOutsourced: boolean; parameters: any[] }; results: any[] }[];
-  invoice: { id: string; total: string; paymentStatus: string } | null;
+  invoice: { id: string; total: string; amountPaid: string; paymentStatus: string } | null;
+  reportReleaseOverride: boolean;
 };
 
 export default function VisitDetail() {
@@ -48,7 +49,22 @@ export default function VisitDetail() {
     }
   });
 
+  const releaseOverride = useMutation({
+    mutationFn: ({ release }: { release: boolean }) =>
+      call("visits:setReportReleaseOverride", { visitId: id, release }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["visit", id] }),
+  });
+
   if (!visit) return <div className="text-slate-500">Loading…</div>;
+
+  // What the patient still owes, and therefore whether the portal is holding
+  // their report back. Printing here is never blocked — this only governs the
+  // patient's own download.
+  const balance = visit.invoice
+    ? Math.max(0, Number(visit.invoice.total) - Number(visit.invoice.amountPaid))
+    : 0;
+  const allLocked = visit.visitTests.length > 0 && visit.visitTests.every((vt) => vt.isLocked);
+  const portalWithholding = balance > 0 && allLocked && !visit.reportReleaseOverride;
 
   return (
     <div>
@@ -66,6 +82,36 @@ export default function VisitDetail() {
           {visit.status === "Completed" && <Button onClick={() => nav(`/reports/${visit.id}`)}>Report</Button>}
         </div>
       </div>
+
+      {balance > 0 && allLocked && (
+        <Card className="mb-4 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm">
+              <div className="font-medium text-slate-900">
+                {visit.reportReleaseOverride
+                  ? `Report released to the patient with ₹${balance.toFixed(0)} unpaid.`
+                  : `The patient cannot download this report until ₹${balance.toFixed(0)} is paid.`}
+              </div>
+              <div className="mt-0.5 text-slate-500">
+                Printing here is not affected — this only controls their own download.
+              </div>
+            </div>
+            {user?.role === "Admin" && (
+              <Button
+                variant={visit.reportReleaseOverride ? "secondary" : "primary"}
+                disabled={releaseOverride.isPending}
+                onClick={() => releaseOverride.mutate({ release: !visit.reportReleaseOverride })}
+              >
+                {releaseOverride.isPending
+                  ? "Saving…"
+                  : visit.reportReleaseOverride
+                    ? "Withhold report again"
+                    : "Release report anyway"}
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-0">
         <table className="w-full text-sm">

@@ -22,6 +22,10 @@ interface RawVisitRow extends Record<string, unknown> {
   source: string;
   verified_by_user_id: string | null;
   verified_at: string | null;
+  report_release_override?: boolean | null;
+  report_release_override_by_user_id?: string | null;
+  report_release_override_at?: string | null;
+  report_release_override_reason?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
@@ -96,6 +100,15 @@ export async function pullVisits(client: CloudClient): Promise<void> {
         status: r.status,
         staffId: r.staff_id,
         accessCodeHash: r.access_code_hash ?? null,
+        // Kept in step so the desktop shows the same answer as the portal about
+        // whether this patient can download an unpaid report, whichever screen
+        // the Admin used to decide it.
+        reportReleaseOverride: r.report_release_override === true,
+        reportReleaseOverrideByUserId: r.report_release_override_by_user_id ?? null,
+        reportReleaseOverrideAt: r.report_release_override_at
+          ? new Date(r.report_release_override_at)
+          : null,
+        reportReleaseOverrideReason: r.report_release_override_reason ?? null,
         createdAt: new Date(r.created_at),
       };
 

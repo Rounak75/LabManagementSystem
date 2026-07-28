@@ -86,6 +86,16 @@ model Visit {
   accessCodeHash      String?
   // Phase 3d Plan B: local-only plaintext for reprinting receipts. NEVER synced to cloud (stripped in prisma-hooks).
   accessCodePlaintext String?
+  // The portal withholds a verified report while the bill is unpaid. This is the
+  // Admin's per-visit decision to hand it over anyway — for a regular on credit,
+  // or a patient who paid in a way the system has not caught up with. Recorded
+  // with who and when because it is a decision about money someone may have to
+  // answer for later. Printing on this machine is never gated; this only governs
+  // the patient's own portal download.
+  reportReleaseOverride         Boolean   @default(false)
+  reportReleaseOverrideByUserId String?
+  reportReleaseOverrideAt       DateTime?
+  reportReleaseOverrideReason   String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?
