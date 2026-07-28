@@ -54,8 +54,42 @@ const LAB_SETTINGS_CLOUD_FIELDS = new Set([
  *    on is_abnormal_override / entered_by_user_id, so remap before the snake
  *    conversion rather than renaming cloud columns the portal already uses.
  */
+/**
+ * True when a value can actually live in a cloud column.
+ *
+ * Prisma returns included relations inline with the scalars, and the outbox
+ * mirrors whatever it was handed. `VisitOrchestrator` creates a visit with
+ * `include: { visitTests: true }`, so the payload carried a `visit_tests` array
+ * and PostgREST rejected the whole row:
+ *
+ *   Could not find the 'visit_tests' column of 'visits' in the schema cache
+ *   [PGRST204]
+ *
+ * That error is classified non-retryable, so every visit push failed
+ * permanently and the cloud never saw a status change.
+ *
+ * The test is structural rather than a list of relation names. A column holds a
+ * scalar; anything array-shaped or object-shaped is a relation. Naming
+ * `visitTests` explicitly would fix this one `include` and leave the next one to
+ * rediscover the same failure in production.
+ *
+ * Two objects are not relations and must survive: `Date` (serialised by
+ * toSnakePayload) and `Prisma.Decimal` — price, subtotal, total and every
+ * refRange* field are Decimal, and dropping them would push priceless tests and
+ * totalless invoices, which is worse than the bug being fixed.
+ */
+function isCloudScalar(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (Array.isArray(value)) return false;
+  if (typeof value !== "object") return true;
+  if (value instanceof Date) return true;
+  return Prisma.Decimal.isDecimal(value);
+}
+
 export function sanitizeForCloud(model: string, row: Record<string, unknown>): Record<string, unknown> {
-  let safe: Record<string, unknown> = { ...row };
+  let safe: Record<string, unknown> = Object.fromEntries(
+    Object.entries(row).filter(([, v]) => isCloudScalar(v)),
+  );
   if (model === "Visit") delete safe.accessCodePlaintext;
   if (model === "User") delete safe.recoveryCodeHash;
   if (model === "VisitTest") {
