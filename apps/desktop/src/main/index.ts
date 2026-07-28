@@ -30,6 +30,7 @@ import { startScheduler, stopScheduler } from "@main/services/backup.service";
 import { start as startNotificationsScheduler, stop as stopNotificationsScheduler } from "@main/services/notifications/scheduler";
 import { startPaymentsPoller, stopPaymentsPoller } from "@main/services/payments/poller";
 import { startCloudSyncWorker, stopCloudSyncWorker } from "@main/services/cloud/sync-worker";
+import { startPrintQueueWorker, stopPrintQueueWorker } from "@main/services/print-queue.worker";
 import { checkSchemaDrift } from "@main/services/cloud/schema-drift";
 import { runReconciliation } from "@main/services/cloud/reconciliation";
 import { migrateLogoFieldOnce } from "@main/services/report.service";
@@ -105,6 +106,10 @@ app.whenReady().then(async () => {
   startScheduler();
   startNotificationsScheduler();
   startPaymentsPoller();
+  // Deliberately outside the cloud-sync guard below: this drains jobs already in
+  // the local queue, which still need printing even on a boot where schema drift
+  // has held cloud sync back.
+  startPrintQueueWorker();
   try {
     const drift = await checkSchemaDrift();
     if (drift.ok) {
@@ -117,5 +122,5 @@ app.whenReady().then(async () => {
     logError("cloud:startup", e);
   }
 });
-app.on("before-quit", () => { stopScheduler(); stopNotificationsScheduler(); stopPaymentsPoller(); stopCloudSyncWorker(); });
+app.on("before-quit", () => { stopScheduler(); stopNotificationsScheduler(); stopPaymentsPoller(); stopCloudSyncWorker(); stopPrintQueueWorker(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });

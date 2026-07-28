@@ -4,8 +4,8 @@ import { requireSession } from "@main/session";
 import { buildReportData } from "@main/services/report.service";
 import { renderReportPdf } from "@main/services/pdf.service";
 import { printPdfBuffer } from "@main/services/print.service";
+import { resolveTemplateConfig } from "@main/services/template-resolver";
 import { audit } from "@main/services/audit.service";
-import { validate, type TemplateConfig } from "@shared/template-config";
 import { app } from "electron";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
@@ -26,30 +26,6 @@ async function pdfPath(visitId: string): Promise<string> {
   const dir = join(app.getPath("userData"), "reports");
   if (!existsSync(dir)) await mkdir(dir, { recursive: true });
   return join(dir, `${visitId}.pdf`);
-}
-
-// Resolve which template's config to use for this print/preview.
-// Priority: explicit templateId in payload (per-print override) > lab default >
-// any template marked isDefault > fail.
-async function resolveTemplateConfig(templateId?: string): Promise<TemplateConfig> {
-  let tpl: { config: string } | null = null;
-  if (templateId) {
-    tpl = await prisma().reportTemplate.findUnique({ where: { id: templateId } });
-  }
-  if (!tpl) {
-    const settings = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-    if (settings?.defaultTemplateId) {
-      tpl = await prisma().reportTemplate.findUnique({ where: { id: settings.defaultTemplateId } });
-    }
-  }
-  if (!tpl) {
-    tpl = await prisma().reportTemplate.findFirst({ where: { isDefault: true } });
-  }
-  if (!tpl) throw new Error("NO_TEMPLATE");
-  const parsed = JSON.parse(tpl.config);
-  const v = validate(parsed);
-  if (!v.ok) throw new Error("INVALID_TEMPLATE_CONFIG");
-  return v.value;
 }
 
 register("reports:generatePdf", async ({ visitId, templateId }: { visitId: string; templateId?: string }) => {
