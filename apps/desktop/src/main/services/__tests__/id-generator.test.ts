@@ -6,7 +6,30 @@ const reservations = new Map<string, { id: string; prefix: string; number: numbe
 let nextResId = 1;
 const counters = new Map<string, number>();
 
+// Ids already stamped on rows that arrived from the cloud. The desktop's own
+// reservation table knows nothing about these, which is the whole bug.
+const syncedVisitIds: string[] = [];
+const syncedPatientIds: string[] = [];
+
+/** Highest-first by string; ids are zero-padded to 5 digits so this is numeric order. */
+function topMatching(values: string[], prefix: string) {
+  const matches = values.filter((v) => v.startsWith(prefix)).sort().reverse();
+  return matches[0] ?? null;
+}
+
 const fakePrisma = {
+  visit: {
+    findFirst: async ({ where }: any) => {
+      const top = topMatching(syncedVisitIds, where?.visitId?.startsWith ?? "");
+      return top ? { visitId: top } : null;
+    },
+  },
+  patient: {
+    findFirst: async ({ where }: any) => {
+      const top = topMatching(syncedPatientIds, where?.patientId?.startsWith ?? "");
+      return top ? { patientId: top } : null;
+    },
+  },
   idReservation: {
     findFirst: async ({ where: { prefix }, orderBy }: any) => {
       const rows = [...reservations.values()].filter((r) => r.prefix === prefix);
@@ -52,12 +75,14 @@ const fakePrisma = {
 
 vi.mock("@main/db", () => ({ prisma: () => fakePrisma }));
 
-import { nextPatientId, nextVisitId } from "../id-generator";
+import { nextPatientId, nextVisitId, numberFromId } from "../id-generator";
 
 describe("id-generator with IdReservation", () => {
   beforeEach(() => {
     reservations.clear();
     counters.clear();
+    syncedVisitIds.length = 0;
+    syncedPatientIds.length = 0;
     nextResId = 1;
   });
 
@@ -124,5 +149,97 @@ describe("id-generator with IdReservation", () => {
     expect(counters.get("patient:2026")).toBe(1);
     await nextPatientId(new Date("2026-05-20"));
     expect(counters.get("patient:2026")).toBe(2);
+  });
+});
+
+// Regression tests for duplicate human-facing IDs.
+//
+// Production symptom:
+//   push id_reservations/b7821db6…: duplicate key value violates unique
+//   constraint "id_reservations_prefix_number_key" [23505]
+//
+// The 23505 is the cloud constraint doing its job, but by the time it fires the
+// desktop has already stamped that number onto a real visit — so two visits
+// carry the same VIS-2026-NNNNN. A constraint can refuse a duplicate row; it
+// cannot un-print a report.
+//
+// Cause: two allocators sharing nothing. The desktop reads its high-water mark
+// from local SQLite. The admin portal reads its own from cloud `id_reservations`
+// via the reserve-visit-id Edge Function. Nothing pulls cloud reservations down
+// — sync-registry has no handler for them — so when the admin allocates #3 the
+// desktop still believes #2 is the top and issues #3 to somebody else.
+//
+// The fix widens what counts as proof a number is taken: not only the desktop's
+// own reservation rows, but any id already stamped on a Visit or Patient that
+// has synced down. Those arrive through the existing pull handlers, so this
+// needs no new network call and keeps working offline.
+describe("ids allocated by the admin portal", () => {
+  beforeEach(() => {
+    reservations.clear();
+    counters.clear();
+    syncedVisitIds.length = 0;
+    syncedPatientIds.length = 0;
+    nextResId = 1;
+  });
+
+  it("does not reissue a visit number already stamped on a synced visit", async () => {
+    // The exact production case: admin created VIS-2026-00003 in the cloud and
+    // it has synced down. The desktop's own reservations only reach #2.
+    reservations.set("VIS-2026-:2", {
+      id: "local", prefix: "VIS-2026-", number: 2, source: "desktop", consumedAt: null,
+    });
+    nextResId = 2;
+    syncedVisitIds.push("VIS-2026-00003");
+
+    expect(await nextVisitId(new Date("2026-07-28"))).toBe("VIS-2026-00004");
+  });
+
+  it("does not reissue a patient number already stamped on a synced patient", async () => {
+    syncedPatientIds.push("LAB-2026-00099");
+    expect(await nextPatientId(new Date("2026-07-28"))).toBe("LAB-2026-00100");
+  });
+
+  it("takes the highest across every source", async () => {
+    reservations.set("VIS-2026-:9", {
+      id: "r", prefix: "VIS-2026-", number: 9, source: "desktop", consumedAt: null,
+    });
+    nextResId = 2;
+    counters.set("visit:2026", 4);
+    syncedVisitIds.push("VIS-2026-00006");
+
+    expect(await nextVisitId(new Date("2026-07-28"))).toBe("VIS-2026-00010");
+  });
+
+  it("keeps the two series independent — a high visit id must not burn patient ids", async () => {
+    syncedVisitIds.push("VIS-2026-09999");
+    syncedPatientIds.push("LAB-2026-00002");
+
+    expect(await nextPatientId(new Date("2026-07-28"))).toBe("LAB-2026-00003");
+  });
+
+  it("ignores ids from a previous year", async () => {
+    syncedVisitIds.push("VIS-2025-00900");
+    expect(await nextVisitId(new Date("2026-07-28"))).toBe("VIS-2026-00001");
+  });
+});
+
+describe("numberFromId", () => {
+  it("reads the sequence number out of a formatted id", () => {
+    expect(numberFromId("VIS-2026-00003", "VIS-2026-")).toBe(3);
+    expect(numberFromId("LAB-2026-00099", "LAB-2026-")).toBe(99);
+    expect(numberFromId("VIS-2026-01234", "VIS-2026-")).toBe(1234);
+  });
+
+  it("ignores ids belonging to a different prefix or year", () => {
+    expect(numberFromId("VIS-2025-00900", "VIS-2026-")).toBe(0);
+    expect(numberFromId("LAB-2026-00007", "VIS-2026-")).toBe(0);
+  });
+
+  it("treats anything unparseable as no evidence rather than throwing", () => {
+    expect(numberFromId(null, "VIS-2026-")).toBe(0);
+    expect(numberFromId(undefined, "VIS-2026-")).toBe(0);
+    expect(numberFromId("", "VIS-2026-")).toBe(0);
+    expect(numberFromId("VIS-2026-", "VIS-2026-")).toBe(0);
+    expect(numberFromId("VIS-2026-ABCDE", "VIS-2026-")).toBe(0);
   });
 });
