@@ -24,6 +24,7 @@ vi.mock("@main/db", () => ({
 }));
 
 import { pullPayments } from "../pull-payments";
+import { MAX_ROW_ATTEMPTS } from "../pull-runner";
 
 function paymentRow(over: Record<string, unknown> = {}) {
   return {
@@ -137,7 +138,12 @@ describe("pullPayments", () => {
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 
-  it("skips when local invoice is missing (out-of-order arrival)", async () => {
+  // A payment whose invoice has not arrived yet used to be counted as applied, so
+  // the cursor moved past it and it was never looked at again: money the patient
+  // handed over vanished from the lab PC and the invoice stayed unpaid forever.
+  // It is now retried, because the invoice normally lands moments later on the
+  // visits stream.
+  it("holds the cursor and retries when the local invoice has not synced yet", async () => {
     mocks.invoiceFindUnique.mockResolvedValue(null);
     const cloud = makeFakeCloudClient({
       pullSince: vi.fn().mockResolvedValue([
@@ -148,7 +154,27 @@ describe("pullPayments", () => {
     await pullPayments(cloud);
 
     expect(mocks.transaction).not.toHaveBeenCalled();
-    // Cursor still advances so a permanently-missing invoice can't wedge the pull.
+    expect(mocks.deadLetterUpsert).toHaveBeenCalledOnce();
+    // Cursor held, so the next tick re-fetches this payment rather than losing it.
+    expect(mocks.syncCursorUpsert).not.toHaveBeenCalled();
+  });
+
+  // Retrying must not become wedging: an invoice that never arrives has to stop
+  // blocking every later payment. After the retry budget the row is quarantined
+  // in SyncDeadLetter — visible and replayable — and the stream moves on.
+  it("quarantines the payment once retries are exhausted, so the stream still moves", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue(null);
+    mocks.deadLetterFindUnique.mockResolvedValue({ attempts: MAX_ROW_ATTEMPTS - 1 });
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([
+        paymentRow({ id: "pay5", invoice_id: "inv-missing" }),
+      ]),
+    });
+
+    await pullPayments(cloud);
+
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.deadLetterUpsert).toHaveBeenCalledOnce();
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 });

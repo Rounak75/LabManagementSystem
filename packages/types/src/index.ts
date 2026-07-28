@@ -50,11 +50,20 @@ export const patientCreateSchema = z.object({
 });
 export type PatientCreate = z.infer<typeof patientCreateSchema>;
 
+/** How money handed over at the counter was taken. */
+export const COUNTER_PAYMENT_METHODS = ["Cash", "UPI"] as const;
+export type CounterPaymentMethod = (typeof COUNTER_PAYMENT_METHODS)[number];
+
 export const visitCreateSchema = z.object({
   patientId: z.string().min(1),
   visitDate: z.string(), // ISO date
   testIds: z.array(z.string()).min(1, "Pick at least one test"),
   notes: z.string().max(500).optional().or(z.literal("")),
   allocatedVisitId: z.string().regex(/^VIS-\d{4}-\d{5}$/),
+  // What the patient paid at the counter, if anything. The visit total is priced
+  // server-side from the catalogue, so this is only the amount handed over — it
+  // is rejected if it exceeds the total. Absent means "paid nothing yet".
+  amountPaid: z.number().min(0).optional(),
+  paymentMethod: z.enum(COUNTER_PAYMENT_METHODS).optional(),
 });
 export type VisitCreate = z.infer<typeof visitCreateSchema>;

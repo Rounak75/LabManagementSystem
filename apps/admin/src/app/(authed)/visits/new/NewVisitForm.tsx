@@ -2,6 +2,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { TestPicker } from "./TestPicker";
+import { CounterPayment } from "./CounterPayment";
+import type { CounterPaymentMethod } from "@lab/types";
 
 interface Patient {
   id: string;
@@ -19,6 +21,10 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  const [amountPaid, setAmountPaid] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<CounterPaymentMethod>("Cash");
+
+  const total = tests.filter((t) => selected.includes(t.id)).reduce((a, t) => a + Number(t.price), 0);
 
   if (!patient) {
     return (
@@ -39,6 +45,8 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
           visitDate: String(fd.get("visitDate") ?? new Date().toISOString().slice(0, 10)),
           testIds: selected,
           notes: String(fd.get("notes") ?? ""),
+          amountPaid,
+          ...(amountPaid > 0 ? { paymentMethod } : {}),
         };
         startTransition(async () => {
           if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -78,6 +86,13 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
         />
       </label>
       <TestPicker tests={tests} selected={selected} setSelected={setSelected} />
+      <CounterPayment
+        total={total}
+        amountPaid={amountPaid}
+        setAmountPaid={setAmountPaid}
+        method={paymentMethod}
+        setMethod={setPaymentMethod}
+      />
       <label className="block">
         <span className="field-label">Notes (optional)</span>
         <textarea name="notes" rows={2} className="input" />

@@ -40,6 +40,7 @@ export function makeFakeCloudClient(overrides: Partial<FakeCloudClient> = {}): F
     pullSince: vi.fn().mockResolvedValue([]),
     fetchVisitTestsForVisit: vi.fn().mockResolvedValue([]),
     fetchVisitTestsForVisits: vi.fn().mockResolvedValue([]),
+    fetchInvoicesForVisits: vi.fn().mockResolvedValue([]),
   };
 
   // Fails to compile if the real CloudClient gains, loses, or renames a method.

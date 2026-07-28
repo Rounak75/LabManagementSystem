@@ -298,6 +298,16 @@ export function createSupabaseClient(config: SupabaseConfig) {
     return unwrap(result) as Record<string, unknown>[];
   }
 
+  // Invoices for a batch of visits, so a staff-portal visit arrives on the lab PC
+  // with the bill it was created with. Batched for the same reason as above.
+  async function fetchInvoicesForVisits(visitIds: string[]): Promise<Record<string, unknown>[]> {
+    const result = await sb
+      .from("invoices")
+      .select("*")
+      .in("visit_id", visitIds);
+    return unwrap(result) as Record<string, unknown>[];
+  }
+
   // ── pushHeartbeat ──────────────────────────────────────────────────────────
   // Phase 3d Plan A: portal staleness banner queries cloud_heartbeat.last_pushed_at
   // to know whether the desktop is online. Best-effort — never throws.
@@ -328,6 +338,7 @@ export function createSupabaseClient(config: SupabaseConfig) {
     pullSince,
     fetchVisitTestsForVisit,
     fetchVisitTestsForVisits,
+    fetchInvoicesForVisits,
   };
 }
 

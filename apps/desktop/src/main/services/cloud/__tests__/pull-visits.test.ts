@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   syncCursorUpsert: vi.fn(),
   visitUpsert: vi.fn(),
   visitTestUpsert: vi.fn(),
+  invoiceFindUnique: vi.fn(),
+  invoiceCreate: vi.fn(),
+  invoiceUpdate: vi.fn(),
 }));
 
 vi.mock("@main/db", () => ({
@@ -16,6 +19,11 @@ vi.mock("@main/db", () => ({
     syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
     visit: { upsert: mocks.visitUpsert },
     visitTest: { upsert: mocks.visitTestUpsert },
+    invoice: {
+      findUnique: mocks.invoiceFindUnique,
+      create: mocks.invoiceCreate,
+      update: mocks.invoiceUpdate,
+    },
   }),
 }));
 
@@ -40,10 +48,24 @@ function visitRow(over: Record<string, unknown> = {}) {
   };
 }
 
+function invoiceRow(over: Record<string, unknown> = {}) {
+  return {
+    id: "inv1",
+    visit_id: "v1",
+    subtotal: 500,
+    discount_amount: 0,
+    total: 500,
+    amount_paid: 300,
+    payment_status: "Partial",
+    ...over,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
+  mocks.invoiceFindUnique.mockResolvedValue(null);
 });
 
 describe("pullVisits", () => {
@@ -137,6 +159,71 @@ describe("pullVisits", () => {
     await pullVisits(cloud);
 
     expect(mocks.visitUpsert).not.toHaveBeenCalled();
+    expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
+  });
+
+  // A staff-portal visit used to arrive on the lab PC with no bill at all, so the
+  // patient never showed up in any money view and payments had nothing to attach
+  // to.
+  it("creates the local invoice for a staff-portal visit", async () => {
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow()]),
+      fetchInvoicesForVisits: vi.fn().mockResolvedValue([invoiceRow()]),
+    });
+
+    await pullVisits(cloud);
+
+    expect(cloud.fetchInvoicesForVisits).toHaveBeenCalledWith(["v1"]);
+    expect(mocks.invoiceCreate).toHaveBeenCalledOnce();
+    const created = mocks.invoiceCreate.mock.calls[0]![0].data;
+    expect(created).toMatchObject({ id: "inv1", visitId: "v1", subtotal: 500, total: 500 });
+    // Money is owned by the payments stream, which ADDS each payment to this
+    // figure. Seeding it from the cloud's amount_paid would count the counter
+    // payment twice — once here and again when its `payments` row arrives.
+    expect(created).toMatchObject({ amountPaid: 0, paymentStatus: "Pending" });
+  });
+
+  it("re-prices an existing invoice without touching what has been paid", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue({ id: "inv1", visitId: "v1", amountPaid: 300 });
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow()]),
+      fetchInvoicesForVisits: vi.fn().mockResolvedValue([invoiceRow({ total: 700, subtotal: 700 })]),
+    });
+
+    await pullVisits(cloud);
+
+    expect(mocks.invoiceCreate).not.toHaveBeenCalled();
+    const data = mocks.invoiceUpdate.mock.calls[0]![0].data;
+    expect(data).toMatchObject({ subtotal: 700, total: 700 });
+    expect(data).not.toHaveProperty("amountPaid");
+    expect(data).not.toHaveProperty("paymentStatus");
+  });
+
+  // Rewriting a bill that the payments stream cannot find would silently detach
+  // the patient's payments from the invoice they belong to.
+  it("leaves a local invoice alone when its id disagrees with the cloud's", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue({ id: "other-inv", visitId: "v1", amountPaid: 300 });
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow()]),
+      fetchInvoicesForVisits: vi.fn().mockResolvedValue([invoiceRow()]),
+    });
+
+    await pullVisits(cloud);
+
+    expect(mocks.invoiceCreate).not.toHaveBeenCalled();
+    expect(mocks.invoiceUpdate).not.toHaveBeenCalled();
+  });
+
+  it("still applies the visit when the invoice fetch fails", async () => {
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow()]),
+      fetchInvoicesForVisits: vi.fn().mockRejectedValue(new Error("cloud down")),
+    });
+
+    await pullVisits(cloud);
+
+    expect(mocks.visitUpsert).toHaveBeenCalledOnce();
+    expect(mocks.invoiceCreate).not.toHaveBeenCalled();
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 });

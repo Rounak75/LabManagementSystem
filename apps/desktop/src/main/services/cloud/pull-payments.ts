@@ -34,13 +34,17 @@ export async function pullPayments(client: CloudClient): Promise<void> {
     applyRow: async (r) => {
       const invoice = await prisma().invoice.findUnique({ where: { id: r.invoice_id } });
       if (!invoice) {
-        // The invoice may simply not have synced yet. Skipping (rather than
-        // failing) keeps a permanently-missing invoice from wedging the stream.
+        // Throw rather than return. Returning counted the row as applied, so the
+        // cursor moved past it and the payment was never looked at again — money
+        // the patient handed over vanished from the lab PC silently, and the
+        // invoice stayed unpaid forever. Throwing retries it for a few ticks (the
+        // invoice usually arrives moments later on the visits stream) and then
+        // quarantines it in SyncDeadLetter, where it is visible and replayable.
         logger.warn(
           "cloud",
-          `[pull-payments] no local invoice for payment ${r.id} invoice ${JSON.stringify(r.invoice_id)}`,
+          `[pull-payments] no local invoice for payment ${r.id} invoice ${JSON.stringify(r.invoice_id)} — will retry`,
         );
-        return;
+        throw new Error(`no local invoice ${r.invoice_id} for payment ${r.id}`);
       }
 
       const processed = await prisma().processedCloudPayment.findUnique({ where: { id: r.id } });

@@ -34,10 +34,19 @@ interface RawVisitTestRow {
   status: string | null;
 }
 
+interface RawInvoiceRow {
+  id: string;
+  visit_id: string;
+  subtotal: number | string | null;
+  discount_amount: number | string | null;
+  total: number | string | null;
+}
+
 export async function pullVisits(client: CloudClient): Promise<void> {
   // Children for every visit in the page, keyed by visit id. Populated by
   // `prepare` so a page costs one extra query rather than one per visit.
   let childrenByVisit = new Map<string, RawVisitTestRow[]>();
+  let invoiceByVisit = new Map<string, RawInvoiceRow>();
 
   await runPull<RawVisitRow>(client, {
     source: SOURCE,
@@ -46,6 +55,7 @@ export async function pullVisits(client: CloudClient): Promise<void> {
 
     prepare: async (rows) => {
       childrenByVisit = new Map();
+      invoiceByVisit = new Map();
       const visitIds = rows.map((r) => r.id);
       if (visitIds.length === 0) return;
 
@@ -62,6 +72,15 @@ export async function pullVisits(client: CloudClient): Promise<void> {
         // Non-fatal: the visits themselves still apply, and their children are
         // re-fetched on the next tick.
         logger.error("cloud", "[pull-visits] fetch visit_tests batch failed", e);
+      }
+
+      try {
+        const invoices = (await client.fetchInvoicesForVisits(
+          visitIds,
+        )) as unknown as RawInvoiceRow[];
+        for (const inv of invoices) invoiceByVisit.set(inv.visit_id, inv);
+      } catch (e) {
+        logger.error("cloud", "[pull-visits] fetch invoices batch failed", e);
       }
     },
 
@@ -94,6 +113,54 @@ export async function pullVisits(client: CloudClient): Promise<void> {
           update: { status: vt.status ?? "Collected" },
         });
       }
+
+      await applyInvoice(r.id, invoiceByVisit.get(r.id));
     },
   });
+}
+
+/**
+ * Materialises the cloud invoice for a staff-portal visit as a local one.
+ *
+ * Without this the lab PC received the visit but no bill, so a patient registered
+ * from a phone never appeared in the desktop's invoice or money views and the
+ * payments stream had nothing to attach to.
+ *
+ * `amountPaid` is deliberately seeded at zero. Money is owned by the payments
+ * stream, which *adds* each pulled payment to this figure — copying the cloud's
+ * `amount_paid` as well would count the counter payment twice, once here and once
+ * when its `payments` row arrives.
+ */
+async function applyInvoice(visitId: string, inv: RawInvoiceRow | undefined): Promise<void> {
+  if (!inv) return;
+
+  const money = {
+    subtotal: Number(inv.subtotal ?? 0),
+    discountAmount: Number(inv.discount_amount ?? 0),
+    total: Number(inv.total ?? 0),
+  };
+
+  const existing = await prisma().invoice.findUnique({ where: { visitId } });
+
+  if (!existing) {
+    await prisma().invoice.create({
+      data: { id: inv.id, visitId, ...money, paymentStatus: "Pending", amountPaid: 0 },
+    });
+    return;
+  }
+
+  if (existing.id !== inv.id) {
+    // Two invoices for one visit — the payments stream looks rows up by cloud
+    // invoice id, so payments against the cloud copy would never find this one.
+    // Leave it alone and say so rather than silently rewriting a bill.
+    logger.warn(
+      "cloud",
+      `[pull-visits] visit ${visitId} has local invoice ${existing.id} but cloud invoice ${inv.id} — leaving local untouched`,
+    );
+    return;
+  }
+
+  // Re-price if the bill changed, but never touch amountPaid/paymentStatus: those
+  // belong to the payments stream and rewriting them here would undo payments.
+  await prisma().invoice.update({ where: { visitId }, data: money });
 }
