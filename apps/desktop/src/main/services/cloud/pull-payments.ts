@@ -7,6 +7,7 @@
 import { prisma } from "@main/db";
 import { logger } from "./logger";
 import { runPull } from "./pull-runner";
+import * as triggers from "@main/services/notifications/triggers";
 import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "payments";
@@ -67,6 +68,24 @@ export async function pullPayments(client: CloudClient): Promise<void> {
         }),
         prisma().processedCloudPayment.create({ data: { id: r.id } }),
       ]);
+
+      // Settling the bill releases the report email that was held back waiting
+      // for it. Every other way an invoice reaches Paid fires this — the desktop
+      // invoice screen, the UPI mark-received, the Razorpay reconcile — but the
+      // payments arriving here did not, and this is the path every payment
+      // recorded in the staff portal takes. So a patient who paid at the counter
+      // or through the portal had their report held for a payment the lab had
+      // already received.
+      //
+      // Only on the transition, and never fatal: the payment is committed above,
+      // and a notification failure must not undo it or make the row retry.
+      if (paymentStatus === "Paid" && invoice.paymentStatus !== "Paid") {
+        try {
+          await triggers.paymentReceived(r.invoice_id);
+        } catch (e) {
+          logger.error("cloud", `[pull-payments] paymentReceived trigger failed for ${r.invoice_id}`, e);
+        }
+      }
     },
   });
 }

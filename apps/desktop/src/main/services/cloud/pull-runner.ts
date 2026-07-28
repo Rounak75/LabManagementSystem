@@ -49,7 +49,22 @@ export interface PullSpec<TRow extends Record<string, unknown>> {
    * and soft-deleted rows.
    */
   shouldApply?: (row: TRow) => boolean;
-  /** Applies one row to local SQLite. Throwing quarantines the row. */
+  /**
+   * Applies one row to local SQLite.
+   *
+   * Returning normally means "this row is dealt with" and **advances the cursor
+   * past it forever**. It does not mean "skip for now". Three handlers have
+   * returned early meaning the latter — for a payment whose invoice had not
+   * arrived, and a verification whose visit had not — and in each case the row
+   * was silently dropped: money the patient had handed over vanished from the
+   * lab PC, and a verified visit never reached the Reports list to be printed.
+   * Both carried a comment claiming a later tick would retry.
+   *
+   * If a row cannot be applied *yet*, throw. It is retried for a few ticks and
+   * then quarantined in SyncDeadLetter, where it is visible and replayable. Only
+   * return early when the row genuinely needs nothing done — already applied,
+   * superseded by newer local data, or deliberately rejected.
+   */
   applyRow: (row: TRow) => Promise<void>;
   /**
    * Called with every row in the page before any is applied, for handlers that

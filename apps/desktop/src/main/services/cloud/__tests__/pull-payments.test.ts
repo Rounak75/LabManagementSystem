@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   processedFindUnique: vi.fn(),
   processedCreate: vi.fn(),
   transaction: vi.fn(),
+  paymentReceived: vi.fn(),
+}));
+
+vi.mock("@main/services/notifications/triggers", () => ({
+  paymentReceived: mocks.paymentReceived,
 }));
 
 vi.mock("@main/db", () => ({
@@ -48,6 +53,7 @@ beforeEach(() => {
   mocks.deadLetterFindUnique.mockResolvedValue(null);
   mocks.processedFindUnique.mockResolvedValue(null);
   mocks.transaction.mockResolvedValue([]);
+  mocks.paymentReceived.mockResolvedValue(0);
 });
 
 describe("pullPayments", () => {
@@ -69,6 +75,77 @@ describe("pullPayments", () => {
     expect(arg.data.amountPaid).toBe(500);
     expect(arg.data.paymentStatus).toBe("Paid");
     expect(arg.data.paymentMethod).toBe("UPI");
+  });
+
+  // Settling the bill releases the report email held back waiting for it. Every
+  // other route to Paid fires this — the desktop invoice screen, UPI
+  // mark-received, the Razorpay reconcile — but payments arriving on this path
+  // did not, and this is the path every payment recorded in the staff portal
+  // takes. A patient who had paid at the counter had their report held for money
+  // the lab already had.
+  it("releases the held report email once the bill is settled", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue({
+      id: "inv1",
+      total: 500,
+      amountPaid: 0,
+      paymentMethod: null,
+      paymentStatus: "Pending",
+    });
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([paymentRow()]) });
+
+    await pullPayments(cloud);
+
+    expect(mocks.paymentReceived).toHaveBeenCalledWith("inv1");
+  });
+
+  it("does not fire on a part payment that leaves a balance", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue({
+      id: "inv1",
+      total: 900,
+      amountPaid: 0,
+      paymentMethod: null,
+      paymentStatus: "Pending",
+    });
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([paymentRow()]) });
+
+    await pullPayments(cloud);
+
+    expect(mocks.paymentReceived).not.toHaveBeenCalled();
+  });
+
+  it("does not re-fire for an invoice that was already Paid", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue({
+      id: "inv1",
+      total: 500,
+      amountPaid: 500,
+      paymentMethod: "UPI",
+      paymentStatus: "Paid",
+    });
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([paymentRow()]) });
+
+    await pullPayments(cloud);
+
+    expect(mocks.paymentReceived).not.toHaveBeenCalled();
+  });
+
+  // The payment is already committed; a notification failure must not undo it or
+  // make the row retry and double-count the money.
+  it("keeps the payment when the notification trigger throws", async () => {
+    mocks.invoiceFindUnique.mockResolvedValue({
+      id: "inv1",
+      total: 500,
+      amountPaid: 0,
+      paymentMethod: null,
+      paymentStatus: "Pending",
+    });
+    mocks.paymentReceived.mockRejectedValue(new Error("smtp down"));
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([paymentRow()]) });
+
+    await pullPayments(cloud);
+
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(mocks.deadLetterUpsert).not.toHaveBeenCalled();
+    expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 
   it("writes the invoice update and the idempotency marker in one transaction", async () => {
