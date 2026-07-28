@@ -9,7 +9,7 @@ import { LabReport } from "@lab/reports";
 import type { ReactElement } from "react";
 import { verifyPatientJwt } from "@portal/lib/jwt";
 import { getServiceClient } from "@portal/lib/supabase-server";
-import { isReportReleasable, type LockableTest } from "@portal/lib/report-release";
+import { reportReleaseState, type LockableTest } from "@portal/lib/report-release";
 
 export const runtime = "nodejs";
 
@@ -25,22 +25,34 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
   const sb = getServiceClient();
   const { data: visit } = await sb
     .from("visits")
-    .select("id, visit_id, visit_date, patient_id, patients(name, age, sex, phone), visit_tests(id, test_id, is_locked, tests(name, category), results(parameter_id, value, is_abnormal))")
+    .select(
+      "id, visit_id, visit_date, patient_id, report_release_override, patients(name, age, sex, phone), invoices(total, amount_paid), visit_tests(id, test_id, is_locked, tests(name, category), results(parameter_id, value, is_abnormal))",
+    )
     .eq("id", params.visitId)
     .maybeSingle();
   if (!visit || visit.patient_id !== patientId) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  // This PDF carries the pathologist's name and qualifications, so it reads as a
-  // signed report. Release it only once every test in the visit has been verified
-  // and locked — otherwise a value a staff member is still typing is downloadable
-  // as an apparently authorised result. The patient is only told the report is
-  // ready after verification (the reportReady notification); this is the same
-  // line, enforced server-side rather than relying on the UI not to link here.
-  // 409 rather than 404 so the UI can say "still being verified" instead of
-  // implying the visit does not exist.
-  if (!isReportReleasable(visit.visit_tests as LockableTest[] | null)) {
+  // Two separate gates, enforced here rather than by the UI not linking to this
+  // route. This PDF carries the pathologist's name and qualifications, so it reads
+  // as a signed report: it is withheld until every test is verified and locked,
+  // and withheld again while the patient still owes money. Distinct statuses so
+  // the UI can say "still being verified" or "pay to unlock" instead of implying
+  // the visit does not exist.
+  const invoice = Array.isArray(visit.invoices) ? visit.invoices[0] : visit.invoices;
+  const release = reportReleaseState(
+    visit.visit_tests as LockableTest[] | null,
+    invoice,
+    visit.report_release_override,
+  );
+  if (!release.released) {
+    if (release.reason === "unpaid") {
+      return NextResponse.json(
+        { error: "payment_required", balance: release.balance },
+        { status: 402 },
+      );
+    }
     return NextResponse.json({ error: "report_not_ready" }, { status: 409 });
   }
 

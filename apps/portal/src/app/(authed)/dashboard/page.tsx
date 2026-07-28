@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requirePatient } from "@portal/lib/session";
 import { getServiceClient } from "@portal/lib/supabase-server";
+import { outstandingBalance } from "@portal/lib/report-release";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ interface VisitRow {
   visit_id: string;
   visit_date: string;
   status: string;
-  invoice: { id: string; total: number; payment_status: string } | null;
+  invoice: { id: string; total: number; amount_paid: number; payment_status: string } | null;
 }
 
 export default async function DashboardPage() {
@@ -24,7 +25,7 @@ export default async function DashboardPage() {
 
   const { data: visits } = await sb
     .from("visits")
-    .select("id, visit_id, visit_date, status, invoices(id, total, payment_status)")
+    .select("id, visit_id, visit_date, status, invoices(id, total, amount_paid, payment_status)")
     .eq("patient_id", session!.patientId)
     .is("deleted_at", null)
     .order("visit_date", { ascending: false })
@@ -87,9 +88,12 @@ export default async function DashboardPage() {
                     View report
                   </Link>
                 )}
-                {v.invoice && v.invoice.payment_status !== "Paid" && (
+                {/* The amount owed, not the amount billed. This showed the full
+                    total even after a part payment at the counter, so a patient
+                    who had already handed over half was asked for all of it. */}
+                {v.invoice && outstandingBalance(v.invoice) > 0 && (
                   <Link href={`/invoices/${v.invoice.id}/pay`} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded">
-                    Pay ₹{Number(v.invoice.total).toFixed(0)}
+                    Pay ₹{outstandingBalance(v.invoice).toFixed(0)}
                   </Link>
                 )}
               </div>

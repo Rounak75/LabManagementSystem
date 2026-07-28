@@ -116,6 +116,7 @@ const _getVisit = unstable_cache(
       .select(`
         *,
         patients(*),
+        invoices(id, subtotal, discount_amount, total, amount_paid, payment_status),
         visit_tests(*, tests(name, parameters(*)))
       `)
       .eq("id", id)

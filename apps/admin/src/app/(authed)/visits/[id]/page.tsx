@@ -4,11 +4,13 @@ import { formatDateShort } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PrintButton } from "./print/PrintButton";
+import { BillingPanel } from "./BillingPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 
 interface VisitTest {
   id: string;
   status: string | null;
+  is_locked?: boolean | null;
   tests: { name: string } | { name: string }[] | null;
 }
 
@@ -25,6 +27,8 @@ export default async function VisitDetailPage({ params: paramsPromise }: { param
   if (!v) notFound();
   const patient = Array.isArray(v.patients) ? v.patients[0] : v.patients;
   const visitTests: VisitTest[] = v.visit_tests ?? [];
+  const invoice = Array.isArray(v.invoices) ? v.invoices[0] : v.invoices;
+  const allVerified = visitTests.length > 0 && visitTests.every((vt) => vt.is_locked === true);
 
   return (
     <div>
@@ -46,6 +50,14 @@ export default async function VisitDetailPage({ params: paramsPromise }: { param
         )}
         <PrintButton visitId={v.id} verified={!!v.verified_at} />
       </div>
+
+      <BillingPanel
+        visitId={v.id}
+        invoice={invoice ?? null}
+        overridden={v.report_release_override === true}
+        allVerified={allVerified}
+        isAdmin={user.role === "Admin"}
+      />
 
       <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Tests</h2>
       <ul className="card divide-y divide-slate-100 overflow-hidden">

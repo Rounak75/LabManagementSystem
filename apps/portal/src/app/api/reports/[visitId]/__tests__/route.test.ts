@@ -47,7 +47,10 @@ describe("GET /api/reports/[visitId]", () => {
     expect(renderToStream).not.toHaveBeenCalled();
   });
 
-  function visitWithTests(visitTests: unknown[]) {
+  function visitWithTests(
+    visitTests: unknown[],
+    opts: { invoice?: unknown; override?: boolean } = {},
+  ) {
     return ({ table }: { table: string }) => {
       if (table === "visits") {
         return {
@@ -56,7 +59,9 @@ describe("GET /api/reports/[visitId]", () => {
             patient_id: "patient-1",
             visit_id: "VST-1",
             visit_date: "2026-05-01",
+            report_release_override: opts.override ?? false,
             patients: { name: "A", age: 30, sex: "Male", phone: "9" },
+            invoices: opts.invoice ?? null,
             visit_tests: visitTests,
           },
         };
@@ -127,6 +132,80 @@ describe("GET /api/reports/[visitId]", () => {
       const res = await GET(req(token), ctx);
 
       expect(res.status).toBe(409);
+      expect(renderToStream).not.toHaveBeenCalled();
+    });
+  });
+
+  // The lab's money used to depend on the patient coming back to the counter:
+  // this endpoint handed over the PDF whether or not the bill had been paid.
+  describe("unpaid bills", () => {
+    it("refuses a verified report while money is still owed, and says how much", async () => {
+      setStub(visitWithTests([lockedTest], { invoice: { total: 500, amount_paid: 300 } }));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(402);
+      const body = await res.json();
+      expect(body.error).toBe("payment_required");
+      expect(body.balance).toBe(200);
+      expect(renderToStream).not.toHaveBeenCalled();
+    });
+
+    it("streams the report once the bill is settled", async () => {
+      setStub(visitWithTests([lockedTest], { invoice: { total: 500, amount_paid: 500 } }));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(200);
+      expect(renderToStream).toHaveBeenCalledTimes(1);
+    });
+
+    it("streams the report for a visit that was never billed", async () => {
+      setStub(visitWithTests([lockedTest], { invoice: null }));
+      const token = await mintPatientJwt("patient-1");
+
+      expect((await GET(req(token), ctx)).status).toBe(200);
+    });
+
+    // PostgREST returns an embedded one-to-one as an array.
+    it("reads the invoice when it arrives as an array", async () => {
+      setStub(visitWithTests([lockedTest], { invoice: [{ total: 500, amount_paid: 0 }] }));
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(402);
+      expect((await res.json()).balance).toBe(500);
+    });
+
+    it("releases an unpaid report the Admin has overridden", async () => {
+      setStub(
+        visitWithTests([lockedTest], { invoice: { total: 500, amount_paid: 0 }, override: true }),
+      );
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(200);
+      expect(renderToStream).toHaveBeenCalledTimes(1);
+    });
+
+    // The override waives the bill, never the pathologist's sign-off.
+    it("still refuses an unverified report even when overridden", async () => {
+      setStub(
+        visitWithTests([{ ...lockedTest, is_locked: false }], {
+          invoice: { total: 500, amount_paid: 0 },
+          override: true,
+        }),
+      );
+      const token = await mintPatientJwt("patient-1");
+
+      const res = await GET(req(token), ctx);
+
+      expect(res.status).toBe(409);
+      expect((await res.json()).error).toBe("report_not_ready");
       expect(renderToStream).not.toHaveBeenCalled();
     });
   });

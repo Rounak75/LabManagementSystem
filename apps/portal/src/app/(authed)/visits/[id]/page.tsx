@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requirePatient } from "@portal/lib/session";
 import { getServiceClient } from "@portal/lib/supabase-server";
-import { isReportReleasable, isTestReleasable } from "@portal/lib/report-release";
+import { isTestReleasable, reportReleaseState } from "@portal/lib/report-release";
 
 export const runtime = "nodejs";
 
@@ -31,7 +31,7 @@ export default async function VisitPage({ params: paramsPromise }: { params: Pro
 
   const { data: visit } = await sb
     .from("visits")
-    .select("id, visit_id, visit_date, status, patient_id")
+    .select("id, visit_id, visit_date, status, patient_id, report_release_override, invoices(id, total, amount_paid)")
     .eq("id", params.id)
     .maybeSingle();
   if (!visit || visit.patient_id !== session!.patientId) redirect("/dashboard");
@@ -41,9 +41,10 @@ export default async function VisitPage({ params: paramsPromise }: { params: Pro
     .select("id, test_id, is_locked, tests(name, category)")
     .eq("visit_id", visit!.id);
 
-  // Only verified-and-locked tests may be shown. Until an Admin signs a test off
-  // its value is a draft that a staff member may still be editing.
-  const reportReady = isReportReleasable(vts);
+  // The same rule the PDF route enforces, so the page cannot offer a download the
+  // server will refuse: verified-and-locked first, then the bill settled.
+  const invoice = Array.isArray(visit!.invoices) ? visit!.invoices[0] : visit!.invoices;
+  const release = reportReleaseState(vts, invoice, visit!.report_release_override);
 
   const testIds = (vts ?? []).map((vt) => vt.test_id);
   const { data: params2 } = await sb
@@ -77,13 +78,35 @@ export default async function VisitPage({ params: paramsPromise }: { params: Pro
       </p>
 
       <div className="mt-3">
-        {reportReady ? (
+        {release.released ? (
           <a
             href={`/api/reports/${visit!.id}`}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded"
           >
             Download PDF
           </a>
+        ) : release.reason === "unpaid" ? (
+          // The report exists and is signed off — say so plainly, and make paying
+          // the obvious next tap rather than leaving the patient to guess.
+          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+            <p className="font-medium">Your report is ready.</p>
+            <p className="mt-1">
+              ₹{release.balance.toFixed(0)} of your bill is still unpaid. Settle it to
+              download your report.
+            </p>
+            {invoice?.id ? (
+              <Link
+                href={`/invoices/${invoice.id}/pay`}
+                className="mt-2 inline-block rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white"
+              >
+                Pay ₹{release.balance.toFixed(0)}
+              </Link>
+            ) : null}
+            <p className="mt-2 text-xs text-amber-800">
+              Already paid at the lab? It can take a little while to show here — or
+              ask the lab to release it.
+            </p>
+          </div>
         ) : (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Your report is still being checked by the lab. It will be available to
