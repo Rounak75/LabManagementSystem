@@ -34,6 +34,7 @@ import { checkSchemaDrift } from "@main/services/cloud/schema-drift";
 import { runReconciliation } from "@main/services/cloud/reconciliation";
 import { migrateLogoFieldOnce } from "@main/services/report.service";
 import { migrateTestCategoriesOnce } from "@main/services/category-migration.service";
+import { reconcileTestCatalogueOnce } from "@main/services/catalogue-reconciliation.service";
 import { seedGolmuriTests, GOLMURI_SEED_COUNT } from "@main/services/seed-golmuri-tests";
 import { seedSpecialTests, SPECIAL_SEED_COUNT } from "@main/services/seed-special-tests";
 import { seedGolmuriTemplate } from "@main/services/seed-golmuri-template";
@@ -93,6 +94,10 @@ app.whenReady().then(async () => {
     try { await seedSpecialTests(prisma()); } catch (err) { logError("seed:special", err); }
   }
   try { await seedGolmuriTemplate(prisma()); } catch (err) { logError("seed:template", err); }
+  // Outside the testCount guard above on purpose: an existing install already
+  // exceeds that threshold, so anything behind it never runs again. This is
+  // idempotent and cheap once the catalogue is reconciled.
+  try { await reconcileTestCatalogueOnce(); } catch (err) { logError("seed:catalogue", err); }
   await migrateTestCategoriesOnce();
   createWindow();
   logError("boot:timing", `window created in ${Date.now() - bootStart}ms`);
