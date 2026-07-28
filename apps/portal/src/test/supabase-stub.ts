@@ -28,6 +28,11 @@ export function makeSupabaseStub(result: ResultSpec = { data: null, error: null 
       select: make("select"), eq: make("eq"), in: make("in"), not: make("not"),
       single: make("single"), maybeSingle: make("maybeSingle"),
       order: make("order"), limit: make("limit"),
+      // Range filters. Without these a route that windows on a timestamp — the
+      // booking dedup check, any "since" query — throws "not a function" inside
+      // the stub, which reads like a bug in the route rather than a missing
+      // method here.
+      gt: make("gt"), gte: make("gte"), lt: make("lt"), lte: make("lte"),
       then: (onF: any, onR: any) => Promise.resolve(resolve()).then(onF, onR),
     };
     return chain;

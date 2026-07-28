@@ -70,7 +70,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ bookingId: recent[0].booking_id, deduped: true });
   }
 
-  const bookingId = await nextBookingId(sb);
+  let bookingId: string;
+  try {
+    bookingId = await nextBookingId(sb);
+  } catch {
+    // Same wording as a failed insert: from the patient's side both mean "your
+    // booking was not saved", and neither is something they can act on beyond
+    // trying again.
+    return NextResponse.json(
+      { error: "insert_failed", message: "Could not save your booking. Please try again." },
+      { status: 500 },
+    );
+  }
   const sourceIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const id = randomUUID();
   const nowIso = new Date().toISOString();
@@ -104,16 +115,25 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ bookingId, id });
 }
 
-// BKG-YYYY-NNNNN — count this year's bookings + 1. Not atomic but the lab sees
-// ~10 bookings/day max; a duplicate would surface as a unique-violation and
-// the caller would retry.
+/**
+ * BKG-YYYY-NNNNN, allocated atomically in the database.
+ *
+ * This used to count the year's bookings and add one. Two people booking at the
+ * same moment both counted the same total and built the same id, and
+ * `bookings.booking_id` is unique — so the second insert failed and that
+ * patient's request was lost behind a generic "please try again". The comment
+ * here justified it on the grounds that the caller would retry; nothing did.
+ * It also failed at exactly the wrong time, when several people book at once.
+ *
+ * Numbers now come from id_reservations, the same allocator visit ids use, under
+ * an advisory lock on the prefix.
+ */
 async function nextBookingId(sb: ReturnType<typeof getServiceClient>): Promise<string> {
-  const year = new Date().getUTCFullYear();
-  const { count } = await sb
-    .from("bookings")
-    .select("*", { count: "exact", head: true })
-    .gte("created_at", `${year}-01-01T00:00:00Z`)
-    .lt("created_at", `${year + 1}-01-01T00:00:00Z`);
-  const seq = String((count ?? 0) + 1).padStart(5, "0");
-  return `BKG-${year}-${seq}`;
+  const { data, error } = await sb.rpc("next_booking_id", {
+    p_year: new Date().getUTCFullYear(),
+  });
+  if (error || !data) {
+    throw new Error(`could not allocate booking id: ${error?.message ?? "no id returned"}`);
+  }
+  return data as string;
 }

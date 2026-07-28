@@ -47,10 +47,20 @@ begin
   end if;
 
   -- 1. Stamp the results while their parent tests are still unlocked.
+  --
+  -- Restricted to tests that are not already locked, which makes verifying twice
+  -- harmless. Without that restriction, re-verifying — a second click, or a batch
+  -- that happens to include an already-verified visit — would try to write to
+  -- results under a locked test and be rejected by block_write_to_locked_result,
+  -- so the whole call failed with a message about editing signed-off results that
+  -- had nothing to do with what the user did.
   update results r
      set verified_at = v_now
    where r.visit_test_id in (
-     select vt.id from visit_tests vt where vt.visit_id = any(p_visit_ids)
+     select vt.id
+       from visit_tests vt
+      where vt.visit_id = any(p_visit_ids)
+        and coalesce(vt.is_locked, false) = false
    );
 
   -- 2. Lock and finish the tests. 'Ready' is the terminal per-test status the

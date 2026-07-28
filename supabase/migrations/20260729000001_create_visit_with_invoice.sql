@@ -48,6 +48,13 @@ begin
   if v_wanted = 0 then
     raise exception 'a visit needs at least one test' using errcode = 'check_violation';
   end if;
+
+  -- Collapse repeats before pricing. The same test id sent twice would otherwise
+  -- add the test to the visit twice and charge the patient for both, and would
+  -- also fail the existence check below (two ids wanted, one row found) with a
+  -- misleading "test does not exist".
+  p_test_ids := (select array_agg(distinct x) from unnest(p_test_ids) as x);
+  v_wanted := coalesce(array_length(p_test_ids, 1), 0);
   if v_paid < 0 then
     raise exception 'payment amount cannot be negative' using errcode = 'check_violation';
   end if;
