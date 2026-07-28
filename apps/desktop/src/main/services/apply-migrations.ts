@@ -18,10 +18,27 @@ import { createHash, randomUUID } from "crypto";
  * `$executeRawUnsafe` runs a single statement per call, so we must split.
  */
 
-type RawClient = {
+/** The subset of a Prisma client this module needs. */
+type RawExecutor = {
   $executeRawUnsafe: (sql: string) => Promise<number>;
-  $queryRawUnsafe: <T = unknown>(sql: string) => Promise<T>;
 };
+
+type RawClient = RawExecutor & {
+  $queryRawUnsafe: <T = unknown>(sql: string) => Promise<T>;
+  $transaction: <T>(
+    fn: (tx: RawExecutor) => Promise<T>,
+    options?: { timeout?: number; maxWait?: number },
+  ) => Promise<T>;
+};
+
+/**
+ * Ceiling for one migration's transaction. Prisma's 5s default is fine for the
+ * DDL itself but not for the table rebuilds, which copy every row of a table on a
+ * lab PC that may hold years of patients — and the timer runs while the machine
+ * is busy doing everything else at startup. Overshooting costs nothing; expiring
+ * early rolls back a migration that was about to succeed.
+ */
+const MIGRATION_TIMEOUT_MS = 120_000;
 
 /** Migration folder names (prisma `<timestamp>_<name>`), sorted ascending. */
 export function listMigrationFolders(migrationsDir: string): string[] {
@@ -184,29 +201,35 @@ export async function applyPendingMigrations(client: RawClient, migrationsDir: s
 
     for (const pragma of disablePragmas) await client.$executeRawUnsafe(pragma);
 
-    // One transaction per migration. Previously each statement was applied on its
-    // own and the bookkeeping row written only after all of them succeeded, so a
-    // failure half-way left a partly-migrated schema with no record of the
-    // attempt: the next boot retried from statement 1, failed on "already
-    // exists", and stayed stuck there forever while the app ran on the broken
-    // schema regardless. Recording the migration inside the same transaction
-    // makes the schema change and its bookkeeping commit or vanish together.
-    await client.$executeRawUnsafe("BEGIN");
+    // One transaction per migration, so the schema change and the bookkeeping row
+    // recording it commit or vanish together. Without that, a failure half-way
+    // left a partly-migrated schema with no record of the attempt: the next boot
+    // retried from statement 1, failed on "already exists", and stayed stuck
+    // there forever while the app ran on the broken schema regardless.
+    //
+    // The transaction is Prisma's, not a hand-written BEGIN/COMMIT pair. Prisma
+    // runs SQLite over a single connection whose transaction state is global to
+    // the client, so any other query in flight interleaved with these statements:
+    // a concurrent caller's BEGIN was rejected, or worse, consumed the COMMIT and
+    // left this one raising "cannot commit - no transaction is active" — the
+    // migration then reported failure after its DDL had already been applied.
+    // Handing the boundaries to Prisma makes the whole body one atomic unit no
+    // matter what else is talking to the database at boot.
     try {
-      for (const stmt of body) {
-        await client.$executeRawUnsafe(stmt);
-      }
-      await client.$executeRawUnsafe(
-        `INSERT INTO "_prisma_migrations" ("id","checksum","finished_at","migration_name","started_at","applied_steps_count")
-         VALUES (${sqlLiteral(randomUUID())},${sqlLiteral(checksum)},${sqlLiteral(now)},${sqlLiteral(folder)},${sqlLiteral(now)},${body.length})`,
+      await client.$transaction(
+        async (tx) => {
+          for (const stmt of body) {
+            await tx.$executeRawUnsafe(stmt);
+          }
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "_prisma_migrations" ("id","checksum","finished_at","migration_name","started_at","applied_steps_count")
+             VALUES (${sqlLiteral(randomUUID())},${sqlLiteral(checksum)},${sqlLiteral(now)},${sqlLiteral(folder)},${sqlLiteral(now)},${body.length})`,
+          );
+        },
+        { timeout: MIGRATION_TIMEOUT_MS, maxWait: MIGRATION_TIMEOUT_MS },
       );
-      await client.$executeRawUnsafe("COMMIT");
     } catch (err) {
-      try {
-        await client.$executeRawUnsafe("ROLLBACK");
-      } catch {
-        /* the transaction may already have been aborted */
-      }
+      // Prisma rolls the transaction back itself when the callback throws.
       throw new MigrationFailedError(folder, err);
     } finally {
       for (const pragma of restorePragmas) {

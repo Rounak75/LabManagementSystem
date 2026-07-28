@@ -134,6 +134,44 @@ describe("applyPendingMigrations (integration, real SQLite)", () => {
     expect(Number(rows[0]?.c)).toBe(0);
   });
 
+  // Prisma runs SQLite over a single connection whose transaction state is global
+  // to the client, so hand-written BEGIN/COMMIT statements are at the mercy of
+  // anything else transacting at the same time: a concurrent BEGIN is rejected,
+  // or worse consumes the COMMIT and leaves this one raising "cannot commit - no
+  // transaction is active" *after* the DDL has already been applied. Letting
+  // Prisma own the boundaries is the fix, so assert the boundaries are not
+  // hand-written rather than trying to re-race the original flake.
+  it("lets Prisma own the transaction boundaries instead of writing BEGIN/COMMIT", async () => {
+    const dir = fs.mkdtempSync(join(os.tmpdir(), "lab-txboundary-"));
+    const folder = join(dir, "20990101000003_simple");
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(join(folder, "migration.sql"), 'CREATE TABLE "a" (x INTEGER);');
+
+    const executed: string[] = [];
+    let options: { timeout?: number; maxWait?: number } | undefined;
+    const record = async (sql: string) => { executed.push(sql); return 0; };
+    const fake = {
+      $executeRawUnsafe: record,
+      $queryRawUnsafe: async () => [] as unknown,
+      $transaction: async <T>(fn: (tx: { $executeRawUnsafe: typeof record }) => Promise<T>, opts?: typeof options) => {
+        options = opts;
+        return fn({ $executeRawUnsafe: record });
+      },
+    };
+
+    const applied = await applyPendingMigrations(fake as never, dir);
+
+    expect(applied).toEqual(["20990101000003_simple"]);
+    expect(executed.some((s) => /^\s*(BEGIN|COMMIT|ROLLBACK)\b/i.test(s))).toBe(false);
+    // The DDL and the bookkeeping row must be inside that transaction together,
+    // or a crash between them leaves a migrated schema the app thinks is pending.
+    expect(executed.some((s) => /CREATE TABLE "a"/.test(s))).toBe(true);
+    expect(executed.some((s) => /_prisma_migrations/.test(s) && /INSERT/i.test(s))).toBe(true);
+    // A table rebuild copies every row; Prisma's 5s default would roll back a
+    // migration that was about to succeed on a lab PC with years of patients.
+    expect(options?.timeout ?? 0).toBeGreaterThanOrEqual(60_000);
+  });
+
   it("is idempotent — a second run applies nothing", async () => {
     const applied = await applyPendingMigrations(prisma as any, MIGRATIONS_DIR);
     expect(applied).toEqual([]);
