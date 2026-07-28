@@ -35,27 +35,6 @@ const MUST_BE_EMPTY = [
   "Booking",
 ] as const;
 
-/**
- * The npm CLI runner, named for the platform we are on.
- *
- * On Windows there is no file called `npx` — the shim is `npx.cmd`. `execFileSync`
- * hands the name straight to CreateProcess, which does not apply PATHEXT, so it
- * looks for a literal `npx`, fails to find one, and the whole packaging run dies
- * before it starts:
- *
- *   [seed-db] failed: spawnSync npx ENOENT
- *
- * Since `package:win` is the *only* way anyone builds the installer, and that
- * only ever happens on Windows, this script could never have produced a release
- * on the machine it was written for.
- *
- * `shell: true` would also work and is the more common workaround, but it would
- * put these arguments through cmd.exe's parser — and one of them is a path
- * containing spaces ("Lab Management System"). Naming the executable correctly
- * keeps the arguments out of a shell entirely.
- */
-const NPX = process.platform === "win32" ? "npx.cmd" : "npx";
-
 function run(command: string, args: string[]): void {
   execFileSync(command, args, {
     cwd: resolve(__dirname, ".."),
@@ -71,8 +50,8 @@ async function main(): Promise<void> {
   }
 
   console.log(`[seed-db] building fresh database at ${SEED_DB}`);
-  run(NPX, ["prisma", "migrate", "deploy"]);
-  run(NPX, ["tsx", "src/seed.ts"]);
+  run("npx", ["prisma", "migrate", "deploy"]);
+  run("npx", ["tsx", "src/seed.ts"]);
 
   const prisma = new PrismaClient({ datasources: { db: { url: SEED_URL } } });
   try {
