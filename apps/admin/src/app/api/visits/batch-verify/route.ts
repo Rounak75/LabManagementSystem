@@ -48,24 +48,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, count: 0, skipped });
   }
 
-  const safeVtIds = (vts ?? []).filter((vt) => safeIds.includes(vt.visit_id)).map((vt) => vt.id);
-
-  const updates = [
-    sb.from("visits").update({ status: "Verified", verified_at: now, verified_by_user_id: user.id, updated_at: now }).in("id", safeIds),
-    sb.from("audit_logs").insert({
-      user_id: user.id,
-      action: "visit.batch_verify",
-      target_entity: "visits",
-      target_id: safeIds.join(","),
-      details: JSON.stringify({ count: safeIds.length, skipped, batch: true }),
-    })
-  ];
-  if (safeVtIds.length > 0) {
-    updates.push(sb.from("results").update({ verified_at: now }).in("visit_test_id", safeVtIds) as any);
+  // Same end state as the single-visit verify, for the same reason: stopping at
+  // visits.status left every test unlocked, so the patient portal went on telling
+  // these patients their reports were still being checked and their signed-off
+  // results stayed editable.
+  const { error: verifyErr } = await sb.rpc("verify_visits", {
+    p_visit_ids: safeIds,
+    p_user_id: user.id,
+  });
+  if (verifyErr) {
+    if (verifyErr.code === "42501" || /not authorised/i.test(verifyErr.message)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    return NextResponse.json({ error: verifyErr.message }, { status: 500 });
   }
 
-  const [visitResult] = await Promise.all(updates);
-  if (visitResult.error) return NextResponse.json({ error: visitResult.error.message }, { status: 500 });
+  await sb.from("audit_logs").insert({
+    user_id: user.id,
+    action: "visit.batch_verify",
+    target_entity: "visits",
+    target_id: safeIds.join(","),
+    details: JSON.stringify({ count: safeIds.length, skipped, batch: true }),
+  });
 
   revalidateTag(CACHE_TAGS.visits);
   return NextResponse.json({ ok: true, count: safeIds.length, skipped });

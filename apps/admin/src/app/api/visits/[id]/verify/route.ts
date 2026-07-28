@@ -10,18 +10,24 @@ export async function POST(_req: Request, { params: paramsPromise }: { params: P
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (user.role !== "Admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const sb = getServerSupabase(user.token);
-  const now = new Date().toISOString();
 
-  const { error: vErr } = await sb
-    .from("visits")
-    .update({ status: "Verified", verified_at: now, verified_by_user_id: user.id, updated_at: now })
-    .eq("id", params.id);
-  if (vErr) return NextResponse.json({ error: vErr.message }, { status: 500 });
-
-  const { data: vts } = await sb.from("visit_tests").select("id").eq("visit_id", params.id);
-  const vtIds = (vts ?? []).map((x) => x.id);
-  if (vtIds.length > 0) {
-    await sb.from("results").update({ verified_at: now }).in("visit_test_id", vtIds);
+  // One call so the visit, its tests and its results reach the verified end state
+  // together. This used to be separate writes that stopped short of locking:
+  // visit_tests.is_locked was never set — the column the patient portal's report
+  // gate reads and the locked-result trigger keys off — so a verified visit still
+  // told the patient their report was being checked, and a signed-off result
+  // stayed editable. The visit was also left in status 'Verified', which nothing
+  // reads; the desktop, the Completed tab and the patient dashboard all look for
+  // 'Completed'.
+  const { error } = await sb.rpc("verify_visits", {
+    p_visit_ids: [params.id],
+    p_user_id: user.id,
+  });
+  if (error) {
+    if (error.code === "42501" || /not authorised/i.test(error.message)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   await sb.from("audit_logs").insert({

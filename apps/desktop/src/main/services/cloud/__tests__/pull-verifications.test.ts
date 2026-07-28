@@ -24,6 +24,7 @@ vi.mock("@main/db", () => ({
 vi.mock("@main/services/notifications/triggers", () => ({ reportReady: mocks.reportReady }));
 
 import { pullVerifications } from "../pull-verifications";
+import { MAX_ROW_ATTEMPTS } from "../pull-runner";
 
 const row = {
   id: "v1",
@@ -94,7 +95,11 @@ describe("pullVerifications", () => {
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce(); // cursor still advances
   });
 
-  it("skips rows whose visit is not present locally", async () => {
+  // A verification whose visit had not arrived yet used to be counted as applied,
+  // so the cursor moved past it and no later tick ever looked at it again. The
+  // visit stayed unverified on the lab PC, never reached the Reports list to be
+  // printed, and the patient was never told their report was ready.
+  it("holds the cursor and retries when the visit has not synced yet", async () => {
     mocks.visitFindUnique.mockResolvedValue(null);
     const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
 
@@ -102,6 +107,30 @@ describe("pullVerifications", () => {
 
     expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
     expect(mocks.reportReady).not.toHaveBeenCalled();
+    expect(mocks.deadLetterUpsert).toHaveBeenCalledOnce();
+    expect(mocks.syncCursorUpsert).not.toHaveBeenCalled();
+  });
+
+  it("holds the cursor and retries when the visit's tests have not synced yet", async () => {
+    mocks.visitTestFindMany.mockResolvedValue([]);
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
+
+    await pullVerifications(cloud);
+
+    expect(mocks.visitTestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.syncCursorUpsert).not.toHaveBeenCalled();
+  });
+
+  // Retrying must not become wedging: a visit that never arrives has to stop
+  // blocking every later verification.
+  it("quarantines the verification once retries are exhausted", async () => {
+    mocks.visitFindUnique.mockResolvedValue(null);
+    mocks.deadLetterFindUnique.mockResolvedValue({ attempts: MAX_ROW_ATTEMPTS - 1 });
+    const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([row]) });
+
+    await pullVerifications(cloud);
+
+    expect(mocks.deadLetterUpsert).toHaveBeenCalledOnce();
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 

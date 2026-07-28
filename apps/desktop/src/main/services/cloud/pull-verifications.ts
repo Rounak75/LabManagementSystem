@@ -36,11 +36,23 @@ export async function pullVerifications(client: CloudClient): Promise<void> {
     applyRow: async (r) => {
       const verifiedAt = new Date(r.verified_at!);
 
+      // Throw rather than return when the visit or its tests have not arrived
+      // yet. Returning counted the row as applied, so the cursor moved past this
+      // verification and no later tick ever looked at it again — the comment
+      // promising otherwise was wrong. The visit stayed unverified on the lab PC,
+      // never reached the Reports list to be printed, and the patient was never
+      // told their report was ready. Throwing retries while the visits stream
+      // catches up, then quarantines the row in SyncDeadLetter where it is
+      // visible and replayable.
       const local = await prisma().visit.findUnique({ where: { id: r.id } });
-      if (!local) return; // visit hasn't synced yet; a later tick will catch it
+      if (!local) {
+        throw new Error(`visit ${r.id} not synced yet for verification`);
+      }
 
       const tests = await prisma().visitTest.findMany({ where: { visitId: r.id } });
-      if (tests.length === 0) return;
+      if (tests.length === 0) {
+        throw new Error(`visit ${r.id} has no local tests yet for verification`);
+      }
 
       // Idempotent guard: already fully locked-and-verified → nothing to do.
       if (tests.every((t) => t.isLocked && t.verifiedAt)) return;
