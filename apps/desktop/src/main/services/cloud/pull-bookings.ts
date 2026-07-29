@@ -10,13 +10,14 @@ import { logger } from "./logger";
 
 import { prisma } from "@main/db";
 import type { CloudClient } from "./sync-engine";
+import { runPull } from "./pull-runner";
 import * as triggers from "@main/services/notifications/triggers";
 import { convertPendingApprovedBookings } from "@main/services/bookings.service";
 
 const SOURCE = "bookings";
 const BATCH = 100;
 
-interface RawBookingRow {
+interface RawBookingRow extends Record<string, unknown> {
   id: string;
   booking_id: string;
   patient_phone: string;
@@ -43,31 +44,26 @@ interface RawBookingRow {
 }
 
 export async function pullBookings(client: CloudClient): Promise<void> {
-  
-  const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
-  const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
-  const lastId = cursor?.lastId ?? undefined;
+  // Driven by the shared runner rather than its own loop. The hand-rolled
+  // version rethrew any error that was not a constraint conflict, which skipped
+  // the cursor write — so the next tick re-fetched the same page, hit the same
+  // row and threw again, every few seconds forever. One malformed booking stopped
+  // every later booking from ever reaching the lab PC, with nothing in the UI to
+  // say so. The runner retries a failing row a bounded number of times and then
+  // quarantines it in SyncDeadLetter, where it is visible and the stream moves on.
+  await runPull<RawBookingRow>(client, {
+    source: SOURCE,
+    table: "bookings",
+    cursorColumn: "updated_at",
+    batchSize: BATCH,
 
-  let rows: RawBookingRow[] = [];
-  try {
-    rows = (await client.pullSince("bookings", "updated_at", sinceIso, BATCH, undefined, lastId)) as unknown as RawBookingRow[];
-  } catch (e) {
-    logger.error("cloud", "[pull-bookings] fetch failed", e);
-    return;
-  }
-  if (rows.length === 0) return;
-
-  let latest = cursor?.lastSyncedAt ?? new Date(0);
-  let latestId = cursor?.lastId ?? null;
-  for (const r of rows) {
-    try {
+    applyRow: async (r) => {
       const existing = await prisma().booking.findUnique({ where: { id: r.id } });
       if (existing && existing.version > (r.version ?? 0)) {
-        // Local already has a newer copy (staff approved / declined).
-        // Don't overwrite — desktop is the source of truth post-approval.
-        latest = new Date(r.updated_at);
-        latestId = r.id;
-        continue;
+        // Local already has a newer copy (staff approved / declined here).
+        // Genuinely nothing to do, so returning is correct: the desktop is the
+        // source of truth post-approval.
+        return;
       }
 
       const data = {
@@ -102,32 +98,13 @@ export async function pullBookings(client: CloudClient): Promise<void> {
       });
 
       // First time we see this booking, and it's still Pending: notify staff.
+      // Best-effort — a mail failure must not hold up the booking itself.
       if (!existing && r.status === "Pending") {
         triggers.bookingCreatedStaff(r.id).catch((e) =>
           logger.error("cloud", "[pull-bookings] bookingCreatedStaff trigger failed", e),
         );
       }
-
-      // Success -> advance cursor
-      latest = new Date(r.updated_at);
-      latestId = r.id;
-    } catch (e: any) {
-      if (e?.code === "P2002" || e?.code === "P2003") {
-        logger.warn("cloud", "[pull-bookings] skipping row" + " " + r.booking_id + " " + "— constraint conflict:" + " " + JSON.stringify(e.meta));
-        // Skipped constraint conflict -> advance cursor
-        latest = new Date(r.updated_at);
-        latestId = r.id;
-        continue;
-      }
-      logger.error("cloud", "[pull-bookings] row" + " " + r.booking_id + " " + "failed", e);
-      throw e;
-    }
-  }
-
-  await prisma().syncCursor.upsert({
-    where: { source: SOURCE },
-    update: { lastSyncedAt: latest, lastId: latestId },
-    create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
+    },
   });
 
   // Approving in the staff portal only marks the booking Approved and assigns a

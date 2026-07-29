@@ -5,12 +5,13 @@ import { logger } from "./logger";
 
 import { prisma } from "@main/db";
 import type { CloudClient } from "./sync-engine";
+import { runPull } from "./pull-runner";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "disputes";
 const BATCH = 50;
 
-interface RawDisputeRow {
+interface RawDisputeRow extends Record<string, unknown> {
   id: string;
   patient_id: string;
   reason: string;
@@ -23,24 +24,19 @@ interface RawDisputeRow {
 }
 
 export async function pullDisputes(client: CloudClient): Promise<void> {
-  
-  const cursor = await prisma().syncCursor.findUnique({ where: { source: SOURCE } });
-  const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
-  const lastId = cursor?.lastId ?? undefined;
+  // Driven by the shared runner rather than its own loop. The hand-rolled version
+  // rethrew any error that was not a constraint conflict, which skipped the
+  // cursor write — so the next tick re-fetched the same page, hit the same row
+  // and threw again, indefinitely. One malformed dispute stopped every later one
+  // from reaching the lab PC, and a dispute is a patient saying these results are
+  // not mine: the one message that must not go unseen.
+  await runPull<RawDisputeRow>(client, {
+    source: SOURCE,
+    table: "disputes",
+    cursorColumn: "created_at",
+    batchSize: BATCH,
 
-  let rows: RawDisputeRow[] = [];
-  try {
-    rows = (await client.pullSince("disputes", "created_at", sinceIso, BATCH, undefined, lastId)) as unknown as RawDisputeRow[];
-  } catch (e) {
-    logger.error("cloud", "[pull-disputes] fetch failed", e);
-    return;
-  }
-  if (rows.length === 0) return;
-
-  let latest = cursor?.lastSyncedAt ?? new Date(0);
-  let latestId = cursor?.lastId ?? null;
-  for (const r of rows) {
-    try {
+    applyRow: async (r) => {
       const existing = await prisma().dispute.findUnique({ where: { id: r.id } });
 
       const data = {
@@ -54,37 +50,14 @@ export async function pullDisputes(client: CloudClient): Promise<void> {
         resolutionNote: r.resolution_note ?? null,
       };
 
-      await prisma().dispute.upsert({
-        where: { id: r.id },
-        create: data,
-        update: data,
-      });
+      await prisma().dispute.upsert({ where: { id: r.id }, create: data, update: data });
 
+      // Best-effort — a mail failure must not hold up the dispute itself.
       if (!existing) {
         triggers.portalDispute(r.id).catch((e) =>
           logger.error("cloud", "[pull-disputes] portalDispute trigger failed", e),
         );
       }
-
-      // Success -> advance cursor
-      latest = new Date(r.created_at);
-      latestId = r.id;
-    } catch (e: any) {
-      if (e?.code === "P2002" || e?.code === "P2003") {
-        logger.warn("cloud", "[pull-disputes] skipping row" + " " + r.id + " " + "— constraint conflict:" + " " + JSON.stringify(e.meta));
-        // Skipped constraint conflict -> advance cursor
-        latest = new Date(r.created_at);
-        latestId = r.id;
-        continue;
-      }
-      logger.error("cloud", "[pull-disputes] row" + " " + r.id + " " + "failed", e);
-      throw e;
-    }
-  }
-
-  await prisma().syncCursor.upsert({
-    where: { source: SOURCE },
-    update: { lastSyncedAt: latest, lastId: latestId },
-    create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
+    },
   });
 }
