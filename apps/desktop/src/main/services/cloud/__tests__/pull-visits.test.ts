@@ -162,6 +162,31 @@ describe("pullVisits", () => {
     expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
   });
 
+  // The owner's dashboard counts its "tests entered but not locked" backlog from
+  // resultEnteredAt. Work typed on a phone used to arrive with nothing marking it
+  // as entered, so that count read zero however much was waiting.
+  it("carries across when a test had its result entered", async () => {
+    const cloud = makeFakeCloudClient({
+      pullSince: vi.fn().mockResolvedValue([visitRow()]),
+      fetchVisitTestsForVisits: vi.fn().mockResolvedValue([
+        {
+          id: "vt1",
+          visit_id: "v1",
+          test_id: "t1",
+          status: "ResultEntered",
+          result_entered_at: "2026-07-29T09:00:00Z",
+        },
+      ]),
+    });
+
+    await pullVisits(cloud);
+
+    const arg = mocks.visitTestUpsert.mock.calls[0]![0];
+    expect(arg.create.resultEnteredAt).toEqual(new Date("2026-07-29T09:00:00Z"));
+    expect(arg.update.resultEnteredAt).toEqual(new Date("2026-07-29T09:00:00Z"));
+    expect(arg.create.status).toBe("ResultEntered");
+  });
+
   // A staff-portal visit used to arrive on the lab PC with no bill at all, so the
   // patient never showed up in any money view and payments had nothing to attach
   // to.

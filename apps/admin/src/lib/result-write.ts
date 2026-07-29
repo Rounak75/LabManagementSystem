@@ -72,6 +72,27 @@ async function assertNotLocked(sb: SupabaseClient, visitTestId: string): Promise
   if (data.is_locked === true) throw new ResultLockedError();
 }
 
+/**
+ * Records that this test now has a result on it.
+ *
+ * The desktop's own entry path sets these (results.ipc), and the owner's
+ * dashboard counts its "tests entered but not locked" backlog from
+ * `result_entered_at`. The portal never set it, so every result typed on a phone
+ * was invisible in that count: it read zero while the work piled up, which is
+ * the one number telling the owner there is verifying to do.
+ *
+ * Safe to set unconditionally here — `assertNotLocked` has already refused the
+ * write if this test was signed off, so the status cannot be moved backwards
+ * from a verified state.
+ */
+async function markResultEntered(sb: SupabaseClient, visitTestId: string): Promise<void> {
+  const { error } = await sb
+    .from("visit_tests")
+    .update({ status: "ResultEntered", result_entered_at: new Date().toISOString() })
+    .eq("id", visitTestId);
+  if (error) throw new Error(error.message);
+}
+
 /** Idempotently writes a result row. Updates by id when known; otherwise inserts
  *  a new row, falling back to an update keyed on (visit_test_id, parameter_id)
  *  if a concurrent debounced save already created it (unique-violation 23505).
@@ -107,6 +128,7 @@ export async function upsertResult(
   if (current) {
     const { error } = await sb.from("results").update(writable).eq("id", current.id);
     if (error) throw new Error(error.message);
+    await markResultEntered(sb, body.visit_test_id);
     return { id: current.id, version: writable.version };
   }
 
@@ -117,7 +139,10 @@ export async function upsertResult(
     .select("id")
     .single();
 
-  if (!error && data) return { id: data.id as string, version: writable.version };
+  if (!error && data) {
+    await markResultEntered(sb, body.visit_test_id);
+    return { id: data.id as string, version: writable.version };
+  }
 
   // Unique violation → a concurrent debounced save created the row between our
   // read and this insert. Re-read to get its version and update instead.
@@ -130,6 +155,7 @@ export async function upsertResult(
         .update({ ...writable, version: racedVersion })
         .eq("id", raced.id);
       if (updErr) throw new Error(updErr.message);
+      await markResultEntered(sb, body.visit_test_id);
       return { id: raced.id, version: racedVersion };
     }
   }

@@ -61,6 +61,27 @@ describe("upsertResult", () => {
       });
     }
 
+    // The owner's dashboard counts its "tests entered but not locked" backlog
+    // from result_entered_at. The desktop's own entry path sets it; the portal
+    // never did, so results typed on a phone left that count reading zero
+    // however much work was waiting to be verified.
+    it("marks the test as having a result on it", async () => {
+      const stub = freshInsert(false);
+
+      await upsertResult(stub.client as never, "staff-1", body);
+
+      const upd = stub.calls.find((c) => c.table === "visit_tests" && c.method === "update");
+      expect(upd).toBeTruthy();
+      const arg = upd!.arg as Record<string, unknown>;
+      expect(arg.status).toBe("ResultEntered");
+      expect(arg.result_entered_at).toBeTruthy();
+      expect(
+        stub.calls.some(
+          (c) => c.table === "visit_tests" && c.method === "eq" && c.args[1] === "vt1",
+        ),
+      ).toBe(true);
+    });
+
     it("inserts the result", async () => {
       const stub = freshInsert(false);
 

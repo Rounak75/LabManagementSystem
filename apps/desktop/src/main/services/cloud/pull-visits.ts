@@ -36,6 +36,7 @@ interface RawVisitTestRow {
   visit_id: string;
   test_id: string;
   status: string | null;
+  result_entered_at?: string | null;
 }
 
 interface RawInvoiceRow {
@@ -115,15 +116,18 @@ export async function pullVisits(client: CloudClient): Promise<void> {
       await prisma().visit.upsert({ where: { id: r.id }, create: data, update: data });
 
       for (const vt of childrenByVisit.get(r.id) ?? []) {
+        // resultEnteredAt is carried across because the owner's dashboard counts
+        // its "tests entered but not locked" backlog from it. Without it, work
+        // typed on a phone arrived on the lab PC with nothing marking it as
+        // entered, and that backlog read zero however much was waiting.
+        const child = {
+          status: vt.status ?? "Collected",
+          resultEnteredAt: vt.result_entered_at ? new Date(vt.result_entered_at) : null,
+        };
         await prisma().visitTest.upsert({
           where: { id: vt.id },
-          create: {
-            id: vt.id,
-            visitId: r.id,
-            testId: vt.test_id,
-            status: vt.status ?? "Collected",
-          },
-          update: { status: vt.status ?? "Collected" },
+          create: { id: vt.id, visitId: r.id, testId: vt.test_id, ...child },
+          update: child,
         });
       }
 
