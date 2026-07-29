@@ -54,6 +54,32 @@ async function backfillModel(modelName: string): Promise<void> {
   }
 }
 
+/**
+ * Re-states the test catalogue to the cloud, every boot.
+ *
+ * The catalogue is desktop-owned and reaches the cloud through the outbox, which
+ * only fires on a write. Reconciliation — which retires duplicate tests and
+ * copies parameters onto the ones that lacked them — is deliberately idempotent,
+ * so once it has run locally it never writes again and never produces an outbox
+ * row. Any divergence from before it ran is therefore permanent: the staff
+ * portal kept offering duplicate tests the desktop had already retired, and
+ * showed no parameters to type results into, because the cloud copy of the
+ * catalogue was the pre-reconciliation one and nothing would ever correct it.
+ *
+ * Restating it is cheap — a few hundred rows — and idempotent at the far end,
+ * where every row is an upsert. Doing it on each boot means the cloud catalogue
+ * converges on the desktop's without anyone noticing it had drifted.
+ */
+export async function pushCatalogueToCloud(): Promise<void> {
+  const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
+  if (!s?.cloudSyncEnabled) return;
+
+  // Tests before their parameters, so the cloud foreign key is satisfied as the
+  // rows stream up.
+  await backfillModel("Test");
+  await backfillModel("TestParameter");
+}
+
 export async function runBackfillOnce(force = false): Promise<{ skipped: boolean }> {
   const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
   if (!s) return { skipped: true };

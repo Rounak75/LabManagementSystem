@@ -100,6 +100,11 @@ export async function runPull<TRow extends Record<string, unknown>>(
   )) as unknown as TRow[];
 
   const stats: PullStats = { applied: 0, skipped: 0, failed: 0 };
+
+  // Give anything previously quarantined another go before this page. Whatever
+  // blocked it may since have arrived or been fixed by an update.
+  await replayDeadLetters(spec, stats);
+
   if (rows.length === 0) return stats;
 
   if (spec.prepare) await spec.prepare(rows);
@@ -167,6 +172,56 @@ export async function runPull<TRow extends Record<string, unknown>>(
   }
 
   return stats;
+}
+
+/** How many quarantined rows one pass re-attempts. */
+const REPLAY_LIMIT = 20;
+
+/**
+ * Re-attempts rows that were quarantined earlier.
+ *
+ * Quarantining lets the cursor move past a row that will not apply, so one bad
+ * row cannot stop the stream. The cost is that the row is then behind the
+ * cursor: once the reason it failed is fixed — a parent that has since synced, a
+ * bug in the handler corrected by an update — nothing ever looked at it again,
+ * and the work it carried was gone for good. A quarantined result is a value a
+ * staff member typed for a patient.
+ *
+ * The payload is stored with the dead letter, so replaying needs no cursor and
+ * no cloud round-trip. A row that fails again simply stays quarantined.
+ */
+async function replayDeadLetters<TRow extends Record<string, unknown>>(
+  spec: PullSpec<TRow>,
+  stats: PullStats,
+): Promise<void> {
+  const stuck = await prisma().syncDeadLetter.findMany({
+    where: { source: spec.source, resolvedAt: null },
+    orderBy: { lastSeenAt: "asc" },
+    take: REPLAY_LIMIT,
+  });
+
+  for (const entry of stuck) {
+    let row: TRow;
+    try {
+      row = JSON.parse(entry.payload) as TRow;
+    } catch {
+      continue; // nothing recoverable stored; leave it for a human
+    }
+
+    try {
+      if (spec.shouldApply && !spec.shouldApply(row)) {
+        await clearDeadLetter(spec.source, entry.rowId);
+        continue;
+      }
+      await spec.applyRow(row);
+      await clearDeadLetter(spec.source, entry.rowId);
+      stats.applied += 1;
+      logger.info("cloud", `[${spec.source}] quarantined row ${entry.rowId} applied on replay`);
+    } catch {
+      // Still failing. It keeps its place in the dead-letter table rather than
+      // being counted as a fresh failure, so the attempt count stays meaningful.
+    }
+  }
 }
 
 /** Records or re-counts a failing row. Returns how many times it has now failed. */

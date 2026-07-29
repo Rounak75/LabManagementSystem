@@ -5,11 +5,13 @@ const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
   deadLetterFindUnique: vi.fn(),
   deadLetterUpsert: vi.fn(),
+  deadLetterFindMany: vi.fn(),
   syncCursorUpsert: vi.fn(),
   testResultFindUnique: vi.fn(),
   testResultUpsert: vi.fn(),
   testParameterFindMany: vi.fn(),
   visitTestFindMany: vi.fn(),
+  userFindMany: vi.fn(),
   isAbnormal: vi.fn(() => false),
   auditTry: vi.fn(),
 }));
@@ -17,10 +19,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@main/db", () => ({
   prisma: () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
-    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
+    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert, findMany: mocks.deadLetterFindMany },
     testResult: { findUnique: mocks.testResultFindUnique, upsert: mocks.testResultUpsert },
     testParameter: { findMany: mocks.testParameterFindMany },
     visitTest: { findMany: mocks.visitTestFindMany },
+    user: { findMany: mocks.userFindMany },
   }),
 }));
 vi.mock("@main/services/abnormality", () => ({ isAbnormal: mocks.isAbnormal }));
@@ -49,9 +52,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindMany.mockResolvedValue([]);
   mocks.testResultFindUnique.mockResolvedValue(null);
   mocks.testParameterFindMany.mockResolvedValue([]);
   mocks.visitTestFindMany.mockResolvedValue([]);
+  mocks.userFindMany.mockResolvedValue([{ id: "u1" }]);
   mocks.isAbnormal.mockReturnValue(false);
   mocks.auditTry.mockResolvedValue(undefined);
 });
@@ -212,5 +217,59 @@ describe("pullResults", () => {
       undefined,
       undefined,
     );
+  });
+
+  // enteredById is a foreign key. The cloud value was passed straight through
+  // with `?? ""`, and an empty string matches no User row — so the insert failed
+  // the constraint and a result a staff member had actually typed was retried
+  // until it was quarantined.
+  describe("who the result is attributed to", () => {
+    beforeEach(() => {
+      mocks.visitTestFindMany.mockResolvedValue([
+        { id: "vt1", isLocked: false, visit: { staffId: "staff-9", patient: { sex: "Male", age: 30 } } },
+      ]);
+    });
+
+    it("keeps the author when this machine knows them", async () => {
+      mocks.userFindMany.mockResolvedValue([{ id: "u1" }]);
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert.mock.calls[0]![0].create.enteredById).toBe("u1");
+    });
+
+    it("attributes to the visit's staff when the author is unknown here", async () => {
+      mocks.userFindMany.mockResolvedValue([]);
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert).toHaveBeenCalledOnce();
+      expect(mocks.testResultUpsert.mock.calls[0]![0].create.enteredById).toBe("staff-9");
+    });
+
+    it("attributes to the visit's staff when the cloud sent no author at all", async () => {
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ entered_by_user_id: null })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert.mock.calls[0]![0].create.enteredById).toBe("staff-9");
+    });
+
+    // Better quarantined with a reason than inserted against a constraint that
+    // will reject it every time.
+    it("gives up when there is no staff member to fall back to either", async () => {
+      mocks.userFindMany.mockResolvedValue([]);
+      mocks.visitTestFindMany.mockResolvedValue([{ id: "vt1", isLocked: false, visit: null }]);
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert).not.toHaveBeenCalled();
+      expect(mocks.deadLetterUpsert).toHaveBeenCalled();
+    });
   });
 });

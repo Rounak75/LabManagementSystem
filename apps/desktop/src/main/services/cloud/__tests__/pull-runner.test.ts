@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
   syncCursorUpsert: vi.fn(),
   deadLetterUpsert: vi.fn(),
+  deadLetterFindMany: vi.fn(),
   deadLetterFindUnique: vi.fn(),
 }));
 
@@ -14,6 +15,7 @@ vi.mock("@main/db", () => ({
     syncDeadLetter: {
       upsert: mocks.deadLetterUpsert,
       findUnique: mocks.deadLetterFindUnique,
+      findMany: mocks.deadLetterFindMany,
     },
   }),
 }));
@@ -42,6 +44,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindMany.mockResolvedValue([]);
 });
 
 describe("runPull", () => {
@@ -220,5 +223,48 @@ describe("runPull", () => {
 
     const arg = mocks.deadLetterUpsert.mock.calls[0]![0];
     expect(arg.update.resolvedAt).toBeInstanceOf(Date);
+  });
+
+  // Quarantining lets the cursor move past a row that will not apply, so one bad
+  // row cannot stop the stream. The cost is that the row is then behind the
+  // cursor: once the reason it failed is fixed, nothing ever looked at it again
+  // and the work it carried was gone. A quarantined result is a value a staff
+  // member typed for a patient.
+  describe("replaying quarantined rows", () => {
+    it("re-applies a stuck row and marks it resolved", async () => {
+      mocks.deadLetterFindMany.mockResolvedValue([
+        { source: "widgets", rowId: "stuck-1", payload: JSON.stringify({ id: "stuck-1" }), resolvedAt: null },
+      ]);
+      mocks.deadLetterFindUnique.mockResolvedValue({ resolvedAt: null });
+      const applyRow = vi.fn().mockResolvedValue(undefined);
+
+      await runPull(makeFakeCloudClient(), { source: "widgets", table: "widgets", cursorColumn: "updated_at", applyRow });
+
+      expect(applyRow).toHaveBeenCalledWith({ id: "stuck-1" });
+      expect(mocks.deadLetterUpsert).toHaveBeenCalled();
+    });
+
+    it("leaves a row that still fails quarantined, without counting a new failure", async () => {
+      mocks.deadLetterFindMany.mockResolvedValue([
+        { source: "widgets", rowId: "stuck-1", payload: JSON.stringify({ id: "stuck-1" }), resolvedAt: null },
+      ]);
+      const applyRow = vi.fn().mockRejectedValue(new Error("still broken"));
+
+      await runPull(makeFakeCloudClient(), { source: "widgets", table: "widgets", cursorColumn: "updated_at", applyRow });
+
+      expect(applyRow).toHaveBeenCalledOnce();
+      expect(mocks.deadLetterUpsert).not.toHaveBeenCalled();
+    });
+
+    it("ignores a dead letter whose payload cannot be read", async () => {
+      mocks.deadLetterFindMany.mockResolvedValue([
+        { source: "widgets", rowId: "bad", payload: "not json", resolvedAt: null },
+      ]);
+      const applyRow = vi.fn();
+
+      await runPull(makeFakeCloudClient(), { source: "widgets", table: "widgets", cursorColumn: "updated_at", applyRow });
+
+      expect(applyRow).not.toHaveBeenCalled();
+    });
   });
 });

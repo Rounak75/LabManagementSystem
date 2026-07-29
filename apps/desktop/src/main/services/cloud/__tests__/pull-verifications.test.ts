@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
   deadLetterFindUnique: vi.fn(),
   deadLetterUpsert: vi.fn(),
+  deadLetterFindMany: vi.fn(),
   syncCursorUpsert: vi.fn(),
   visitFindUnique: vi.fn(),
   visitUpdate: vi.fn(),
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@main/db", () => ({
   prisma: () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
-    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
+    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert, findMany: mocks.deadLetterFindMany },
     visit: { findUnique: mocks.visitFindUnique, update: mocks.visitUpdate },
     visitTest: { findMany: mocks.visitTestFindMany, updateMany: mocks.visitTestUpdateMany },
   }),
@@ -39,6 +40,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindMany.mockResolvedValue([]);
   mocks.visitFindUnique.mockResolvedValue({ id: "v1", status: "InProgress" });
   mocks.visitTestFindMany.mockResolvedValue([]);
   mocks.reportReady.mockResolvedValue([]);

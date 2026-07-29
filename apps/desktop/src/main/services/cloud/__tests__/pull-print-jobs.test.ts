@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
   deadLetterFindUnique: vi.fn(),
   deadLetterUpsert: vi.fn(),
+  deadLetterFindMany: vi.fn(),
   syncCursorUpsert: vi.fn(),
   printJobFindUnique: vi.fn(),
   printJobUpsert: vi.fn(),
@@ -13,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@main/db", () => ({
   prisma: () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
-    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
+    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert, findMany: mocks.deadLetterFindMany },
     printJob: { findUnique: mocks.printJobFindUnique, upsert: mocks.printJobUpsert },
   }),
 }));
@@ -38,6 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindMany.mockResolvedValue([]);
   mocks.printJobFindUnique.mockResolvedValue(null);
 });
 

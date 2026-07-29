@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   syncCursorFindUnique: vi.fn(),
   deadLetterFindUnique: vi.fn(),
   deadLetterUpsert: vi.fn(),
+  deadLetterFindMany: vi.fn(),
   syncCursorUpsert: vi.fn(),
   invoiceFindUnique: vi.fn(),
   invoiceUpdate: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock("@main/services/notifications/triggers", () => ({
 vi.mock("@main/db", () => ({
   prisma: () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
-    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert },
+    syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert, findMany: mocks.deadLetterFindMany },
     invoice: { findUnique: mocks.invoiceFindUnique, update: mocks.invoiceUpdate },
     processedCloudPayment: { findUnique: mocks.processedFindUnique, create: mocks.processedCreate },
     $transaction: mocks.transaction,
@@ -51,6 +52,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
+  mocks.deadLetterFindMany.mockResolvedValue([]);
   mocks.processedFindUnique.mockResolvedValue(null);
   mocks.transaction.mockResolvedValue([]);
   mocks.paymentReceived.mockResolvedValue(0);

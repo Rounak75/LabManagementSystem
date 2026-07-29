@@ -38,6 +38,9 @@ export async function pullResults(client: CloudClient): Promise<void> {
   // recomputed without a query per row.
   let paramsCache = new Map<string, ParameterRow>();
   let vtCache = new Map<string, VisitTestRow>();
+  // Which of the page's authors this machine actually has. Loaded per page for
+  // the same reason as the others: one query instead of one per row.
+  let knownUserIds = new Set<string>();
 
   await runPull<RawResultRow>(client, {
     source: SOURCE,
@@ -47,8 +50,12 @@ export async function pullResults(client: CloudClient): Promise<void> {
     prepare: async (rows) => {
       paramsCache = new Map();
       vtCache = new Map();
+      knownUserIds = new Set();
       const paramIds = Array.from(new Set(rows.map((r) => r.parameter_id)));
       const vtIds = Array.from(new Set(rows.map((r) => r.visit_test_id)));
+      const userIds = Array.from(
+        new Set(rows.map((r) => r.entered_by_user_id).filter((id): id is string => !!id)),
+      );
 
       try {
         const params = await prisma().testParameter.findMany({ where: { id: { in: paramIds } } });
@@ -59,8 +66,17 @@ export async function pullResults(client: CloudClient): Promise<void> {
           include: { visit: { include: { patient: true } } },
         });
         vts.forEach((v) => vtCache.set(v.id, v));
+
+        if (userIds.length > 0) {
+          const users = await prisma().user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true },
+          });
+          users.forEach((u) => knownUserIds.add(u.id));
+        }
       } catch (e) {
-        // Non-fatal: without the caches we fall back to the cloud's own flag.
+        // Non-fatal: without the caches we fall back to the cloud's own flag, and
+        // to the visit's staff member as the result's author.
         logger.error("cloud", "[pull-results] batch cache prep failed", e);
       }
     },
@@ -95,6 +111,29 @@ export async function pullResults(client: CloudClient): Promise<void> {
       if (existing && existing.version > (r.version ?? 0)) {
         // Local copy newer — desktop wins.
         return;
+      }
+
+      // Who entered it has to be a user this machine knows: enteredById is a
+      // foreign key. The cloud value was passed straight through with `?? ""`,
+      // and an empty string matches no User row, so the insert failed the
+      // constraint and a result a staff member had actually typed was retried
+      // until it was quarantined. Fall back to the staff member on the visit —
+      // a real user by construction — rather than lose the result over the
+      // question of who keyed it in.
+      const claimed = r.entered_by_user_id ?? "";
+      let enteredById = claimed;
+      if (!claimed || !knownUserIds.has(claimed)) {
+        const fallback = visitTest?.visit?.staffId;
+        if (!fallback) {
+          throw new Error(
+            `no local user for result ${r.id} (entered_by_user_id ${JSON.stringify(r.entered_by_user_id)})`,
+          );
+        }
+        logger.warn(
+          "cloud",
+          `[pull-results] unknown user ${JSON.stringify(claimed)} on result ${r.id} — attributing to visit staff ${fallback}`,
+        );
+        enteredById = fallback;
       }
 
       // Recompute abnormality from the local parameter + patient when both are
@@ -135,11 +174,26 @@ export async function pullResults(client: CloudClient): Promise<void> {
         abnormalOverride: r.abnormal_override ?? null,
         notes: r.notes ?? null,
         version: r.version ?? 1,
-        enteredById: r.entered_by_user_id ?? "",
+        enteredById,
         enteredAt: new Date(r.entered_at),
       };
 
-      await prisma().testResult.upsert({ where: { id: r.id }, create: data, update: data });
+      try {
+        await prisma().testResult.upsert({ where: { id: r.id }, create: data, update: data });
+      } catch (e) {
+        // Every id on this row is a foreign key, and Prisma reports a violation
+        // on any of them with the same message, naming none. Say which row and
+        // which parents were involved, so a quarantined result can be diagnosed
+        // from the log instead of by reading the sync code.
+        if ((e as { code?: string })?.code === "P2003") {
+          throw new Error(
+            `result ${r.id} references something this machine does not have ` +
+              `(visit_test ${r.visit_test_id}, parameter ${r.parameter_id}, user ${enteredById}): ` +
+              `${(e as Error).message}`,
+          );
+        }
+        throw e;
+      }
     },
   });
 }

@@ -33,6 +33,7 @@ import { startCloudSyncWorker, stopCloudSyncWorker } from "@main/services/cloud/
 import { startPrintQueueWorker, stopPrintQueueWorker } from "@main/services/print-queue.worker";
 import { checkSchemaDrift } from "@main/services/cloud/schema-drift";
 import { runReconciliation } from "@main/services/cloud/reconciliation";
+import { pushCatalogueToCloud } from "@main/services/cloud/backfill.service";
 import { migrateLogoFieldOnce } from "@main/services/report.service";
 import { migrateTestCategoriesOnce } from "@main/services/category-migration.service";
 import { reconcileTestCatalogueOnce } from "@main/services/catalogue-reconciliation.service";
@@ -114,6 +115,16 @@ app.whenReady().then(async () => {
     const drift = await checkSchemaDrift();
     if (drift.ok) {
       await runReconciliation();
+      // Re-state the catalogue after reconciliation has settled it. Reconciliation
+      // is idempotent, so on every boot after the first it writes nothing and the
+      // outbox stays silent — leaving the cloud on whatever the catalogue looked
+      // like before it ever ran. That is why the staff portal went on offering
+      // retired duplicate tests, and offered no parameters to type results into.
+      try {
+        await pushCatalogueToCloud();
+      } catch (e) {
+        logError("cloud:catalogue-push", e);
+      }
       startCloudSyncWorker();
     } else {
       logError("cloud:schema-drift", `cloud sync disabled; missing: ${JSON.stringify(drift.missing)}`);
