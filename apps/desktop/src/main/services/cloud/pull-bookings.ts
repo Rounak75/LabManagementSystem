@@ -104,6 +104,16 @@ export async function pullBookings(client: CloudClient): Promise<void> {
           logger.error("cloud", "[pull-bookings] bookingCreatedStaff trigger failed", e),
         );
       }
+
+      // Declining in the staff portal only set the status. The email telling the
+      // patient — the one the lab's own guide promises them — was sent by the
+      // desktop's Decline button and nowhere else, so a decline made on a phone
+      // left the patient waiting for a collection that was never coming.
+      if (existing?.status !== "Declined" && r.status === "Declined") {
+        triggers.bookingDeclined(r.id).catch((e) =>
+          logger.error("cloud", "[pull-bookings] bookingDeclined trigger failed", e),
+        );
+      }
     },
   });
 
@@ -119,7 +129,23 @@ export async function pullBookings(client: CloudClient): Promise<void> {
   try {
     const swept = await convertPendingApprovedBookings();
     if (swept.converted || swept.failed) {
-      logger.info("cloud", "[pull-bookings] converted approvals", { ...swept });
+      logger.info("cloud", "[pull-bookings] converted approvals", {
+        converted: swept.converted,
+        skipped: swept.skipped,
+        failed: swept.failed,
+      });
+    }
+
+    // Tell the patient their home visit is confirmed. These two fired only from
+    // the desktop's own Approve button, so an approval made on a phone produced
+    // a visit nobody had told the patient about.
+    for (const { bookingId, visitId } of swept.convertedItems) {
+      triggers.bookingApproved(bookingId).catch((e) =>
+        logger.error("cloud", "[pull-bookings] bookingApproved trigger failed", e),
+      );
+      triggers.visitBooked(visitId).catch((e) =>
+        logger.error("cloud", "[pull-bookings] visitBooked trigger failed", e),
+      );
     }
   } catch (e) {
     logger.error("cloud", "[pull-bookings] approval sweep failed", e);

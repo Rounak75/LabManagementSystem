@@ -285,6 +285,12 @@ export interface SweepStats {
   converted: number;
   skipped: number;
   failed: number;
+  /**
+   * What each conversion produced, so the caller can tell the patient their home
+   * visit is confirmed. The notifications live with the puller rather than here,
+   * where the rest of the booking triggers already are.
+   */
+  convertedItems: Array<{ bookingId: string; visitId: string }>;
 }
 
 /**
@@ -297,7 +303,7 @@ export interface SweepStats {
  * retried every tick until it succeeds, and needs no cursor of its own.
  */
 export async function convertPendingApprovedBookings(): Promise<SweepStats> {
-  const stats: SweepStats = { converted: 0, skipped: 0, failed: 0 };
+  const stats: SweepStats = { converted: 0, skipped: 0, failed: 0, convertedItems: [] };
 
   const pending = await prisma().booking.findMany({
     where: { status: "Approved", resultingVisitId: null },
@@ -309,8 +315,10 @@ export async function convertPendingApprovedBookings(): Promise<SweepStats> {
   for (const b of pending) {
     try {
       const res = await convertApprovedBooking(b.id);
-      if (res.kind === "converted") stats.converted += 1;
-      else stats.skipped += 1;
+      if (res.kind === "converted") {
+        stats.converted += 1;
+        stats.convertedItems.push({ bookingId: b.id, visitId: res.visitId });
+      } else stats.skipped += 1;
     } catch {
       // Left for the next sweep. Nothing partial survives — writeConversion is
       // one transaction — so retrying is safe.

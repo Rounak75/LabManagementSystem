@@ -340,3 +340,28 @@ describe("convertPendingApprovedBookings", () => {
     expect(await convertPendingApprovedBookings()).toMatchObject({ skipped: 1, failed: 0 });
   });
 });
+
+describe("sweep results for the caller's notifications", () => {
+  // bookingApproved and visitBooked fired only from the desktop's own Approve
+  // button, so an approval made on a phone produced a visit nobody had told the
+  // patient about. The puller sends them, and needs to know what was created.
+  it("reports what each conversion produced", async () => {
+    mocks.bookingFindMany.mockResolvedValue([{ id: "b1" }]);
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved());
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.convertedItems).toEqual([{ bookingId: "b1", visitId: "v-new" }]);
+  });
+
+  it("reports nothing for a booking it could not convert", async () => {
+    mocks.bookingFindMany.mockResolvedValue([{ id: "b1" }]);
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.patientFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.convertedItems).toEqual([]);
+  });
+});
