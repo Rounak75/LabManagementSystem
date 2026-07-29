@@ -745,6 +745,7 @@ packages/
 | `pnpm --filter @lab/desktop package:win` | Build the Windows installer `.exe` |
 
 **Deployment runbooks** (in the `docs/` folder in this repo):
+- `docs/deployment/staging-verification.md` — walk one patient end to end on staging. **Do this before a release that changes the database**, and before this round of work reaches real patients
 - `docs/deployment/admin-vercel-setup.md` — staff portal → Vercel + Supabase
 - `docs/deployment/portal-vercel-setup.md` — patient portal → Vercel + Supabase (migration order, env-var table, 17-point launch smoke)
 - `docs/deployment/desktop-release.md` — build & publish the desktop installer + auto-update
