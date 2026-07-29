@@ -153,4 +153,78 @@ describe("pullPaymentEvents", () => {
 
     expect(cloud.markPaymentEventProcessed).toHaveBeenCalledWith("evt_good");
   });
+
+  // The cursor used to be set to the last event in the page regardless of what
+  // happened. A failure was logged and skipped, leaving the event unprocessed
+  // while the cursor moved past its timestamp — and the fetch asks for events
+  // after the cursor, so a captured payment was never looked at again. The
+  // patient had paid and the lab's copy said they had not.
+  it("does not move the cursor past an event that failed to apply", async () => {
+    mocks.markPaid.mockRejectedValueOnce(new Error("invoice gone"));
+    const cloud = makeFakeCloudClient({
+      fetchUnprocessedPaymentEvents: vi.fn().mockResolvedValue([
+        {
+          event_id: "evt_bad",
+          event: "payment.captured",
+          razorpay_payload: {
+            payload: { payment: { entity: { id: "p1", amount: 100, notes: { invoiceId: "gone" } } } },
+          },
+          received_at: "2026-05-18T10:00:00Z",
+          processed_at: null,
+        },
+        {
+          event_id: "evt_later",
+          event: "payment.failed",
+          razorpay_payload: { payload: {} },
+          received_at: "2026-05-18T10:05:00Z",
+          processed_at: null,
+        },
+      ]),
+    });
+
+    await pullPaymentEvents(cloud);
+
+    // The failing event is left unprocessed, so it comes back on the next fetch.
+    expect(cloud.markPaymentEventProcessed).not.toHaveBeenCalledWith("evt_bad");
+    expect(mocks.syncCursorUpsert).not.toHaveBeenCalled();
+  });
+
+  // Marking it processed would retire a real payment without ever applying it.
+  it("leaves a captured payment unprocessed when it carries no invoice id", async () => {
+    const cloud = makeFakeCloudClient({
+      fetchUnprocessedPaymentEvents: vi.fn().mockResolvedValue([
+        {
+          event_id: "evt_noinv",
+          event: "payment.captured",
+          razorpay_payload: { payload: { payment: { entity: { id: "p1", amount: 100 } } } },
+          received_at: "2026-05-18T10:00:00Z",
+          processed_at: null,
+        },
+      ]),
+    });
+
+    await pullPaymentEvents(cloud);
+
+    expect(mocks.markPaid).not.toHaveBeenCalled();
+    expect(cloud.markPaymentEventProcessed).not.toHaveBeenCalledWith("evt_noinv");
+    expect(mocks.syncCursorUpsert).not.toHaveBeenCalled();
+  });
+
+  it("still advances the cursor when every event applies", async () => {
+    const cloud = makeFakeCloudClient({
+      fetchUnprocessedPaymentEvents: vi.fn().mockResolvedValue([
+        {
+          event_id: "evt_ok",
+          event: "payment.failed",
+          razorpay_payload: { payload: {} },
+          received_at: "2026-05-18T10:03:00Z",
+          processed_at: null,
+        },
+      ]),
+    });
+
+    await pullPaymentEvents(cloud);
+
+    expect(mocks.syncCursorUpsert).toHaveBeenCalledOnce();
+  });
 });
