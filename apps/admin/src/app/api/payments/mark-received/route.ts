@@ -45,6 +45,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "payment not recorded" }, { status: 500 });
   }
 
+  // Close the patient's "I already paid" claim, if they raised one. Recording the
+  // payment IS the confirmation of that claim, but the two lived on separate
+  // screens with no link, so the same payment had to be dealt with twice: once
+  // here and again on the claims page, where it otherwise sat Open indefinitely
+  // looking like outstanding work. Best-effort — the money is already recorded,
+  // and a failure here must not report the payment as failed.
+  sb.from("payment_claims")
+    .update({
+      status: "Confirmed",
+      resolved_by_user_id: user.id,
+      resolved_at: new Date().toISOString(),
+    })
+    .eq("invoice_id", body.invoice_id)
+    .eq("status", "Open")
+    .then(undefined, () => {});
+
   await sb.from("audit_logs").insert({
     user_id: user.id,
     action: "payment.mark_received",

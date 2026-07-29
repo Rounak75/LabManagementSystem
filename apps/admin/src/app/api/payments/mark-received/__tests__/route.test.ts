@@ -115,4 +115,27 @@ describe("POST /api/payments/mark-received", () => {
 
     expect(stub.calls.some((c) => c.table === "audit_logs" && c.method === "insert")).toBe(true);
   });
+
+  // Recording the payment IS the confirmation of the patient's "I already paid"
+  // claim, but the two lived on separate screens with no link — so the same
+  // payment had to be dealt with twice, and the claim sat Open indefinitely
+  // looking like outstanding work.
+  it("closes the patient's payment claim for that invoice", async () => {
+    await POST(req({ invoice_id: "inv-1", amount: 200 }));
+
+    const upd = stub.calls.find((c) => c.table === "payment_claims" && c.method === "update");
+    expect(upd).toBeTruthy();
+    expect((upd!.arg as Record<string, unknown>).status).toBe("Confirmed");
+    // Only this invoice's claims, and only ones still open.
+    expect(
+      stub.calls.some(
+        (c) => c.table === "payment_claims" && c.method === "eq" && c.args[1] === "inv-1",
+      ),
+    ).toBe(true);
+    expect(
+      stub.calls.some(
+        (c) => c.table === "payment_claims" && c.method === "eq" && c.args[1] === "Open",
+      ),
+    ).toBe(true);
+  });
 });
