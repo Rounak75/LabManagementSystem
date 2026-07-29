@@ -70,7 +70,11 @@ function codeToMessage(code: string): string {
     case "INVALID_STATE":   return "That action isn't allowed in the current state.";
     case "STALE_VERSION":   return "Someone else updated these results since you opened the page. Reload and try again.";
     case "REASON_REQUIRED": return "A reason is required (at least 10 characters).";
+    // INVOICE_PAID_BEFORE_UNLOCK is gone: unlocking no longer depends on the
+    // invoice, and the message told the owner to do something the app could not
+    // do. Kept mapped only so an older renderer still shows words, not a code.
     case "INVOICE_PAID_BEFORE_UNLOCK": return "The invoice is paid — cancel it first before unlocking results.";
+    case "ALREADY_CANCELLED": return "This invoice has already been cancelled.";
     case "PATIENT_HAS_VISITS": return "Cancel the patient's visits first, then delete the patient.";
     case "VISIT_HAS_LOCKED_RESULTS": return "This visit has verified results — cannot cancel.";
     case "VISIT_INVOICE_PAID": return "Invoice is paid — refund the invoice first.";

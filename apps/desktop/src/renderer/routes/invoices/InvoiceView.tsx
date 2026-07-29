@@ -17,7 +17,7 @@ type Inv = {
   discountAmount: string;
   total: string;
   amountPaid: string;
-  paymentStatus: "Pending" | "Partial" | "Paid";
+  paymentStatus: "Pending" | "Partial" | "Paid" | "Cancelled";
   paymentMethod: string | null;
   razorpayPaymentLinkId: string | null;
   paymentLinkStatus: string | null;
@@ -61,6 +61,8 @@ export default function InvoiceView() {
   const [cashAmt, setCashAmt] = useState("");
   const [qrModal, setQrModal] = useState<QrModal>({ open: false });
   const [upiModalOpen, setUpiModalOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const razorpayActive =
     !!settings?.razorpayMode && settings.razorpayMode !== "Off";
@@ -112,6 +114,17 @@ export default function InvoiceView() {
     onSuccess: () => {
       setUpiModalOpen(false);
       toast.success("Payment recorded.");
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+    },
+    onError: (e: Error) => toast.error(String(e.message)),
+  });
+
+  const cancelInvoice = useMutation({
+    mutationFn: () => call("invoices:cancel", { invoiceId: id, reason: cancelReason }),
+    onSuccess: () => {
+      setCancelReason("");
+      setCancelOpen(false);
+      toast.success("Invoice cancelled.");
       qc.invalidateQueries({ queryKey: ["invoice", id] });
     },
     onError: (e: Error) => toast.error(String(e.message)),
@@ -269,6 +282,49 @@ export default function InvoiceView() {
             qc.invalidateQueries({ queryKey: ["invoice", id] });
           }}
         />
+      )}
+
+      {/*
+        Cancelling a bill raised in error. Admin-only and reasoned, because the
+        invoice is kept and marked Cancelled rather than deleted — the record of
+        what was billed, and of anything paid against it, has to survive.
+      */}
+      {user?.role === "Admin" && inv.paymentStatus !== "Cancelled" && (
+        <Card>
+          <h2 className="mb-2 text-sm font-semibold">Cancel this invoice</h2>
+          {cancelOpen ? (
+            <div className="space-y-2">
+              <Input
+                label="Reason (at least 10 characters)"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+              {Number(inv.amountPaid) > 0 && (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  ₹{Number(inv.amountPaid).toFixed(0)} has already been recorded against this
+                  invoice. Cancelling does not refund it — hand the money back and note it
+                  here, or the books and the cash drawer will disagree.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="danger"
+                  disabled={cancelReason.trim().length < 10 || cancelInvoice.isPending}
+                  onClick={() => cancelInvoice.mutate()}
+                >
+                  {cancelInvoice.isPending ? "Cancelling…" : "Confirm cancel"}
+                </Button>
+                <Button variant="secondary" onClick={() => setCancelOpen(false)}>
+                  Keep it
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="secondary" onClick={() => setCancelOpen(true)}>
+              Cancel invoice
+            </Button>
+          )}
+        </Card>
       )}
 
       {upiModalOpen && settings?.labUpiVpa && (

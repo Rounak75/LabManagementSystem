@@ -64,7 +64,13 @@ describe("visitTests:unlock", () => {
     expect(state.visitTest.update).not.toHaveBeenCalled();
   });
 
-  it("refuses when invoice is Paid", async () => {
+  // Unlocking used to be refused once the invoice was paid, and the error told
+  // the owner to cancel the invoice first — an action that existed nowhere in
+  // the app. A locked result on a paid visit could therefore not be corrected by
+  // any route at all. The gate is also backwards: a wrong result is a clinical
+  // problem, the report is already in the patient's hands, and whether their
+  // money has arrived has no bearing on whether the value is right.
+  it("allows an Admin to unlock even when the invoice is paid", async () => {
     state.visitTest.findUnique.mockResolvedValue({
       id: "vt1",
       visitId: "v1",
@@ -72,9 +78,34 @@ describe("visitTests:unlock", () => {
       verifiedAt: new Date(),
       visit: { invoice: { paymentStatus: "Paid" } }
     });
+
     await expect(
       unlockVisitTest({ visitTestId: "vt1", reason: "wrong sodium value entered" })
-    ).rejects.toThrow("INVOICE_PAID_BEFORE_UNLOCK");
+    ).resolves.toEqual({ isLocked: false });
+
+    expect(state.visitTest.update).toHaveBeenCalledOnce();
+    expect(state.visitTest.update.mock.calls[0]![0].data).toMatchObject({
+      isLocked: false,
+      status: "ResultEntered",
+      verifiedAt: null,
+    });
+  });
+
+  // The control that matters is who may do it and that they say why, not the
+  // state of the bill.
+  it("still refuses a non-Admin on a paid visit", async () => {
+    setSession({ id: "staff-1", username: "staff", name: "Staff One", role: "Staff" });
+    state.visitTest.findUnique.mockResolvedValue({
+      id: "vt1",
+      visitId: "v1",
+      isLocked: true,
+      verifiedAt: new Date(),
+      visit: { invoice: { paymentStatus: "Paid" } }
+    });
+
+    await expect(
+      unlockVisitTest({ visitTestId: "vt1", reason: "wrong sodium value entered" })
+    ).rejects.toThrow("FORBIDDEN");
     expect(state.visitTest.update).not.toHaveBeenCalled();
   });
 

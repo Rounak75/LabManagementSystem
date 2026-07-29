@@ -16,6 +16,59 @@ register("invoices:get", async ({ id }: { id: string }) => {
   return inv;
 });
 
+/**
+ * Cancels an invoice raised in error.
+ *
+ * The app has never had this. The unlock guard told the owner to "cancel the
+ * invoice first", an action that existed nowhere, so the instruction could not
+ * be followed. Unlocking no longer depends on it, but a bill raised for the
+ * wrong patient or the wrong tests still needs a way to be withdrawn, and
+ * deleting it would take the record of what happened with it.
+ *
+ * The invoice is kept and marked Cancelled, with the reason and who decided it.
+ * Money already recorded against it is left in place rather than silently
+ * unwound: if a patient really paid, that fact is not undone by cancelling the
+ * bill, and the refund is a physical act someone has to perform and record.
+ * The audit row is what makes the pair reconcilable later.
+ */
+export async function cancelInvoice({
+  invoiceId,
+  reason,
+}: {
+  invoiceId: string;
+  reason: string;
+}): Promise<{ paymentStatus: string }> {
+  const u = requireAdmin();
+  if (reason.trim().length < 10) throw new Error("REASON_REQUIRED");
+
+  const inv = await prisma().invoice.findUnique({ where: { id: invoiceId } });
+  if (!inv) throw new Error("NOT_FOUND");
+  if (inv.paymentStatus === "Cancelled") throw new Error("ALREADY_CANCELLED");
+
+  const updated = await prisma().invoice.update({
+    where: { id: invoiceId },
+    data: { paymentStatus: "Cancelled" },
+  });
+
+  await audit(
+    "INVOICE_CANCELLED",
+    "Invoice",
+    invoiceId,
+    JSON.stringify({
+      reason: reason.trim().slice(0, 500),
+      // Recorded because it is the number that has to be refunded by hand, and
+      // it stops being visible on the invoice once it is cancelled.
+      amountPaidAtCancellation: Number(inv.amountPaid),
+      previousStatus: inv.paymentStatus,
+    }),
+    u.id,
+  );
+
+  return { paymentStatus: updated.paymentStatus };
+}
+
+register("invoices:cancel", cancelInvoice);
+
 register("invoices:applyDiscount", async (input: DiscountInput) => {
   requireAdmin();
   const inv = await prisma().invoice.findUnique({ where: { id: input.invoiceId } });

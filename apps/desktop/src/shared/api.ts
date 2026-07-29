@@ -27,6 +27,7 @@ export type Channel =
   | "results:upsert" | "results:listForVisit"
   // invoices
   | "invoices:get" | "invoices:applyDiscount" | "invoices:recordCash" | "invoices:recordUpi"
+  | "invoices:cancel"
   // reports
   | "reports:listReady" | "reports:generatePdf" | "reports:print"
   // staff (admin only)

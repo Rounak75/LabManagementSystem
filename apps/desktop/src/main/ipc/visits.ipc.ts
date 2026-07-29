@@ -199,8 +199,16 @@ register("visitTests:lock", async ({ visitTestId }: { visitTestId: string }) => 
  * before validating input).
  *
  * The reason length is checked against `.trim().length` so all-whitespace
- * is rejected. INVOICE_PAID_BEFORE_UNLOCK fires when the visit's invoice
- * has already been paid — the caller must cancel/refund the invoice first.
+ * is rejected.
+ *
+ * Unlocking is deliberately NOT gated on whether the invoice has been paid.
+ * It used to be, and the error told the caller to cancel the invoice first —
+ * an action that exists nowhere in the app, so a locked result on a paid visit
+ * could not be corrected by any route at all. Even with cancelling available,
+ * the gate is backwards: a wrong result is a clinical problem, the report is
+ * already in the patient's hands, and whether their money has arrived has no
+ * bearing on whether the value is right. Correcting it stays Admin-only and
+ * audited, which is where the control belongs.
  *
  * On success: clears isLocked + verifiedAt, drops status back to
  * "ResultEntered" (so the row appears again in the entry/verify queues),
@@ -218,9 +226,6 @@ export async function unlockVisitTest(
     include: { visit: { include: { invoice: true } } }
   });
   if (!vt) throw new Error("NOT_FOUND");
-  if (vt.visit.invoice?.paymentStatus === "Paid") {
-    throw new Error("INVOICE_PAID_BEFORE_UNLOCK");
-  }
 
   const previouslyVerifiedAt = vt.verifiedAt;
   await prisma().visitTest.update({

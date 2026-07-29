@@ -1,5 +1,6 @@
 import { prisma } from "@main/db";
 import { seedPanelTests } from "@main/services/seed-panels";
+import { applyCatalogueParameters } from "@main/services/apply-catalogue-parameters";
 
 /**
  * Reconciles the test catalogue: makes every test capable of holding a result,
@@ -112,7 +113,20 @@ export async function reconcileTestCatalogueOnce(): Promise<void> {
       }
     }
 
-    // 3. Report anything still un-enterable so it shows up in the log rather
+    // 3. Give the imported catalogue its parameters. seedPanelTests above knows
+    //    five panels; the lab's real catalogue arrived with 144 active tests
+    //    that had none at all, which is why result entry rendered no inputs for
+    //    most of what the lab offers. Only ever adds, and only to a test with no
+    //    parameters, so anything set up by hand is left alone.
+    const applied = await applyCatalogueParameters();
+    if (applied.testsGivenParameters > 0) {
+      console.log(
+        `[reconcileTestCatalogue] gave ${applied.parametersCreated} parameter(s) to ` +
+          `${applied.testsGivenParameters} test(s) that had none`,
+      );
+    }
+
+    // 4. Report anything still un-enterable so it shows up in the log rather
     //    than being discovered by a technician with a patient waiting.
     const stranded = await prisma().test.findMany({
       where: { isActive: true, parameters: { none: {} } },
