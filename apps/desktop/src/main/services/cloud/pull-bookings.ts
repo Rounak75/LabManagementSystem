@@ -11,6 +11,7 @@ import { logger } from "./logger";
 import { prisma } from "@main/db";
 import type { CloudClient } from "./sync-engine";
 import * as triggers from "@main/services/notifications/triggers";
+import { convertPendingApprovedBookings } from "@main/services/bookings.service";
 
 const SOURCE = "bookings";
 const BATCH = 100;
@@ -128,4 +129,22 @@ export async function pullBookings(client: CloudClient): Promise<void> {
     update: { lastSyncedAt: latest, lastId: latestId },
     create: { source: SOURCE, lastSyncedAt: latest, lastId: latestId },
   });
+
+  // Approving in the staff portal only marks the booking Approved and assigns a
+  // phlebotomist. Everything that makes the approval mean anything — the
+  // Patient, the Visit, its tests, the Invoice, the HomeVisit — lived behind the
+  // desktop's own Approve button and ran nowhere else, so a home collection
+  // approved from a phone produced no visit to collect against and no bill,
+  // while the patient was told their booking was accepted.
+  //
+  // Swept rather than done per arriving row: a conversion that fails has to be
+  // retried, and by then the cursor has moved past the approval.
+  try {
+    const swept = await convertPendingApprovedBookings();
+    if (swept.converted || swept.failed) {
+      logger.info("cloud", "[pull-bookings] converted approvals", { ...swept });
+    }
+  } catch (e) {
+    logger.error("cloud", "[pull-bookings] approval sweep failed", e);
+  }
 }

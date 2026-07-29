@@ -93,19 +93,68 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
     return { kind: "chooser", candidates };
   }
 
+  const result = await writeConversion({
+    booking,
+    staffUserId: input.staffUserId,
+    assignedToUserId: input.assignedToUserId,
+    targetPatientId,
+    expectedVersion: input.expectedVersion,
+    requireStatus: "Pending",
+  });
+
+  return {
+    kind: "approved",
+    visitId: result.visitId,
+    patientId: result.patientId,
+    accessCode: result.accessCode,
+    createdNewPatient,
+  };
+}
+
+/** The booking row as this service reads it. */
+type BookingRow = Awaited<ReturnType<typeof loadBooking>>;
+async function loadBooking(id: string) {
+  const b = await prisma().booking.findUnique({ where: { id } });
+  if (!b) throw new Error("NOT_FOUND");
+  return b;
+}
+
+/**
+ * The atomic half of approving a booking: create or reuse the Patient, then the
+ * Visit with its tests and invoice, the HomeVisit, and point the booking at what
+ * it produced — all or nothing.
+ *
+ * Shared by the desktop's own Approve button and by the conversion of a booking
+ * approved in the staff portal. The two differ only in the state they expect to
+ * find; the writes must stay identical, because a home visit created down one
+ * path and not the other is the kind of difference nobody notices until a
+ * patient's bill is missing.
+ */
+async function writeConversion(opts: {
+  booking: BookingRow;
+  staffUserId: string;
+  assignedToUserId: string | null;
+  targetPatientId: string | null;
+  expectedVersion?: number;
+  requireStatus: "Pending" | "Approved";
+}): Promise<{ visitId: string; patientId: string; accessCode: string }> {
+  const { booking, targetPatientId } = opts;
+
   const { plaintext: accessCode, hash: accessCodeHash } = await generateAndHash();
   const visitDisplayId = await nextVisitId();
-  const newPatientDisplayId = createdNewPatient ? await nextPatientId() : null;
+  const newPatientDisplayId = targetPatientId ? null : await nextPatientId();
   const testIds: string[] = safeParseTestIds(booking.testIds);
 
-  // Phase 2: atomic write.
   const result = await prisma().$transaction(async (tx) => {
-    // Re-check the booking inside the txn to defend against a parallel
-    // approval/decline that flipped the status between read and write.
+    // Re-check inside the txn to defend against a parallel approval/decline that
+    // flipped the status between read and write.
     const fresh = await tx.booking.findUnique({ where: { id: booking.id } });
     if (!fresh) throw new Error("NOT_FOUND");
-    if (fresh.status !== "Pending") throw new Error("INVALID_STATE");
-    if (input.expectedVersion !== undefined && fresh.version !== input.expectedVersion) {
+    if (fresh.status !== opts.requireStatus) throw new Error("INVALID_STATE");
+    // Converting a booking that already produced a visit would give one request
+    // two visits, two invoices and two bills.
+    if (fresh.resultingVisitId) throw new Error("ALREADY_CONVERTED");
+    if (opts.expectedVersion !== undefined && fresh.version !== opts.expectedVersion) {
       throw new Error("STALE_VERSION");
     }
 
@@ -123,7 +172,7 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
           email: booking.patientEmail ?? null,
           address: booking.address,
           referredById: "doctor-self",
-          createdById: input.staffUserId,
+          createdById: opts.staffUserId,
         },
       });
       patientId = created.id;
@@ -141,7 +190,7 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
         type: "HomeCollection",
         visitDate: booking.preferredDate,
         status: "Open",
-        staffId: input.staffUserId,
+        staffId: opts.staffUserId,
         accessCodeHash,
         accessCodePlaintext: accessCode,
         visitTests: { create: testIds.map((id) => ({ testId: id, status: "Pending" })) },
@@ -158,7 +207,7 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
         preferredDate: booking.preferredDate,
         preferredTime: booking.preferredSlot,
         testsRequested: booking.testIds,
-        assignedToId: input.assignedToUserId ?? null,
+        assignedToId: opts.assignedToUserId ?? null,
         status: "Booked",
         visitId: visit.id,
       },
@@ -168,9 +217,9 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
       where: { id: booking.id },
       data: {
         status: "Approved",
-        approvedByUserId: input.staffUserId,
-        approvedAt: new Date(),
-        assignedToUserId: input.assignedToUserId ?? null,
+        approvedByUserId: booking.approvedByUserId ?? opts.staffUserId,
+        approvedAt: booking.approvedAt ?? new Date(),
+        assignedToUserId: opts.assignedToUserId ?? null,
         resultingVisitId: visit.id,
         resultingPatientId: patientId,
         version: { increment: 1 },
@@ -180,13 +229,96 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
     return { visitId: visit.id, patientId };
   });
 
-  return {
-    kind: "approved",
-    visitId: result.visitId,
-    patientId: result.patientId,
-    accessCode,
-    createdNewPatient,
-  };
+  return { ...result, accessCode };
+}
+
+/** Why a synced booking could not be turned into a visit without a human. */
+export type ConversionSkip = "not_approved" | "already_converted" | "ambiguous_patient";
+
+export type ConvertResult =
+  | { kind: "converted"; visitId: string; patientId: string; accessCode: string }
+  | { kind: "skipped"; reason: ConversionSkip };
+
+/**
+ * Turns a booking approved in the staff portal into a real visit.
+ *
+ * Approving in the portal only marked the booking Approved and assigned a
+ * phlebotomist; everything that makes the approval mean something — the Patient,
+ * the Visit, its tests, the Invoice, the HomeVisit — lived behind the desktop's
+ * own Approve button and ran nowhere else. So a home collection approved from a
+ * phone produced no visit to collect against and no bill, and the patient was
+ * told their booking was accepted.
+ *
+ * Called from the bookings pull once the approval reaches this machine, in the
+ * same spirit as pull-verifications: the portal records the decision, the
+ * desktop does the work, and both end in the same state.
+ */
+export async function convertApprovedBooking(bookingId: string): Promise<ConvertResult> {
+  const booking = await loadBooking(bookingId);
+
+  if (booking.status !== "Approved") return { kind: "skipped", reason: "not_approved" };
+  if (booking.resultingVisitId) return { kind: "skipped", reason: "already_converted" };
+
+  const candidates = await listPatientCandidatesByPhone(booking.patientPhone);
+
+  // Households share a phone number. Which member a booking belongs to is a
+  // judgement the staff make at the desktop's chooser; guessing here would file
+  // one person's results under another's record. Left for a human instead.
+  if (candidates.length > 1) return { kind: "skipped", reason: "ambiguous_patient" };
+
+  const result = await writeConversion({
+    booking,
+    // The portal recorded who approved it; fall back only if that is missing.
+    staffUserId: booking.approvedByUserId ?? "system",
+    assignedToUserId: booking.assignedToUserId ?? null,
+    targetPatientId: candidates[0]?.id ?? null,
+    requireStatus: "Approved",
+  });
+
+  return { kind: "converted", ...result };
+}
+
+/** How many approvals one sweep will convert, so a backlog cannot stall a tick. */
+const CONVERT_SWEEP_LIMIT = 20;
+
+export interface SweepStats {
+  converted: number;
+  skipped: number;
+  failed: number;
+}
+
+/**
+ * Converts every booking that is approved but has produced no visit yet.
+ *
+ * Deliberately driven off local state rather than off the row that just arrived
+ * on the sync cursor. A conversion that fails — the database busy, a test that
+ * has not synced yet — must be tried again, and the cursor has already moved
+ * past the approval by then. Sweeping for the condition itself means the work is
+ * retried every tick until it succeeds, and needs no cursor of its own.
+ */
+export async function convertPendingApprovedBookings(): Promise<SweepStats> {
+  const stats: SweepStats = { converted: 0, skipped: 0, failed: 0 };
+
+  const pending = await prisma().booking.findMany({
+    where: { status: "Approved", resultingVisitId: null },
+    orderBy: { approvedAt: "asc" },
+    take: CONVERT_SWEEP_LIMIT,
+    select: { id: true },
+  });
+
+  for (const b of pending) {
+    try {
+      const res = await convertApprovedBooking(b.id);
+      if (res.kind === "converted") stats.converted += 1;
+      else stats.skipped += 1;
+    } catch {
+      // Left for the next sweep. Nothing partial survives — writeConversion is
+      // one transaction — so retrying is safe.
+      stats.failed += 1;
+    }
+  }
+
+  return stats;
 }
 
 export async function declineBooking(input: DeclineInput): Promise<void> {
