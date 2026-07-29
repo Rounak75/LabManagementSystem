@@ -8,19 +8,41 @@ export function OfflineBanner() {
 
   useEffect(() => {
     const refresh = async () => setPending((await listPending()).length);
+
+    const flushThenRefresh = async () => {
+      if (!navigator.onLine) return;
+      await flush();
+      await refresh();
+    };
+
+    // Flush on mount, not only when the browser reports a connection coming
+    // back. Staff type results on a phone that loses signal, then close the tab
+    // or let it sleep; when the portal is opened again the device is already
+    // online, so the "online" event never fires. Those results sat in the queue
+    // indefinitely, counted in "waiting to sync" and never sent — the exact case
+    // this queue exists for.
+    setOnline(navigator.onLine);
     refresh();
+    void flushThenRefresh();
+
     const onOnline = async () => {
       setOnline(true);
-      await flush();
-      refresh();
+      await flushThenRefresh();
     };
     const onOffline = () => setOnline(false);
+    // A phone browser suspends timers and events in a backgrounded tab; coming
+    // back to the app is the other moment worth retrying on.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void flushThenRefresh();
+    };
+
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    setOnline(navigator.onLine);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

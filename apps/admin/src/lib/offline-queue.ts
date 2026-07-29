@@ -41,9 +41,31 @@ export async function enqueue(p: { kind: QueueItem["kind"]; body: unknown }): Pr
   return id;
 }
 
+/**
+ * How many times a queued item is retried before it is left alone.
+ *
+ * Bounded so one item the server will never accept cannot sit at the head of the
+ * queue blocking everything typed after it. Past this it stays in the list as an
+ * error the staff can see, and the rest of the queue moves.
+ */
+export const MAX_ATTEMPTS = 5;
+
+/**
+ * Takes the next item to send.
+ *
+ * Items that previously failed are picked up again. This used to select only
+ * `Pending`, while any failure set the status to `Error` — so a single timeout
+ * or 500, the most likely thing to happen on lab mobile data, retired a result a
+ * staff member had typed. It stayed in the queue, counted in "waiting to sync",
+ * and was never sent again.
+ */
 export async function dequeueOne(): Promise<QueueItem | null> {
   const items = await load();
-  const idx = items.findIndex((i) => i.status === ItemStatus.Pending);
+  const idx = items.findIndex(
+    (i) =>
+      i.status === ItemStatus.Pending ||
+      (i.status === ItemStatus.Error && i.attempts < MAX_ATTEMPTS),
+  );
   if (idx === -1) return null;
   items[idx] = { ...items[idx]!, status: ItemStatus.Sending, attempts: items[idx]!.attempts + 1 };
   await save(items);
