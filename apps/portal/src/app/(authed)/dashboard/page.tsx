@@ -7,6 +7,26 @@ import Link from "next/link";
 import { requirePatient } from "@portal/lib/session";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { outstandingBalance } from "@portal/lib/report-release";
+import {
+  Band,
+  BandCard,
+  Card,
+  Container,
+  Note,
+  SectionHead,
+  Tag,
+} from "@portal/components/ui";
+import {
+  ArrowRight,
+  Calendar,
+  Clock,
+  Help,
+  HomeVisit,
+  Phone,
+  Report,
+  User,
+  Wallet,
+} from "@portal/components/icons";
 
 export const runtime = "nodejs";
 
@@ -16,6 +36,16 @@ interface VisitRow {
   visit_date: string;
   status: string;
   invoice: { id: string; total: number; amount_paid: number; payment_status: string } | null;
+}
+
+// The server runs in UTC; the patient reading this is in Jamshedpur. Greet
+// them by their clock, not the data centre's.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function greeting(): string {
+  const h = new Date(Date.now() + IST_OFFSET_MS).getUTCHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export default async function DashboardPage() {
@@ -53,54 +83,287 @@ export default async function DashboardPage() {
     invoice: Array.isArray(v.invoices) && v.invoices[0] ? v.invoices[0] : null,
   }));
 
+  const latest = rows[0];
+  const latestDue = latest?.invoice ? outstandingBalance(latest.invoice) : 0;
+  const totalDue = rows.reduce(
+    (sum, v) => sum + (v.invoice ? outstandingBalance(v.invoice) : 0),
+    0
+  );
+  const firstName = patient?.name?.trim().split(/\s+/)[0] ?? null;
+
   return (
-    <div className="mt-2">
-      <h1 className="text-xl font-semibold">Welcome{patient?.name ? `, ${patient.name}` : ""}</h1>
+    <>
+      {/* ─── Greeting band ────────────────────────────────────────────── */}
+      <Band waves className="pb-14">
+        <Container className="pt-8">
+          <div className="rise flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="truncate font-heading text-[26px] font-extrabold leading-tight tracking-tighter text-band sm:text-[32px]">
+                {greeting()}
+                {firstName ? `, ${firstName}` : ""}
+              </h1>
+              <p className="mt-1.5 text-[13.5px] text-band/65">
+                Everything the lab has on record for you.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <a
+                href="tel:6202924306"
+                aria-label="Call the lab"
+                className="tap inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-band ring-1 ring-inset ring-white/20 hover:bg-white/25"
+              >
+                <Phone size={17} />
+              </a>
+              <Link
+                href="/info"
+                aria-label="Lab information"
+                className="tap inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-band ring-1 ring-inset ring-white/20 hover:bg-white/25"
+              >
+                <Help size={17} />
+              </Link>
+            </div>
+          </div>
 
-      {stale && (
-        <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded p-3">
-          The lab’s desktop may be offline — information shown here was last synced{" "}
-          {lastSeen ? `${Math.round((Date.now() - lastSeen.getTime()) / 60_000)} minutes ago` : "a while ago"}.
-        </div>
-      )}
-
-      <div className="mt-4 flex gap-2 text-sm">
-        <Link href="/invoices" className="px-3 py-1.5 bg-white border rounded">My bills</Link>
-        <Link href="/account" className="px-3 py-1.5 bg-white border rounded">Account</Link>
-      </div>
-
-      <h2 className="mt-6 text-lg font-medium">Recent visits</h2>
-      {rows.length === 0 ? (
-        <p className="text-sm text-slate-500 mt-2">No visits on record yet.</p>
-      ) : (
-        <ul className="mt-2 divide-y divide-slate-100 bg-white rounded border">
-          {rows.map((v) => (
-            <li key={v.id} className="p-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="font-medium">{v.visit_id}</div>
-                <div className="text-xs text-slate-500">
-                  {new Date(v.visit_date).toLocaleDateString()} · status: {v.status}
+          {/* Most recent visit — the card that sits inside the band. */}
+          {latest ? (
+            <BandCard className="rise mt-7">
+              <div className="px-4 pb-3 pt-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-band/70">
+                    Latest visit
+                  </p>
+                  <span className="font-mono num text-[11.5px] text-band/60">
+                    {new Date(latest.visit_date).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {v.status === "Completed" && (
-                  <Link href={`/visits/${v.id}`} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded">
-                    View report
-                  </Link>
-                )}
-                {/* The amount owed, not the amount billed. This showed the full
-                    total even after a part payment at the counter, so a patient
-                    who had already handed over half was asked for all of it. */}
-                {v.invoice && outstandingBalance(v.invoice) > 0 && (
-                  <Link href={`/invoices/${v.invoice.id}/pay`} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded">
-                    Pay ₹{outstandingBalance(v.invoice).toFixed(0)}
-                  </Link>
-                )}
+              {/* Only a link once there is somewhere to go. A card that looks
+                  tappable and lands you back on the page you're already on is
+                  worse than one that plainly isn't ready yet. */}
+              <LatestVisitBody
+                href={latest.status === "Completed" ? `/visits/${latest.id}` : null}
+                visitId={latest.visit_id}
+                caption={
+                  latest.status === "Completed"
+                    ? latestDue > 0
+                      ? `Report ready · ₹${latestDue.toFixed(0)} still due`
+                      : "Report ready to read"
+                    : "Being processed by the lab"
+                }
+              />
+            </BandCard>
+          ) : (
+            <BandCard className="rise mt-7">
+              <div className="rounded-[20px] bg-elev px-5 py-5 text-center">
+                <p className="text-[14px] font-medium text-text">
+                  No visits on record yet
+                </p>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
+                  Once you’ve given a sample, your reports appear here.
+                </p>
               </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+            </BandCard>
+          )}
+        </Container>
+      </Band>
+
+      <Container className="space-y-8">
+        {/* ─── Quick actions ─────────────────────────────────────────── */}
+        <nav aria-label="Quick actions" className="-mt-6">
+          <ul className="grid grid-cols-4 gap-2">
+            {[
+              { href: "/invoices", label: "My bills", icon: <Wallet size={20} /> },
+              { href: "/book", label: "Book visit", icon: <HomeVisit size={20} /> },
+              { href: "/tests", label: "Test list", icon: <Calendar size={20} /> },
+              { href: "/account", label: "Account", icon: <User size={20} /> },
+            ].map((a, i) => (
+              <QuickAction key={a.href} {...a} index={i} />
+            ))}
+          </ul>
+        </nav>
+
+        {stale && (
+          <Note tone="notice" icon={<Clock size={17} />}>
+            The lab’s desktop may be offline — information shown here was last
+            synced{" "}
+            {lastSeen
+              ? `${Math.round((Date.now() - lastSeen.getTime()) / 60_000)} minutes ago`
+              : "a while ago"}
+            .
+          </Note>
+        )}
+
+        {/* ─── Outstanding total ─────────────────────────────────────── */}
+        {totalDue > 0 && (
+          <Link
+            href="/invoices"
+            className="tap flex items-center gap-4 rounded-3xl border border-notice/25 bg-notice-soft p-5 hover:shadow-card"
+          >
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-elev text-notice">
+              <Wallet size={20} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-medium text-soft">
+                Outstanding across all bills
+              </span>
+              <span className="mt-0.5 block font-mono num text-[20px] font-semibold text-text">
+                ₹{totalDue.toFixed(0)}
+              </span>
+            </span>
+            <ArrowRight size={17} className="shrink-0 text-notice" />
+          </Link>
+        )}
+
+        {/* ─── Visits ────────────────────────────────────────────────── */}
+        <section>
+          <SectionHead title="Your visits" />
+          {rows.length === 0 ? (
+            <Card className="p-8 text-center">
+              <p className="text-[14px] text-muted">No visits on record yet.</p>
+              <Link
+                href="/book"
+                className="tap mt-4 inline-flex items-center gap-2 rounded-2xl bg-brand px-5 py-3 text-[14px] font-semibold text-brand-fg hover:bg-brand-hover"
+              >
+                <HomeVisit size={16} />
+                Book a home collection
+              </Link>
+            </Card>
+          ) : (
+            <ul className="space-y-2.5">
+              {rows.map((v, i) => {
+                const due = v.invoice ? outstandingBalance(v.invoice) : 0;
+                const done = v.status === "Completed";
+                return (
+                  <Card
+                    as="li"
+                    key={v.id}
+                    className="rise p-4"
+                    // Only the first handful stagger; past that the delay would
+                    // be longer than anyone waits to read a list.
+                    style={{ "--i": Math.min(i, 6) } as React.CSSProperties}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <span
+                        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                          done ? "bg-ok-soft text-ok" : "bg-notice-soft text-notice"
+                        }`}
+                      >
+                        <Report size={18} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-mono num text-[14.5px] font-medium text-text">
+                          {v.visit_id}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-muted">
+                          {new Date(v.visit_date).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <Tag tone={done ? "ok" : "notice"}>{v.status}</Tag>
+                    </div>
+
+                    {(done || due > 0) && (
+                      <div className="mt-3.5 flex flex-wrap gap-2 border-t border-line pt-3.5">
+                        {done && (
+                          <Link
+                            href={`/visits/${v.id}`}
+                            className="tap inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-4 py-2 text-[12.5px] font-semibold text-brand hover:bg-brand hover:text-brand-fg"
+                          >
+                            View report
+                            <ArrowRight size={13} />
+                          </Link>
+                        )}
+                        {/* The amount owed, not the amount billed. This showed the full
+                            total even after a part payment at the counter, so a patient
+                            who had already handed over half was asked for all of it. */}
+                        {v.invoice && due > 0 && (
+                          <Link
+                            href={`/invoices/${v.invoice.id}/pay`}
+                            className="tap inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 font-mono num text-[12.5px] font-semibold text-brand-fg hover:bg-brand-hover"
+                          >
+                            Pay ₹{due.toFixed(0)}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </Container>
+    </>
+  );
+}
+
+function LatestVisitBody({
+  href,
+  visitId,
+  caption,
+}: {
+  href: string | null;
+  visitId: string;
+  caption: string;
+}) {
+  const inner = (
+    <>
+      <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+        <Report size={20} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-mono num text-[15px] font-medium text-text">
+          {visitId}
+        </span>
+        <span className="mt-0.5 block truncate text-[12.5px] text-muted">
+          {caption}
+        </span>
+      </span>
+      {href && <ArrowRight size={17} className="shrink-0 text-brand" />}
+    </>
+  );
+
+  const box = "flex items-center gap-4 rounded-[20px] bg-elev px-5 py-4";
+  return href ? (
+    <Link href={href} className={`tap ${box}`}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={box}>{inner}</div>
+  );
+}
+
+function QuickAction({
+  href,
+  label,
+  icon,
+  index,
+}: {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  index: number;
+}) {
+  return (
+    <li className="rise" style={{ "--i": index + 2 } as React.CSSProperties}>
+      <Link
+        href={href}
+        className="tap group glass sheen relative flex min-h-[86px] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl px-1 py-3.5"
+      >
+        <span className="text-brand transition-transform duration-300 ease-out-fluid group-hover:-translate-y-0.5 group-hover:scale-110">
+          {icon}
+        </span>
+        <span className="text-center text-[11px] font-medium leading-tight text-soft">
+          {label}
+        </span>
+      </Link>
+    </li>
   );
 }

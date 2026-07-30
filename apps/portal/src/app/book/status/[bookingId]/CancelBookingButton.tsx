@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { btnSecondary } from "@portal/components/ui";
+import { Close } from "@portal/components/icons";
 
 export function CancelBookingButton({ bookingId }: { bookingId: string }) {
   const router = useRouter();
@@ -26,16 +28,19 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <button
         onClick={handleCancel}
         disabled={working}
-        className="w-full bg-slate-200 hover:bg-slate-300 py-2 rounded text-sm disabled:opacity-50"
+        className={`${btnSecondary} w-full hover:border-alert/40 hover:text-alert`}
       >
+        <Close size={15} />
         {working ? "Cancelling…" : "Cancel this booking"}
       </button>
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-2 rounded">{error}</div>
+        <div className="rounded-2xl bg-alert-soft px-4 py-3.5 text-[13px] leading-relaxed text-text">
+          {error}
+        </div>
       )}
     </div>
   );

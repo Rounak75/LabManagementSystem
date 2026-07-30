@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Band, Card, Container, btnPrimary } from "@portal/components/ui";
+import { Check } from "@portal/components/icons";
 
 interface ChooserPayload {
   phone: string;
@@ -39,26 +41,77 @@ export default function SelectPatientPage() {
   if (!payload) return null;
 
   return (
-    <div className="max-w-md mx-auto mt-8">
-      <h1 className="text-xl font-semibold mb-2">Multiple patients found</h1>
-      <p className="text-sm text-gray-600 mb-4">Whose report are you trying to view?</p>
-      <form onSubmit={handleContinue} className="space-y-3 bg-white p-6 rounded border border-gray-200">
-        {payload.patients.map((p) => (
-          <label key={p.id} className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-gray-50">
-            <input type="radio" name="patient" value={p.id}
-              checked={chosen === p.id} onChange={(e) => setChosen(e.target.value)} />
-            <div>
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-gray-500">{p.age} years · {p.sex}</div>
-            </div>
-          </label>
-        ))}
-        {error && <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded">{error}</div>}
-        <button type="submit" disabled={!chosen}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium disabled:opacity-50">
-          Continue
-        </button>
-      </form>
-    </div>
+    <>
+      <Band waves className="pb-16">
+        <Container className="pt-8">
+          <div className="mx-auto max-w-md">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-band/60">
+              Sign-in
+            </p>
+            <h1 className="mt-3 font-heading text-[28px] font-extrabold leading-[1.08] tracking-tighter text-band">
+              Multiple patients found
+            </h1>
+            <p className="mt-3 text-[14px] leading-relaxed text-band/70">
+              This phone number is registered to more than one patient. Whose
+              report are you trying to view?
+            </p>
+          </div>
+        </Container>
+      </Band>
+
+      <Container>
+        <form onSubmit={handleContinue} className="mx-auto -mt-8 max-w-md">
+          <Card className="space-y-3 p-5">
+            {payload.patients.map((p) => {
+              const active = chosen === p.id;
+              return (
+                <label
+                  key={p.id}
+                  className={`tap flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3.5 ${
+                    active
+                      ? "border-brand bg-brand-soft"
+                      : "border-line bg-surface hover:border-brand/40"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="patient"
+                    value={p.id}
+                    checked={active}
+                    onChange={(e) => setChosen(e.target.value)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-heading text-[13px] font-bold ${
+                      active ? "bg-brand text-brand-fg" : "bg-brand-soft text-brand"
+                    }`}
+                  >
+                    {active ? <Check size={17} /> : p.name.trim().charAt(0).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14.5px] font-semibold text-text">
+                      {p.name}
+                    </span>
+                    <span className="block text-[12.5px] text-muted">
+                      {p.age} years · {p.sex}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+
+            {error && (
+              <div className="rounded-2xl bg-alert-soft px-4 py-3.5 text-[13px] leading-relaxed text-text">
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={!chosen} className={`${btnPrimary} w-full`}>
+              Continue
+            </button>
+          </Card>
+        </form>
+      </Container>
+    </>
   );
 }

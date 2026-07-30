@@ -1,5 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { btnSecondary } from "@portal/components/ui";
+import { Logout } from "@portal/components/icons";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -8,10 +10,8 @@ export function LogoutButton() {
     router.push("/login");
   }
   return (
-    <button
-      onClick={handleLogout}
-      className="mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm"
-    >
+    <button onClick={handleLogout} className={`${btnSecondary} w-full`}>
+      <Logout size={16} />
       Log out
     </button>
   );

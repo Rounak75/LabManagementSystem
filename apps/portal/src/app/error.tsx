@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { Card, Container, IconChip, btnPrimary, btnSecondary } from "@portal/components/ui";
+import { Phone, ShieldAlert } from "@portal/components/icons";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -13,14 +15,28 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <h1 className="text-xl font-semibold text-gray-800">Something went wrong</h1>
-      <p className="max-w-md text-gray-500">
-        We hit an unexpected problem loading this page. Please try again.
-      </p>
-      <button onClick={reset} className="rounded-md bg-gray-800 px-4 py-2 text-white hover:bg-gray-700">
-        Try again
-      </button>
-    </div>
+    <Container className="py-16">
+      <Card className="mx-auto max-w-md p-8 text-center">
+        <IconChip tone="notice" size="lg">
+          <ShieldAlert size={24} />
+        </IconChip>
+        <h1 className="mt-5 font-heading text-[20px] font-bold tracking-snug text-text">
+          Something went wrong
+        </h1>
+        <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+          We hit an unexpected problem loading this page. Trying again usually
+          clears it.
+        </p>
+        <div className="mt-6 space-y-2.5">
+          <button onClick={reset} className={`${btnPrimary} w-full`}>
+            Try again
+          </button>
+          <a href="tel:6202924306" className={`${btnSecondary} w-full`}>
+            <Phone size={16} />
+            Call the lab
+          </a>
+        </div>
+      </Card>
+    </Container>
   );
 }

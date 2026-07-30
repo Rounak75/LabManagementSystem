@@ -1,5 +1,22 @@
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { isOpenNow, type LabConfig, type ClosureRow } from "@portal/lib/lab-status";
+import {
+  Band,
+  BandCard,
+  Card,
+  Container,
+  IconChip,
+  Note,
+  SectionHead,
+  StatusDot,
+} from "@portal/components/ui";
+import {
+  ArrowRight,
+  Calendar,
+  Clock,
+  MapPin,
+  Phone,
+} from "@portal/components/icons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,9 +54,11 @@ export default async function InfoPage() {
 
   if (!settings) {
     return (
-      <div className="mt-6 text-center text-muted">
-        Lab information unavailable right now. Please try again in a moment.
-      </div>
+      <Container className="pt-10">
+        <Note tone="notice">
+          Lab information is unavailable right now. Please try again in a moment.
+        </Note>
+      </Container>
     );
   }
 
@@ -64,126 +83,198 @@ export default async function InfoPage() {
     : null;
 
   return (
-    <div className="space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-[32px] sm:text-[40px] font-heading font-bold tracking-tighter text-text leading-[1.05]">
-          {settings.lab_name}
-        </h1>
-        <p className="text-[14.5px] text-soft">
-          Diagnostic laboratory · Jamshedpur
-        </p>
-      </header>
-
-      <div
-        className={`rounded-xl border p-4 flex items-center gap-3 ${
-          status.open ? "border-ok/30 bg-ok-soft" : "border-notice/30 bg-notice-soft"
-        }`}
-      >
-        <span
-          className={`relative inline-block h-2.5 w-2.5 rounded-full dot-pulse ${
-            status.open ? "bg-ok text-ok" : "bg-notice text-notice"
-          }`}
-        />
-        <div className="flex-1">
-          <p
-            className={`text-[14.5px] font-medium ${
-              status.open ? "text-ok" : "text-notice"
-            }`}
-          >
-            {status.open ? "Open right now" : "Closed right now"}
+    <>
+      <Band waves className="pb-14">
+        {/* Centred: this band is a nameplate, not a pitch — three short lines
+            with nothing to their right, which reads as unbalanced ranged left. */}
+        <Container className="pt-8 text-center">
+          <p className="rise text-[12px] font-semibold uppercase tracking-[0.18em] text-band/60">
+            Lab information
           </p>
-          {status.reason && (
-            <p className="text-[12.5px] text-muted mt-0.5">{status.reason}</p>
-          )}
-        </div>
-      </div>
+          <h1
+            className="rise mt-3 font-heading text-[32px] font-extrabold leading-[1.06] tracking-tighter text-band sm:text-[40px]"
+            style={{ "--i": 1 } as React.CSSProperties}
+          >
+            {settings.lab_name}
+          </h1>
+          <p
+            className="rise mt-3 text-[14.5px] text-band/70"
+            style={{ "--i": 2 } as React.CSSProperties}
+          >
+            Diagnostic laboratory · Jamshedpur
+          </p>
 
-      <section className="grid sm:grid-cols-2 gap-px bg-line border border-line rounded-xl overflow-hidden">
-        <div className="bg-elev p-5">
-          <p className="text-muted text-[12px] mb-2">Address</p>
-          {settings.lab_address && (
-            <p className="text-[14.5px] text-text leading-relaxed">
-              {settings.lab_address}
+          {/* Live status — the card that sits inside the band. Held to a
+              readable width so it stays under the centred nameplate, but its
+              own contents stay ranged left where a row belongs. */}
+          <BandCard className="rise mx-auto mt-7 max-w-xl text-left">
+            <div className="flex items-center gap-4 rounded-[20px] bg-elev px-5 py-4">
+              <StatusDot tone={status.open ? "ok" : "notice"} />
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-[14.5px] font-bold ${
+                    status.open ? "text-ok" : "text-notice"
+                  }`}
+                >
+                  {status.open ? "Open right now" : "Closed right now"}
+                </p>
+                {status.reason && (
+                  <p className="mt-0.5 truncate text-[12.5px] text-muted">
+                    {status.reason}
+                  </p>
+                )}
+              </div>
+              {settings.lab_phone && (
+                <a
+                  href={`tel:${settings.lab_phone}`}
+                  aria-label="Call the lab"
+                  className="tap inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-brand-fg hover:bg-brand-hover"
+                >
+                  <Phone size={17} />
+                </a>
+              )}
+            </div>
+          </BandCard>
+        </Container>
+      </Band>
+
+      <Container className="-mt-6 space-y-8">
+        {/* ─── Address & contact ─────────────────────────────────────── */}
+        <section className="grid gap-3 sm:grid-cols-2">
+          <Card className="p-5">
+            <IconChip>
+              <MapPin size={20} />
+            </IconChip>
+            <p className="mt-4 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted">
+              Address
             </p>
-          )}
-          {mapsHref && (
-            <a
-              href={mapsHref}
-              target="_blank"
-              rel="noopener"
-              className="inline-flex items-center gap-1 mt-3 text-[13px] text-brand hover:underline"
-            >
-              Open in Google Maps
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 8h10M9 4l4 4-4 4" />
-              </svg>
-            </a>
-          )}
-        </div>
-        <div className="bg-elev p-5">
-          <p className="text-muted text-[12px] mb-2">Reach us</p>
-          {settings.lab_phone && (
-            <a
-              href={`tel:${settings.lab_phone}`}
-              className="font-mono text-[18px] text-text num hover:text-brand block"
-            >
-              +91 {settings.lab_phone.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3")}
-            </a>
-          )}
-          {settings.lab_email && (
-            <a
-              href={`mailto:${settings.lab_email}`}
-              className="text-[13.5px] text-soft hover:text-brand mt-2 block"
-            >
-              {settings.lab_email}
-            </a>
-          )}
-        </div>
-      </section>
+            {settings.lab_address && (
+              <p className="mt-1.5 text-[14.5px] leading-relaxed text-text">
+                {settings.lab_address}
+              </p>
+            )}
+            {mapsHref && (
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noopener"
+                className="tap mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-4 py-2 text-[13px] font-semibold text-brand"
+              >
+                Open in Google Maps
+                <ArrowRight size={13} />
+              </a>
+            )}
+          </Card>
 
-      <section className="rounded-xl border border-line bg-elev overflow-hidden">
-        <div className="px-5 py-3 border-b border-line">
-          <p className="text-muted text-[12px]">Hours</p>
-        </div>
-        <dl className="divide-y divide-line text-[14px]">
-          <Row label="Morning" value={`${cfg.morningOpenTime} – ${cfg.morningCloseTime}`} />
-          {cfg.eveningOpenTime && cfg.eveningCloseTime && (
-            <Row label="Evening" value={`${cfg.eveningOpenTime} – ${cfg.eveningCloseTime}`} />
-          )}
-          {cfg.weeklyHolidays.length > 0 && (
-            <Row label="Closed" value={cfg.weeklyHolidays.join(", ")} />
-          )}
-        </dl>
-      </section>
-
-      {closureRows.length > 0 && (
-        <section className="rounded-xl border border-notice/25 bg-notice-soft p-5">
-          <p className="text-notice text-[12px] mb-3">Upcoming closures</p>
-          <ul className="space-y-1.5 text-[13.5px]">
-            {closureRows.slice(0, 8).map((c, i) => (
-              <li key={i} className="flex gap-4 num">
-                <span className="font-mono text-text w-28 shrink-0">
-                  {new Date(c.date).toLocaleDateString("en-IN", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                  })}
-                </span>
-                {c.reason && <span className="text-soft">{c.reason}</span>}
-              </li>
-            ))}
-          </ul>
+          <Card className="p-5">
+            <IconChip>
+              <Phone size={20} />
+            </IconChip>
+            <p className="mt-4 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted">
+              Reach us
+            </p>
+            {settings.lab_phone && (
+              <a
+                href={`tel:${settings.lab_phone}`}
+                className="tap mt-1.5 block font-mono num text-[19px] font-medium text-text hover:text-brand"
+              >
+                +91 {settings.lab_phone.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3")}
+              </a>
+            )}
+            {settings.lab_email && (
+              <a
+                href={`mailto:${settings.lab_email}`}
+                className="tap mt-2 block break-all text-[13.5px] text-soft hover:text-brand"
+              >
+                {settings.lab_email}
+              </a>
+            )}
+          </Card>
         </section>
-      )}
-    </div>
+
+        {/* ─── Hours ─────────────────────────────────────────────────── */}
+        <section>
+          <SectionHead title="Opening hours" />
+          <Card className="overflow-hidden">
+            <dl className="divide-y divide-line">
+              <Row
+                icon={<Clock size={17} />}
+                label="Morning"
+                value={`${cfg.morningOpenTime} – ${cfg.morningCloseTime}`}
+              />
+              {cfg.eveningOpenTime && cfg.eveningCloseTime && (
+                <Row
+                  icon={<Clock size={17} />}
+                  label="Evening"
+                  value={`${cfg.eveningOpenTime} – ${cfg.eveningCloseTime}`}
+                />
+              )}
+              {cfg.weeklyHolidays.length > 0 && (
+                <Row
+                  icon={<Calendar size={17} />}
+                  label="Closed"
+                  value={cfg.weeklyHolidays.join(", ")}
+                  mono={false}
+                />
+              )}
+            </dl>
+          </Card>
+        </section>
+
+        {/* ─── Upcoming closures ─────────────────────────────────────── */}
+        {closureRows.length > 0 && (
+          <section>
+            <SectionHead title="Upcoming closures" />
+            <Card className="overflow-hidden">
+              <ul className="divide-y divide-line">
+                {closureRows.slice(0, 8).map((c, i) => (
+                  <li key={i} className="flex items-center gap-4 px-5 py-3.5">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-notice-soft text-notice">
+                      <Calendar size={16} />
+                    </span>
+                    <span className="w-28 shrink-0 font-mono num text-[13px] font-medium text-text">
+                      {new Date(c.date).toLocaleDateString("en-IN", {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                      })}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-soft">
+                      {c.reason ?? "Closed"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </section>
+        )}
+      </Container>
+    </>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  icon,
+  label,
+  value,
+  mono = true,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="grid grid-cols-[100px_1fr] px-5 py-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-mono text-text num">{value}</dd>
+    <div className="flex items-center gap-4 px-5 py-4">
+      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+        {icon}
+      </span>
+      <dt className="flex-1 text-[14px] text-soft">{label}</dt>
+      <dd
+        className={`text-[14px] font-medium text-text ${mono ? "font-mono num" : ""}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

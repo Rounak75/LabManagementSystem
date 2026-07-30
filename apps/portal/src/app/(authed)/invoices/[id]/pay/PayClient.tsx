@@ -2,6 +2,24 @@
 
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import {
+  Band,
+  BandBar,
+  BandCard,
+  Card,
+  Container,
+  Fact,
+  Note,
+  btnPrimary,
+  btnSecondary,
+} from "@portal/components/ui";
+import {
+  ArrowRight,
+  Check,
+  Info,
+  Phone,
+  Wallet,
+} from "@portal/components/icons";
 
 interface Invoice {
   id: string;
@@ -47,99 +65,198 @@ export function PayClient({ invoice, lab }: { invoice: Invoice; lab: Lab }) {
 
   if (invoice.paymentStatus === "Paid") {
     return (
-      <div className="mt-4 bg-green-50 border border-green-200 p-4 rounded">
-        <h2 className="font-semibold">Bill paid — thank you.</h2>
-        <p className="text-sm text-slate-700 mt-1">
-          {invoice.visitDisplayId} · ₹{invoice.total.toFixed(0)}
-        </p>
-      </div>
+      <>
+        <Band waves className="pb-20">
+          <Container>
+            <BandBar back={{ href: "/invoices", label: "Back to bills" }} title="Bill paid" />
+            <div className="pb-4 pt-6 text-center">
+              <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/15 text-band ring-1 ring-inset ring-white/25">
+                <Check size={30} />
+              </span>
+              <p className="mt-5 font-heading text-[24px] font-extrabold tracking-tighter text-band">
+                Thank you
+              </p>
+            </div>
+          </Container>
+        </Band>
+
+        <Container>
+          <Card className="mx-auto -mt-10 max-w-md p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <Fact label="Bill" value={<span className="font-mono num">{invoice.visitDisplayId}</span>} />
+              <Fact
+                label="Amount"
+                align="right"
+                value={<span className="font-mono num">₹{invoice.total.toFixed(0)}</span>}
+              />
+            </div>
+          </Card>
+        </Container>
+      </>
     );
   }
 
+  const upiUri = upiActive
+    ? buildUpiUri(
+        lab.upiVpa!,
+        lab.upiPayeeName!,
+        invoice.due,
+        `Bill ${invoice.visitDisplayId}`
+      )
+    : null;
+
   return (
-    <div className="mt-2 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Pay your bill</h1>
-        <p className="text-sm text-slate-500">
-          {invoice.visitDisplayId} · {invoice.patientName}
-        </p>
-      </div>
+    <>
+      {/* ─── Bill summary band ────────────────────────────────────────── */}
+      <Band waves className="pb-14">
+        <Container>
+          <BandBar back={{ href: "/invoices", label: "Back to bills" }} title="Pay your bill" />
 
-      <div className="bg-white border rounded p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-600">Amount due</span>
-          <span className="text-2xl font-semibold">₹{invoice.due.toFixed(0)}</span>
-        </div>
-        {invoice.amountPaid > 0 && (
-          <div className="mt-1 text-xs text-slate-500">
-            Already paid: ₹{invoice.amountPaid.toFixed(0)} of ₹{invoice.total.toFixed(0)}
-          </div>
-        )}
-      </div>
+          <BandCard className="mt-4">
+            <div className="rounded-[20px] bg-elev p-4">
+              <div className="flex items-center gap-3.5">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+                  <Wallet size={20} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14.5px] font-semibold text-text">
+                    Golmuri Janch Ghar
+                  </p>
+                  <p className="mt-0.5 truncate font-mono num text-[12.5px] text-muted">
+                    Bill {invoice.visitDisplayId}
+                  </p>
+                </div>
+              </div>
 
-      {upiActive && (
-        <div className="bg-white border rounded p-4">
-          <h2 className="font-medium">Pay via UPI</h2>
-          <p className="text-sm text-slate-600 mt-1">
-            Scan the QR with any UPI app (GPay, PhonePe, Paytm) or tap the button below to open your UPI app directly.
-          </p>
-          <div className="mt-3 flex flex-col items-center gap-2">
-            <QRCodeSVG
-              value={buildUpiUri(lab.upiVpa!, lab.upiPayeeName!, invoice.due, `Bill ${invoice.visitDisplayId}`)}
-              size={196}
-              level="M"
-            />
-            <a
-              href={buildUpiUri(lab.upiVpa!, lab.upiPayeeName!, invoice.due, `Bill ${invoice.visitDisplayId}`)}
-              className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
-            >
-              Open UPI app
-            </a>
-            <div className="text-xs text-slate-500 break-all">
-              UPI ID: {lab.upiVpa}
+              {invoice.amountPaid > 0 && (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3">
+                  <span className="text-[12.5px] text-muted">Already paid</span>
+                  <span className="font-mono num text-[13px] font-medium text-text">
+                    ₹{invoice.amountPaid.toFixed(0)} of ₹{invoice.total.toFixed(0)}
+                  </span>
+                </div>
+              )}
+
+              {/* The one number that matters, on the brand surface. */}
+              <div className="band mt-2.5 flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5">
+                <span className="text-[13px] font-medium text-band/80">
+                  Amount due
+                </span>
+                <span className="font-mono num text-[22px] font-semibold text-band">
+                  ₹{invoice.due.toFixed(0)}
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </BandCard>
+        </Container>
+      </Band>
 
-      {razorpayActive && (
-        <div className="bg-white border rounded p-4">
-          <h2 className="font-medium">Pay via card / netbanking</h2>
-          <a
-            href={invoice.razorpayLink!}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block px-4 py-2 bg-blue-600 text-white rounded text-sm"
-          >
-            Open Razorpay
-          </a>
-        </div>
-      )}
+      <Container>
+        <div className="mx-auto mt-8 max-w-md space-y-4">
+          {/* ─── UPI ───────────────────────────────────────────────────── */}
+          {upiActive && upiUri && (
+            <>
+              <Note icon={<Info size={17} />}>
+                Scan this code with any UPI app — GPay, PhonePe, Paytm — or tap
+                the button below to open your app with the amount already filled
+                in.
+              </Note>
 
-      {!upiActive && !razorpayActive && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded text-sm">
-          Online payment isn’t set up yet. Please call the lab at
-          <a className="text-blue-700 ml-1" href="tel:6202924306">6202924306</a> to pay.
-        </div>
-      )}
+              <Card className="p-6">
+                <div className="flex justify-center">
+                  <div className="rounded-2xl bg-white p-4 shadow-card">
+                    <QRCodeSVG value={upiUri} size={196} level="M" />
+                  </div>
+                </div>
 
-      <div className="bg-white border rounded p-4">
-        <h2 className="font-medium text-sm">Already paid?</h2>
-        <p className="text-sm text-slate-600 mt-1">
-          If you’ve paid recently and the status hasn’t updated yet, let the lab know.
-          They’ll check and update your bill manually.
-        </p>
-        {claimSent ? (
-          <p className="mt-2 text-sm text-green-700">Thanks — the lab has been notified.</p>
-        ) : (
-          <button
-            onClick={handleAlreadyPaid}
-            className="mt-2 px-3 py-1.5 text-sm bg-slate-200 hover:bg-slate-300 rounded"
-          >
-            I’ve already paid
-          </button>
-        )}
-      </div>
-    </div>
+                <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3">
+                  <span className="shrink-0 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
+                    UPI ID
+                  </span>
+                  <span className="min-w-0 break-all text-right font-mono text-[13px] text-text">
+                    {lab.upiVpa}
+                  </span>
+                </div>
+
+                <a href={upiUri} className={`${btnPrimary} mt-4 w-full`}>
+                  Open UPI app
+                  <ArrowRight size={16} />
+                </a>
+              </Card>
+            </>
+          )}
+
+          {/* ─── Razorpay ──────────────────────────────────────────────── */}
+          {razorpayActive && (
+            <Card className="p-6">
+              <p className="font-heading text-[15.5px] font-bold tracking-snug text-text">
+                Pay by card or netbanking
+              </p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                You’ll be taken to Razorpay’s secure page to finish the payment.
+              </p>
+              <a
+                href={invoice.razorpayLink!}
+                target="_blank"
+                rel="noreferrer"
+                className={`${btnPrimary} mt-4 w-full`}
+              >
+                Open Razorpay
+                <ArrowRight size={16} />
+              </a>
+            </Card>
+          )}
+
+          {/* ─── No gateway configured ─────────────────────────────────── */}
+          {!upiActive && !razorpayActive && (
+            <Card className="p-6">
+              <Note tone="notice">
+                Online payment isn’t set up yet. Please call the lab to pay.
+              </Note>
+              <a
+                href="tel:6202924306"
+                className={`${btnPrimary} mt-4 w-full font-mono num`}
+              >
+                <Phone size={16} />
+                6202924306
+              </a>
+            </Card>
+          )}
+
+          {/* ─── Bill facts ───────────────────────────────────────────── */}
+          <Card className="p-5">
+            <div className="grid grid-cols-3 gap-3">
+              <Fact label="Patient" value={invoice.patientName || "—"} />
+              <Fact
+                label="Bill"
+                value={<span className="font-mono num">{invoice.visitDisplayId}</span>}
+              />
+              <Fact label="Status" align="right" value={invoice.paymentStatus} />
+            </div>
+          </Card>
+
+          {/* ─── Already paid ─────────────────────────────────────────── */}
+          <Card className="p-5">
+            <p className="font-heading text-[14.5px] font-bold tracking-snug text-text">
+              Already paid?
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+              If you’ve paid recently and the status hasn’t updated yet, let the
+              lab know. They’ll check and update your bill manually.
+            </p>
+            {claimSent ? (
+              <p className="mt-4 flex items-center gap-2 rounded-2xl bg-ok-soft px-4 py-3 text-[13px] font-medium text-ok">
+                <Check size={16} />
+                Thanks — the lab has been notified.
+              </p>
+            ) : (
+              <button onClick={handleAlreadyPaid} className={`${btnSecondary} mt-4 w-full`}>
+                I’ve already paid
+              </button>
+            )}
+          </Card>
+        </div>
+      </Container>
+    </>
   );
 }

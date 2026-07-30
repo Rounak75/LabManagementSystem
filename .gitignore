@@ -169,6 +169,28 @@ prisma/migrations/migration_lock.toml.bak
 backup*.sql
 SHA256SUMS.txt
 
+# Next.js generated route types (regenerated on every dev/build)
+.next/types/
+**/next-env.d.ts.bak
+
+# Editor state
+.vscode/
+*.code-workspace
+
+# Claude Code — machine-local permissions and settings. `settings.json` is the
+# shared, committed one; `settings.local.json` is per-machine and must not be.
+.claude/settings.local.json
+.claude/local/
+
+# Local scratch and preview scaffolding. Anything used to run the apps against
+# fake data belongs outside a commit — it is not the real schema and must never
+# be mistaken for it.
+scratch/
+scratchpad/
+*.preview.mjs
+preview-api.mjs
+start-preview.sh
+
 # Vercel
 .vercel
 

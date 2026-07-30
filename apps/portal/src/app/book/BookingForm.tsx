@@ -3,8 +3,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   isOpenNow,
-  slotsAvailableOn,
-  restrictionForSlots,
   slotLabel,
   restrictionLabel,
   type LabConfig,
@@ -12,6 +10,29 @@ import {
   type Slot,
   type CollectionTimeRestriction,
 } from "@portal/lib/lab-status";
+import {
+  Card,
+  Note,
+  Tag,
+  btnPrimary,
+  fieldLabel,
+  hintCls,
+  inputCls,
+} from "@portal/components/ui";
+import {
+  Calendar,
+  Check,
+  ChevronDown,
+  Clock,
+  Close,
+  Phone,
+  Plus,
+  Search,
+  Shield,
+  User,
+  Vial,
+} from "@portal/components/icons";
+import { onlyPopular } from "@portal/components/popular-tests";
 
 interface Test {
   id: string;
@@ -21,7 +42,17 @@ interface Test {
   collectionTimeRestriction: CollectionTimeRestriction;
 }
 
-const ALL_SLOTS: readonly Slot[] = ["Morning", "Afternoon", "Evening"];
+// How many days of one-tap date chips to offer. Anything further out still
+// works — the calendar input below the rail takes any future date.
+const RAIL_DAYS = 14;
+
+/** Local YYYY-MM-DD. Never `toISOString`, which would roll the date back
+ *  before 5:30am IST and offer the patient yesterday. */
+function ymd(d: Date): string {
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
 
 import { useBookingState } from "./useBookingState";
 
@@ -37,7 +68,7 @@ export function BookingForm({
   closures: ClosureRow[];
 }) {
   const router = useRouter();
-  
+
   const { state, actions } = useBookingState(tests, blackoutDates, cfg, closures);
   const {
     name, phone, email, address, pincode, date, slot, notes, testIds,
@@ -51,6 +82,29 @@ export function BookingForm({
   const [filter, setFilter] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // "Today" is resolved after mount only. The server runs in UTC and the
+  // patient's phone in IST, so building the rail during SSR would hand React
+  // two different sets of dates to reconcile.
+  const [todayIso, setTodayIso] = useState<string | null>(null);
+  useEffect(() => {
+    setTodayIso(ymd(new Date()));
+  }, []);
+
+  const days = useMemo(() => {
+    if (!todayIso) return [];
+    const start = new Date(`${todayIso}T00:00:00`);
+    return Array.from({ length: RAIL_DAYS }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return {
+        iso: ymd(d),
+        day: d.getDate(),
+        weekday: d.toLocaleDateString("en-IN", { weekday: "short" }),
+        month: d.toLocaleDateString("en-IN", { month: "short" }),
+      };
+    });
+  }, [todayIso]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -94,11 +148,40 @@ export function BookingForm({
     refreshCaptcha();
   }, []);
 
+  // Which discipline the browse panel is showing. Null means everything, and
+  // a search query overrides it entirely.
+  const [browseCategory, setBrowseCategory] = useState<string | null>(null);
+
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of tests) if (t.category) seen.add(t.category);
+    return [...seen].sort();
+  }, [tests]);
+
+  const popular = useMemo(() => onlyPopular(tests, 6), [tests]);
+
   const visible = useMemo(() => {
-    if (!filter.trim()) return tests.slice(0, 50);
-    const q = filter.toLowerCase();
-    return tests.filter((t) => t.name.toLowerCase().includes(q)).slice(0, 50);
-  }, [tests, filter]);
+    const q = filter.trim().toLowerCase();
+    const pool = q
+      ? tests.filter((t) => t.name.toLowerCase().includes(q))
+      : browseCategory
+        ? tests.filter((t) => t.category === browseCategory)
+        : tests;
+    return pool.slice(0, 60);
+  }, [tests, filter, browseCategory]);
+
+  /**
+   * Adding from a search closes the panel — the patient had one test in mind
+   * and has it. Adding while browsing leaves it open, because someone picking
+   * from a list is usually picking more than one.
+   */
+  function addTest(id: string) {
+    toggleTest(id);
+    if (filter) {
+      setFilter("");
+      setDropdownOpen(false);
+    }
+  }
 
   const labStatus = cfg ? isOpenNow(cfg, closures) : { open: true, reason: null };
 
@@ -116,45 +199,48 @@ export function BookingForm({
 
   if (bookingId)
     return (
-      <div className="mt-6 rounded-lg border border-ok/30 bg-ok/5 p-4">
-        <h2 className="text-[15px] text-text font-medium">
-          Booking received — <span className="font-mono num">{bookingId}</span>
-        </h2>
-        <p className="text-[13px] text-soft mt-2">Loading your confirmation…</p>
-      </div>
+      <Card className="mt-6 flex items-center gap-4 p-6">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ok-soft text-ok">
+          <Check size={20} />
+        </span>
+        <div>
+          <h2 className="font-heading text-[15.5px] font-bold tracking-snug text-text">
+            Booking received — <span className="font-mono num">{bookingId}</span>
+          </h2>
+          <p className="mt-1 text-[13px] text-muted">Loading your confirmation…</p>
+        </div>
+      </Card>
     );
 
   const submitDisabled = submitting || !captchaToken || availableSlots.length === 0;
-
-  const inputCls =
-    "block w-full rounded-xl bg-surface border border-line/80 px-4 py-3 text-[15px] text-text placeholder:text-muted focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all duration-300 ease-out-fluid shadow-inner-bezel-dark hover:border-line hover:bg-elev";
+  const unselected = visible.filter((t) => !testIds.includes(t.id));
 
   return (
-    <div className="mt-6 space-y-5">
+    <div className="space-y-5">
       {cfg && !labStatus.open && (
-        <div className="rounded-lg border border-notice/30 bg-notice-soft px-4 py-3 text-[13px] text-text">
-          <strong className="text-text">The lab is currently closed.</strong>
-          {labStatus.reason ? <> {labStatus.reason}.</> : null} You can still submit a
-          booking — staff will call to confirm during open hours.
-        </div>
+        <Note tone="notice" icon={<Clock size={17} />}>
+          <strong className="font-semibold text-text">
+            The lab is currently closed.
+          </strong>
+          {labStatus.reason ? ` ${labStatus.reason}.` : null} You can still submit
+          a booking — staff will call to confirm during open hours.
+        </Note>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-8"
-      >
-        <Section title="Patient Details" step={1}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* ─── 1. Patient details ─────────────────────────────────────── */}
+        <Section step={1} title="Patient details" icon={<User size={18} />}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label="Full name" className="md:col-span-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 className={inputCls}
-                placeholder="As it should appear on the report"
+                placeholder="Full name, as it should print on the report"
               />
             </Field>
-            <Field label="Phone · 10 digits">
+            <Field label="Phone number" hint="10 digits, no spaces">
               <input
                 type="tel"
                 inputMode="numeric"
@@ -166,13 +252,13 @@ export function BookingForm({
                 placeholder="9876543210"
               />
             </Field>
-            <Field label="Email · optional">
+            <Field label="Email" hint="Optional">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={inputCls}
-                placeholder="you@example.com"
+                placeholder="name@example.com — for a copy of the report"
               />
             </Field>
             <Field label="Collection address" className="md:col-span-2">
@@ -181,179 +267,349 @@ export function BookingForm({
                 onChange={(e) => setAddress(e.target.value)}
                 required
                 rows={2}
-                className={inputCls}
-                placeholder="Door no., street, locality, landmark"
+                className={`${inputCls} resize-none`}
+                placeholder="House no., street, locality — and a landmark we can find"
               />
             </Field>
-            <Field label="PIN code · optional">
+            <Field label="PIN code" hint="Optional">
               <input
                 value={pincode}
                 onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
                 maxLength={6}
                 className={`${inputCls} font-mono num`}
-                placeholder="831003"
+                placeholder="e.g. 831003"
               />
             </Field>
           </div>
         </Section>
 
-        <Section title="Test Selection" step={2}>
-          <div className="relative group z-20" ref={dropdownRef}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-soft group-focus-within:text-brand transition-colors">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-            </svg>
+        {/* ─── 2. Tests ───────────────────────────────────────────────── */}
+        <Section step={2} title="Choose tests" icon={<Vial size={18} />}>
+          <div ref={dropdownRef} className="relative z-20">
+            <Search
+              size={18}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+            />
             <input
               value={filter}
               onChange={(e) => {
                 setFilter(e.target.value);
                 setDropdownOpen(true);
+                setBrowseCategory(null);
               }}
               onFocus={() => setDropdownOpen(true)}
               onClick={() => {
-                if (!filter) setDropdownOpen(prev => !prev);
+                if (!filter) setDropdownOpen((prev) => !prev);
                 else setDropdownOpen(true);
               }}
-              placeholder="Search or select tests..."
-              className={`${inputCls} pl-10 pr-10`}
+              placeholder={`Search ${tests.length} tests — “thyroid”, “CBC”…`}
+              aria-label="Search tests"
+              className={`${inputCls} rounded-full pl-11 pr-12`}
             />
             <button
               type="button"
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-soft transition-transform duration-200 cursor-pointer hover:text-brand"
-              onClick={() => setDropdownOpen(prev => !prev)}
-              aria-label="Toggle test selection"
+              onClick={() => setDropdownOpen((prev) => !prev)}
+              aria-label="Toggle test list"
+              className="tap absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-brand"
             >
-              <svg 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180 text-brand" : ""}`}
-              >
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 ease-out-fluid ${
+                  dropdownOpen ? "rotate-180 text-brand" : ""
+                }`}
+              />
             </button>
 
-            {dropdownOpen && (filter.length > 0 || visible.length > 0) && (
-              <div className="absolute z-20 w-full mt-2 rounded-xl border border-line bg-bg shadow-2xl max-h-72 overflow-y-auto divide-y divide-line animate-in fade-in slide-in-from-top-1 duration-200">
-                {visible.map((t) => {
-                  const isAlreadySelected = testIds.includes(t.id);
-                  if (isAlreadySelected) return null;
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => {
-                        if (!isAlreadySelected) toggleTest(t.id);
-                        setFilter("");
-                        setDropdownOpen(false);
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 text-[14px] cursor-pointer hover:bg-elev transition-colors"
-                    >
-                      <span className="flex-1 text-text font-medium">
-                        {t.name}
-                        {t.collectionTimeRestriction && (
-                          <span className="ml-2 text-[11px] font-normal text-notice bg-notice/10 px-1.5 py-0.5 rounded">
-                            {restrictionLabel(t.collectionTimeRestriction)}
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-mono text-soft num">
-                        ₹{t.price.toFixed(0)}
-                      </span>
-                    </div>
-                  );
-                })}
-                {visible.filter(t => !testIds.includes(t.id)).length === 0 && (
-                  <p className="px-4 py-4 text-[13px] text-muted text-center italic">No matching tests found (or all matches are already added).</p>
+            {dropdownOpen && (
+              <div className="pop absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-line bg-elev shadow-lift">
+                {/* Browsing by discipline, for anyone who arrived without a
+                    name to type. Hidden once a search is under way — then the
+                    query is the filter. */}
+                {!filter && categories.length > 0 && (
+                  <div className="rail flex gap-1.5 overflow-x-auto border-b border-line px-3 py-2.5">
+                    <DropdownChip
+                      active={browseCategory === null}
+                      onClick={() => setBrowseCategory(null)}
+                      label="All"
+                    />
+                    {categories.map((c) => (
+                      <DropdownChip
+                        key={c}
+                        active={browseCategory === c}
+                        onClick={() => setBrowseCategory(c)}
+                        label={c}
+                      />
+                    ))}
+                  </div>
                 )}
+
+                <div className="max-h-64 overflow-y-auto">
+                  {unselected.length === 0 ? (
+                    <p className="px-5 py-6 text-center text-[13px] text-muted">
+                      Nothing left to add here — try another search.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-line">
+                      {unselected.map((t) => (
+                        <li key={t.id}>
+                          <button
+                            type="button"
+                            onClick={() => addTest(t.id)}
+                            className="tap flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-surface"
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[14px] font-medium text-text">
+                                {t.name}
+                              </span>
+                              <span className="mt-0.5 block truncate text-[11.5px] text-muted">
+                                {t.category}
+                                {t.collectionTimeRestriction && (
+                                  <span className="text-notice">
+                                    {" · "}
+                                    {restrictionLabel(t.collectionTimeRestriction)}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                            <span className="shrink-0 font-mono num text-[13.5px] text-soft">
+                              ₹{t.price.toFixed(0)}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             )}
           </div>
-          
-          {testIds.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <div className="rounded-xl border border-line divide-y divide-line bg-bg overflow-hidden shadow-sm">
-                {selectedTests.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between px-4 py-3 text-[14px] bg-bg hover:bg-elev/50 transition-colors">
-                     <span className="text-text font-medium">{t.name}</span>
-                     <div className="flex items-center gap-4">
-                       <span className="font-mono text-soft num">₹{t.price.toFixed(0)}</span>
-                       <button type="button" onClick={() => toggleTest(t.id)} className="text-brand hover:bg-brand/10 p-1.5 rounded-md transition-colors" title="Remove test">
-                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                           <line x1="18" y1="6" x2="6" y2="18" />
-                           <line x1="6" y1="6" x2="18" y2="18" />
-                         </svg>
-                       </button>
-                     </div>
-                  </div>
-                ))}
+
+          {/* ─── For anyone who doesn't know what to search for ────────── */}
+          {!filter && !dropdownOpen && popular.length > 0 && (
+            <div className="mt-4 rounded-2xl bg-surface p-4">
+              <p className="text-[13px] font-semibold text-text">
+                Not sure what you need?
+              </p>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
+                These are what people ask for most. Tap to add — you can remove
+                anything before you submit, and staff confirm the list on the
+                phone.
+              </p>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {popular.map((t) => {
+                  const chosen = testIds.includes(t.id);
+                  return (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        onClick={() => addTest(t.id)}
+                        disabled={chosen}
+                        className={`tap inline-flex items-center gap-1.5 rounded-full border py-2 pl-3 pr-3.5 text-[12.5px] font-medium ${
+                          chosen
+                            ? "cursor-default border-ok/30 bg-ok-soft text-ok"
+                            : "border-line bg-elev text-soft hover:border-brand/40 hover:text-brand"
+                        }`}
+                      >
+                        {chosen ? <Check size={13} /> : <Plus size={13} />}
+                        {t.name}
+                        <span className="font-mono num text-[11.5px] text-muted">
+                          ₹{t.price.toFixed(0)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrowseCategory(null);
+                    setDropdownOpen(true);
+                  }}
+                  className="tap inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3.5 py-2 text-[12.5px] font-semibold text-brand hover:bg-brand hover:text-brand-fg"
+                >
+                  <Vial size={13} />
+                  Browse all {tests.length} tests
+                </button>
+                <a
+                  href="tel:6202924306"
+                  className="tap inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-medium text-soft hover:text-brand"
+                >
+                  <Phone size={13} />
+                  Ask the lab what to book
+                </a>
               </div>
-              <div className="flex justify-between items-center text-[13px] px-1">
-                <span className="text-soft">{testIds.length} test{testIds.length === 1 ? "" : "s"} selected</span>
-                <span className="text-soft num font-mono">
-                  approx <strong className="text-text text-[14px]">₹{total.toFixed(0)}</strong>
+            </div>
+          )}
+
+          {testIds.length > 0 && (
+            <div className="mt-4">
+              <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+                {selectedTests.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center gap-3 px-4 py-3 text-[14px]"
+                  >
+                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+                      <Check size={13} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-text">
+                      {t.name}
+                    </span>
+                    <span className="shrink-0 font-mono num text-[13.5px] text-soft">
+                      ₹{t.price.toFixed(0)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleTest(t.id)}
+                      title={`Remove ${t.name}`}
+                      aria-label={`Remove ${t.name}`}
+                      className="tap inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-alert-soft hover:text-alert"
+                    >
+                      <Close size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex items-center justify-between px-1 text-[13px]">
+                <span className="text-muted">
+                  {testIds.length} test{testIds.length === 1 ? "" : "s"} selected
+                </span>
+                <span className="text-muted">
+                  approx{" "}
+                  <strong className="font-mono num text-[15px] font-semibold text-text">
+                    ₹{total.toFixed(0)}
+                  </strong>
                 </span>
               </div>
             </div>
           )}
         </Section>
 
-        <Section title="Schedule Appointment" step={3}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Preferred date">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                min={new Date().toISOString().slice(0, 10)}
-                className={`${inputCls} font-mono num`}
-              />
-              {date && isBlackedOut(date) && (
-                <span className="text-[11px] text-brand mt-1 block">
-                  Lab is closed on that date.
-                </span>
-              )}
-            </Field>
-            <Field label="Preferred slot">
-              {availableSlots.length === 0 ? (
-                <p className="text-[12.5px] text-brand py-2">
-                  No slots available — pick another date.
-                </p>
-              ) : (
-                <select
-                  value={slot}
-                  onChange={(e) => setSlot(e.target.value as Slot)}
-                  className={inputCls}
-                >
-                  {availableSlots.map((s) => (
-                    <option key={s} value={s}>
+        {/* ─── 3. Schedule ────────────────────────────────────────────── */}
+        <Section step={3} title="Pick a time" icon={<Calendar size={18} />}>
+          <p className={fieldLabel}>Preferred date</p>
+          <ul className="rail -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+            {/* Placeholders hold the row's height until `todayIso` resolves,
+                so the section below doesn't jump on hydration. */}
+            {days.length === 0 &&
+              Array.from({ length: 7 }, (_, i) => (
+                <li key={`skeleton-${i}`} className="shrink-0" aria-hidden>
+                  <div className="h-[68px] w-[58px] rounded-2xl border border-line bg-surface" />
+                </li>
+              ))}
+            {days.map((d) => {
+              const closed = isBlackedOut(d.iso);
+              const active = date === d.iso;
+              return (
+                <li key={d.iso} className="shrink-0">
+                  <button
+                    type="button"
+                    disabled={closed}
+                    onClick={() => setDate(d.iso)}
+                    aria-pressed={active}
+                    className={`tap flex h-[68px] w-[58px] flex-col items-center justify-center gap-0.5 rounded-2xl border ${
+                      active
+                        ? "border-brand bg-brand text-brand-fg shadow-card"
+                        : closed
+                        ? "cursor-not-allowed border-line bg-surface text-muted/50 line-through"
+                        : "border-line bg-surface text-text hover:border-brand/40"
+                    }`}
+                  >
+                    <span className="font-mono num text-[19px] font-semibold leading-none">
+                      {d.day}
+                    </span>
+                    <span
+                      className={`text-[10.5px] font-medium leading-none ${
+                        active ? "text-brand-fg/80" : "text-muted"
+                      }`}
+                    >
+                      {d.weekday}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <details className="mt-3">
+            <summary className="tap cursor-pointer text-[12.5px] font-medium text-brand hover:opacity-80">
+              Need a date further out?
+            </summary>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              min={todayIso ?? undefined}
+              aria-label="Preferred date"
+              className={`${inputCls} mt-3 font-mono num`}
+            />
+          </details>
+
+          {date && isBlackedOut(date) && (
+            <p className="mt-3 text-[12.5px] font-medium text-alert">
+              The lab is closed on that date — please pick another.
+            </p>
+          )}
+
+          <div className="mt-6">
+            <p className={fieldLabel}>Preferred slot</p>
+            {availableSlots.length === 0 ? (
+              <p className="text-[13px] font-medium text-alert">
+                No slots available on that date — pick another.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {availableSlots.map((s) => {
+                  const active = slot === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSlot(s)}
+                      aria-pressed={active}
+                      className={`tap rounded-full border px-4 py-3 text-[13px] font-semibold ${
+                        active
+                          ? "border-brand bg-brand text-brand-fg shadow-card"
+                          : "border-line bg-surface text-soft hover:border-brand/40 hover:text-brand"
+                      }`}
+                    >
                       {slotLabel(s)}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {requiredSlots && restrictedTest?.collectionTimeRestriction && (
-                <p className="text-[11px] text-muted mt-1.5 leading-snug">
-                  {restrictedTest.collectionTimeRestriction === "FastingMorningOnly"
-                    ? `${restrictedTest.name} requires fasting — last meal at least 10 hours before collection. Slot fixed to Morning.`
-                    : `${restrictedTest.name} is collected in the ${restrictionLabel(restrictedTest.collectionTimeRestriction).replace(", ", " ")} window only.`}
-                </p>
-              )}
-            </Field>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {requiredSlots && restrictedTest?.collectionTimeRestriction && (
+              <p className="mt-3 text-[12px] leading-relaxed text-muted">
+                {restrictedTest.collectionTimeRestriction === "FastingMorningOnly"
+                  ? `${restrictedTest.name} requires fasting — last meal at least 10 hours before collection. Slot fixed to Morning.`
+                  : `${restrictedTest.name} is collected in the ${restrictionLabel(restrictedTest.collectionTimeRestriction).replace(", ", " ")} window only.`}
+              </p>
+            )}
           </div>
-          <Field label="Notes · optional">
+
+          <div className="mt-6">
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className={`${fieldLabel} mb-0`}>Notes for the phlebotomist</span>
+              <span className="font-mono num text-[11.5px] text-muted">
+                {notes.length}
+              </span>
+            </div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className={inputCls}
-              placeholder="Anything the phlebotomist should know"
+              rows={3}
+              className={`${inputCls} resize-none`}
+              placeholder="Which floor, who to ask for, anything that helps them find you"
             />
-          </Field>
+          </div>
         </Section>
 
-        <div className="pt-2 border-t border-line">
-          <Field label={captchaQuestion || "Loading captcha…"}>
+        {/* ─── 4. Confirm ─────────────────────────────────────────────── */}
+        <Section step={4} title="Confirm it’s you" icon={<Shield size={18} />}>
+          <Field label={captchaQuestion || "Loading question…"} hint="A quick spam check.">
             <input
               type="number"
               inputMode="numeric"
@@ -363,78 +619,107 @@ export function BookingForm({
               disabled={!captchaToken}
               className={`${inputCls} font-mono num`}
               aria-label="Captcha answer"
-              placeholder="Your answer"
+              placeholder="Type the number"
             />
-            <span className="text-[11px] text-muted mt-1 block">
-              Quick spam check.
-            </span>
           </Field>
-        </div>
+        </Section>
 
         {error && (
-          <div className="rounded-lg border border-brand/40 bg-brand-soft text-[13px] text-text px-3 py-2">
+          <div className="rounded-2xl bg-alert-soft px-4 py-3.5 text-[13px] leading-relaxed text-text">
             {error}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={submitDisabled}
-          className="group relative w-full rounded-full bg-brand px-6 py-4 text-center font-semibold text-brand-fg transition-all duration-300 ease-out-fluid hover:-translate-y-1 hover:shadow-ambient active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
-        >
-          <span className="relative z-10 flex items-center justify-center gap-2 text-[15px]">
+        <div className="space-y-3">
+          <button
+            type="submit"
+            disabled={submitDisabled}
+            className={`${btnPrimary} w-full py-4`}
+          >
             {submitting ? "Submitting…" : "Request home visit"}
-          </span>
-        </button>
-
-        <p className="text-[12px] text-soft text-center px-6">
-          By submitting you allow us to call you about this booking. No promotional
-          messages.
-        </p>
+          </button>
+          <p className="px-4 text-center text-[12px] leading-relaxed text-muted">
+            By submitting you allow us to call you about this booking. No
+            promotional messages.
+          </p>
+        </div>
       </form>
     </div>
+  );
+}
+
+/* ─────────────────────────── components ──────────────────────────── */
+
+function DropdownChip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`tap shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium ${
+        active
+          ? "bg-brand text-brand-fg"
+          : "bg-surface text-soft hover:text-brand"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
 function Section({
   title,
   step,
+  icon,
   children,
 }: {
   title: string;
   step: number;
+  icon: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[2rem] border border-line/60 bg-elev p-1.5 shadow-ambient">
-      <div className="rounded-[1.625rem] bg-bg px-6 py-8 md:px-8 shadow-inner-bezel space-y-6">
-        <div className="flex items-center gap-4 border-b border-line/40 pb-4">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-brand text-[13px] font-bold">
-            {step}
-          </span>
-          <h3 className="font-heading text-xl font-bold tracking-tight text-text">
-            {title}
-          </h3>
-        </div>
-        {children}
+    <Card as="section" className="p-5 sm:p-6">
+      <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+          {icon}
+        </span>
+        <h3 className="flex-1 font-heading text-[16px] font-bold tracking-snug text-text">
+          {title}
+        </h3>
+        <span className="shrink-0">
+          <Tag>Step {step}</Tag>
+        </span>
       </div>
-    </section>
+      {children}
+    </Card>
   );
 }
 
 function Field({
   label,
+  hint,
   className = "",
   children,
 }: {
   label: string;
+  hint?: string;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="block text-[13px] font-medium text-text mb-2 tracking-wide uppercase">{label}</span>
+      <span className={fieldLabel}>{label}</span>
       {children}
+      {hint && <span className={hintCls}>{hint}</span>}
     </label>
   );
 }

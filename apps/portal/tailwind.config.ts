@@ -9,16 +9,22 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        heading: ["var(--font-heading)", "Georgia", "serif"],
+        heading: ["var(--font-heading)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
-        ambient: "0 8px 30px rgba(0, 0, 0, 0.04)",
-        "inner-bezel": "inset 0 1px 1px rgba(255, 255, 255, 0.15)",
-        "inner-bezel-dark": "inset 0 1px 1px rgba(0, 0, 0, 0.05)"
+        // Diffused and tinted with the canvas hue — never a grey drop shadow.
+        card: "0 1px 2px rgb(16 40 50 / 0.04), 0 10px 26px -14px rgb(16 40 50 / 0.16)",
+        lift: "0 2px 6px rgb(16 40 50 / 0.05), 0 22px 44px -20px rgb(16 40 50 / 0.28)",
+        // Black, not slate. Night mode's canvas is darker than the band, so a
+        // slate-tinted shadow was *lighter* than what it fell on and rendered
+        // as a halo under every header. Black is darker than both themes.
+        band: "0 16px 34px -22px rgb(0 0 0 / 0.5)",
+        bezel: "inset 0 1px 0 rgb(255 255 255 / 0.22)",
       },
       transitionTimingFunction: {
         "out-fluid": "cubic-bezier(0.23, 1, 0.32, 1)",
+        drawer: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
       colors: {
         bg: withAlpha("--bg"),
@@ -29,8 +35,11 @@ const config: Config = {
         muted: withAlpha("--muted"),
         soft: withAlpha("--soft"),
         ink: withAlpha("--ink"),
+        band: withAlpha("--band-fg"),
         brand: {
           DEFAULT: withAlpha("--brand"),
+          deep: withAlpha("--brand-deep"),
+          hover: withAlpha("--brand-hover"),
           soft: withAlpha("--brand-soft"),
           fg: withAlpha("--brand-fg"),
         },
@@ -42,10 +51,17 @@ const config: Config = {
           DEFAULT: withAlpha("--notice"),
           soft: withAlpha("--notice-soft"),
         },
+        alert: {
+          DEFAULT: withAlpha("--alert"),
+          soft: withAlpha("--alert-soft"),
+        },
       },
       borderRadius: {
-        lg: "10px",
-        xl: "14px",
+        lg: "12px",
+        xl: "16px",
+        "2xl": "20px",
+        "3xl": "26px",
+        band: "32px",
       },
       letterSpacing: {
         snug: "-0.012em",

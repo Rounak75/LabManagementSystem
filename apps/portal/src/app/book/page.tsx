@@ -1,6 +1,8 @@
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { BookingForm } from "./BookingForm";
 import type { LabConfig, ClosureRow, CollectionTimeRestriction } from "@portal/lib/lab-status";
+import { Band, Container } from "@portal/components/ui";
+import { HomeVisit, Phone } from "@portal/components/icons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,20 +75,45 @@ export default async function BookPage() {
   }));
 
   return (
-    <div className="pt-2 pb-10">
-      <h1 className="text-[28px] sm:text-[34px] font-heading font-bold tracking-tighter text-text leading-[1.1]">
-        Book a home sample collection
-      </h1>
-      <p className="text-[14px] text-soft mt-3 leading-relaxed max-w-prose">
-        Tell us where you’d like the phlebotomist to come and what tests you need.
-        Staff will call to confirm your slot before a phlebotomist is dispatched.
-      </p>
-      <BookingForm
-        tests={mappedTests}
-        blackoutDates={blackoutDates}
-        cfg={cfg}
-        closures={closureRows}
-      />
-    </div>
+    <>
+      <Band waves className="pb-24 sm:pb-28">
+        <Container className="pt-8">
+          <span className="rise inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-band ring-1 ring-inset ring-white/20">
+            <HomeVisit size={14} />
+            Home collection
+          </span>
+          <h1
+            className="rise mt-5 font-heading text-[30px] font-extrabold leading-[1.07] tracking-tighter text-band sm:text-[40px]"
+            style={{ "--i": 1 } as React.CSSProperties}
+          >
+            We’ll come to you
+          </h1>
+          <p
+            className="rise mt-4 max-w-prose text-[14.5px] leading-relaxed text-band/70"
+            style={{ "--i": 2 } as React.CSSProperties}
+          >
+            Tell us where the phlebotomist should come and what tests you need.
+            Staff will call to confirm your slot before anyone is dispatched.
+          </p>
+          <a
+            href="tel:6202924306"
+            className="rise tap mt-6 inline-flex items-center gap-2 rounded-full px-5 py-3 text-[13.5px] font-semibold text-band ring-1 ring-inset ring-white/25 hover:bg-white/10"
+            style={{ "--i": 3 } as React.CSSProperties}
+          >
+            <Phone size={15} />
+            Rather book by phone?
+          </a>
+        </Container>
+      </Band>
+
+      <Container className="-mt-8">
+        <BookingForm
+          tests={mappedTests}
+          blackoutDates={blackoutDates}
+          cfg={cfg}
+          closures={closureRows}
+        />
+      </Container>
+    </>
   );
 }

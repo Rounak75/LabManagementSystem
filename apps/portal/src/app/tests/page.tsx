@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { getServiceClient } from "@portal/lib/supabase-server";
+import { Band, Card, Container, btnOnBand } from "@portal/components/ui";
+import { TestCatalogue, type CatalogueTest } from "./TestCatalogue";
+import { ArrowRight, HomeVisit, Phone } from "@portal/components/icons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,20 +18,6 @@ const CATEGORY_ORDER = [
   "Other",
 ];
 
-interface TestRow {
-  id: string;
-  name: string;
-  category: string;
-  collectionTimeRestriction: string | null;
-}
-
-function restrictionTag(r: string | null): string | null {
-  if (r === "FastingMorningOnly") return "Fasting · morning only";
-  if (r === "MorningOnly") return "Morning only";
-  if (r === "EveningOnly") return "Evening only";
-  return null;
-}
-
 export default async function TestsCataloguePage() {
   const sb = getServiceClient();
   const { data } = await sb
@@ -37,117 +26,94 @@ export default async function TestsCataloguePage() {
     .eq("is_active", true)
     .order("name");
 
-  const tests: TestRow[] = (data ?? []).map((t) => ({
+  const tests: CatalogueTest[] = (data ?? []).map((t) => ({
     id: t.id,
     name: t.name,
     category: t.category ?? "Other",
-    collectionTimeRestriction: t.collection_time_restriction ?? null,
+    restriction: t.collection_time_restriction ?? null,
   }));
 
-  const byCategory = new Map<string, TestRow[]>();
-  for (const t of tests) {
-    const arr = byCategory.get(t.category) ?? [];
-    arr.push(t);
-    byCategory.set(t.category, arr);
-  }
-
-  const orderedCats = [
-    ...CATEGORY_ORDER.filter((c) => byCategory.has(c)),
-    ...[...byCategory.keys()].filter((c) => !CATEGORY_ORDER.includes(c)),
+  const present = new Set(tests.map((t) => t.category));
+  const categories = [
+    ...CATEGORY_ORDER.filter((c) => present.has(c)),
+    ...[...present].filter((c) => !CATEGORY_ORDER.includes(c)).sort(),
   ];
 
   return (
-    <div className="space-y-9">
-      <header className="space-y-3">
-        <h1 className="text-[32px] sm:text-[40px] font-heading font-bold tracking-tighter text-text leading-[1.05]">
-          Test catalogue
-        </h1>
-        <p className="text-[14.5px] text-soft max-w-prose leading-relaxed">
-          The tests we run at our Golmuri Chowk branch. Call the lab for current
-          charges or to arrange anything not listed — most outsourced tests can be
-          set up the same day.
-        </p>
-      </header>
-
-      {tests.length > 0 && (
-        <nav
-          aria-label="Jump to category"
-          className="flex flex-wrap gap-x-3 gap-y-2 text-[12.5px] border-b border-line pb-4"
-        >
-          <span className="text-muted mr-1">Jump to</span>
-          {orderedCats.map((c, i) => (
-            <a key={c} href={`#${slug(c)}`} className="text-soft hover:text-brand">
-              {c}
-              {i < orderedCats.length - 1 && (
-                <span className="text-line ml-3" aria-hidden>·</span>
-              )}
+    <>
+      <Band waves className="pb-14">
+        <Container className="pt-8">
+          <p className="rise text-[12px] font-semibold uppercase tracking-[0.18em] text-band/60">
+            Catalogue
+          </p>
+          <h1
+            className="rise mt-3 font-heading text-[30px] font-extrabold leading-[1.06] tracking-tighter text-band sm:text-[38px] lg:text-[44px]"
+            style={{ "--i": 1 } as React.CSSProperties}
+          >
+            Every test we run
+          </h1>
+          <p
+            className="rise mt-4 max-w-prose text-[14px] leading-relaxed text-band/70 sm:text-[14.5px]"
+            style={{ "--i": 2 } as React.CSSProperties}
+          >
+            The tests offered at our Golmuri Chowk branch. Call the lab for
+            current charges or to arrange anything not listed — most outsourced
+            tests can be set up the same day.
+          </p>
+          <div
+            className="rise mt-6 flex flex-wrap gap-2.5"
+            style={{ "--i": 3 } as React.CSSProperties}
+          >
+            <Link href="/book" className={`${btnOnBand} px-5 py-3`}>
+              Book a collection
+              <ArrowRight size={15} />
+            </Link>
+            <a
+              href="tel:6202924306"
+              className="tap inline-flex items-center gap-2 rounded-full px-5 py-3 text-[13.5px] font-semibold text-band ring-1 ring-inset ring-white/25 hover:bg-white/10"
+            >
+              <Phone size={15} />
+              Call the lab
             </a>
-          ))}
-        </nav>
-      )}
+          </div>
+        </Container>
+      </Band>
 
-      {tests.length === 0 ? (
-        <p className="text-[14px] text-muted">
-          Test catalogue is still loading. Please check back shortly.
-        </p>
-      ) : (
-        orderedCats.map((cat) => (
-          <section key={cat} id={slug(cat)} className="space-y-3 scroll-mt-20">
-            <div className="flex items-baseline justify-between border-b border-line pb-2">
-              <h2 className="text-[19px] font-heading font-semibold text-text">{cat}</h2>
-              <span className="text-[12px] text-muted num font-mono">
-                {byCategory.get(cat)!.length} tests
-              </span>
-            </div>
-            <ul className="rounded-xl border border-line bg-elev divide-y divide-line">
-              {byCategory.get(cat)!.map((t) => {
-                const r = restrictionTag(t.collectionTimeRestriction);
-                return (
-                  <li key={t.id} className="flex items-center justify-between gap-4 px-4 py-3 text-[14px]">
-                    <p className="text-text min-w-0 truncate">{t.name}</p>
-                    {r && (
-                      <span className="text-[11.5px] text-notice shrink-0">{r}</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))
-      )}
-
-      <section className="rounded-xl border border-brand/30 bg-brand-soft p-5 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[15.5px] text-text font-heading font-semibold">
-            Don&apos;t see a test you need?
-          </p>
-          <p className="text-[13.5px] text-soft mt-1">
-            Call the lab — most outsourced tests can be arranged the same day.
-          </p>
+      <Container className="space-y-8">
+        <div className="-mt-6">
+          <TestCatalogue tests={tests} categories={categories} />
         </div>
-        <a
-          href="tel:6202924306"
-          className="inline-flex items-center gap-2 self-start sm:self-auto rounded-lg bg-brand text-brand-fg px-4 py-2.5 text-[14px] font-semibold font-mono num tap hover:opacity-90"
+
+        {/* ─── Ask for anything else ─────────────────────────────────── */}
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <p className="font-heading text-[16px] font-bold tracking-snug text-text">
+                Don’t see a test you need?
+              </p>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+                Call the lab — most outsourced tests can be arranged the same day.
+              </p>
+            </div>
+            <a
+              href="tel:6202924306"
+              className="tap inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-2xl bg-brand px-5 py-3.5 font-mono num text-[14px] font-semibold text-brand-fg shadow-card hover:bg-brand-hover sm:self-auto"
+            >
+              <Phone size={15} />
+              6202924306
+            </a>
+          </div>
+        </Card>
+
+        <Link
+          href="/book"
+          className="tap lift flex items-center gap-3 rounded-2xl bg-brand-soft px-5 py-4 text-[14px] font-semibold text-brand hover:opacity-90"
         >
-          Call 6202924306
-        </a>
-      </section>
-
-      <p className="text-center text-[13.5px] pt-2">
-        <Link href="/book" className="text-brand hover:underline inline-flex items-center gap-1">
-          Book a home sample collection
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
+          <HomeVisit size={18} />
+          <span className="flex-1">Book a home sample collection</span>
+          <ArrowRight size={16} />
         </Link>
-      </p>
-    </div>
+      </Container>
+    </>
   );
-}
-
-function slug(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }

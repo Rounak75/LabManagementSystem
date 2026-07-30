@@ -1,6 +1,32 @@
 import Link from "next/link";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { isOpenNow, type LabConfig, type ClosureRow } from "@portal/lib/lab-status";
+import {
+  Band,
+  BandCard,
+  Card,
+  Container,
+  Fact,
+  IconChip,
+  Note,
+  SectionHead,
+  StatusDot,
+  btnOnBand,
+} from "@portal/components/ui";
+import { CategoryIcon } from "@portal/components/category-icon";
+import { pickPopular } from "@portal/components/popular-tests";
+import {
+  ArrowRight,
+  Calendar,
+  Clock,
+  HomeVisit,
+  MapPin,
+  Phone,
+  Report,
+  Search,
+  Vial,
+  Wallet,
+} from "@portal/components/icons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,22 +48,8 @@ interface FeaturedTest {
   category: string | null;
 }
 
-const POPULAR_TEST_NAMES = [
-  "CBC", "Complete Blood Count", "Lipid Profile", "HbA1c",
-  "Thyroid Profile", "TSH", "Liver Function Test", "LFT",
-  "Kidney Function Test", "KFT", "Blood Sugar", "Fasting Blood Sugar",
-  "Urine Routine", "Widal", "Dengue", "Vitamin D", "Vitamin B12",
-];
-
-function pickPopular(rows: FeaturedTest[], n: number): FeaturedTest[] {
-  const wanted = new Set(POPULAR_TEST_NAMES.map((s) => s.toLowerCase()));
-  const matched: FeaturedTest[] = [];
-  const others: FeaturedTest[] = [];
-  for (const r of rows) {
-    if (wanted.has(r.name.toLowerCase())) matched.push(r);
-    else others.push(r);
-  }
-  return [...matched, ...others].slice(0, n);
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 export default async function Landing() {
@@ -96,235 +108,350 @@ export default async function Landing() {
   }));
   const featured = pickPopular(tests, 8);
 
+  // Categories are derived from the catalogue we already fetched, so the grid
+  // never drifts from what /tests actually lists.
+  const categoryCounts = new Map<string, number>();
+  for (const t of tests) {
+    const c = t.category ?? "Other";
+    categoryCounts.set(c, (categoryCounts.get(c) ?? 0) + 1);
+  }
+  const categories = [...categoryCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  const nextClosure = closureRows[0];
+
   return (
-    <div className="space-y-12">
-      {/* ─── Hero ──────────────────────────────────────────────────────── */}
-      <section className="pt-2">
-        {status && (
-          <div className="flex items-center gap-2 mb-5">
-            <span
-              className={`relative inline-block h-2 w-2 rounded-full dot-pulse ${
-                status.open ? "bg-ok text-ok" : "bg-notice text-notice"
-              }`}
-            />
-            <span className={`text-[12.5px] font-medium ${status.open ? "text-ok" : "text-notice"}`}>
-              {status.open ? "We're open right now" : "Currently closed"}
+    <>
+      {/* ─── Hero band ────────────────────────────────────────────────── */}
+      <Band waves className="pb-14">
+        <Container className="pt-8">
+          {status && (
+            <div className="rise flex items-center gap-2.5">
+              <StatusDot tone={status.open ? "ok" : "notice"} />
+              <span className="text-[12.5px] font-semibold text-band">
+                {status.open ? "We’re open right now" : "Currently closed"}
+              </span>
+              {status.reason && (
+                <span className="text-[12px] text-band/60">· {status.reason}</span>
+              )}
+            </div>
+          )}
+
+          <h1
+            className="rise mt-5 font-heading text-[32px] font-extrabold leading-[1.06] tracking-tighter text-band sm:text-[44px] lg:text-[52px]"
+            style={{ "--i": 1 } as React.CSSProperties}
+          >
+            Your reports,
+            <br />
+            ready when you are.
+          </h1>
+
+          <p
+            className="rise mt-4 max-w-prose text-[15px] leading-relaxed text-band/70"
+            style={{ "--i": 2 } as React.CSSProperties}
+          >
+            Golmuri Janch Ghar has run diagnostics in Jamshedpur for over a
+            decade. Read your reports, settle bills by UPI, and request home
+            sample collection — all from your phone.
+          </p>
+
+          <div
+            className="rise mt-7 flex flex-wrap items-center gap-2.5"
+            style={{ "--i": 3 } as React.CSSProperties}
+          >
+            <Link href="/login" className={`${btnOnBand} px-5 py-3`}>
+              View my reports
+              <ArrowRight size={15} />
+            </Link>
+            <Link
+              href="/book"
+              className="tap inline-flex items-center gap-2 rounded-full px-5 py-3 text-[13.5px] font-semibold text-band ring-1 ring-inset ring-white/25 hover:bg-white/10"
+            >
+              Book home collection
+            </Link>
+            <a
+              href="tel:6202924306"
+              className="tap inline-flex items-center gap-2 rounded-full px-4 py-3 text-[13.5px] font-medium text-band/70 hover:text-band"
+            >
+              <Phone size={15} />
+              Call the lab
+            </a>
+          </div>
+
+          {/* Today at a glance — the card that sits inside the band. */}
+          {cfg && (
+            <BandCard className="rise mt-8">
+              <div className="rounded-[20px] bg-elev px-5 py-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <IconChip size="sm">
+                      <Clock size={17} />
+                    </IconChip>
+                    <div>
+                      <p className="text-[11.5px] font-medium uppercase tracking-[0.08em] text-muted">
+                        Today
+                      </p>
+                      <p className="mt-0.5 font-mono num text-[14px] font-medium text-text">
+                        {cfg.morningOpenTime}–{cfg.morningCloseTime}
+                        {cfg.eveningOpenTime && cfg.eveningCloseTime && (
+                          <> · {cfg.eveningOpenTime}–{cfg.eveningCloseTime}</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/info"
+                    className="tap inline-flex items-center gap-1 rounded-full bg-surface px-3.5 py-2 text-[12.5px] font-semibold text-brand"
+                  >
+                    Details
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            </BandCard>
+          )}
+        </Container>
+      </Band>
+
+      <Container className="space-y-10">
+        {/* ─── Catalogue search ──────────────────────────────────────── */}
+        <Link
+          href="/tests"
+          className="tap lift -mt-6 flex items-center gap-3 rounded-full border border-line bg-elev px-5 py-4 shadow-card hover:border-brand/40"
+        >
+          <Search size={19} className="shrink-0 text-muted" />
+          <span className="min-w-0 flex-1 truncate text-[14.5px] text-muted">
+            Search {testCount ?? tests.length} tests — try “thyroid” or “CBC”
+          </span>
+          <ArrowRight size={16} className="shrink-0 text-brand" />
+        </Link>
+
+        {/* ─── Next closure ──────────────────────────────────────────── */}
+        {nextClosure && (
+          <div className="band flex items-center justify-between gap-4 rounded-2xl px-5 py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <Calendar size={17} className="shrink-0 text-band/70" />
+              <p className="truncate text-[13.5px] font-medium text-band">
+                {nextClosure.reason ?? "Lab closed"}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 font-mono num text-[12px] font-medium text-band">
+              {new Date(nextClosure.date).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+              })}
             </span>
-            {status.reason && (
-              <span className="text-[12px] text-muted">· {status.reason}</span>
-            )}
           </div>
         )}
 
-        <h1 className="font-heading text-[36px] sm:text-[48px] leading-[1.04] tracking-tighter text-text font-bold">
-          Your reports, ready when&nbsp;you are.
-        </h1>
-        <p className="mt-5 text-[15.5px] text-soft max-w-prose leading-relaxed">
-          Golmuri Janch Ghar has provided diagnostic services in Jamshedpur for
-          over a decade. View your reports online, settle outstanding bills
-          securely by UPI, and request home sample collection &mdash; all from
-          your phone.
-        </p>
-
-        <div className="mt-7 flex flex-wrap gap-2.5">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 rounded-lg bg-brand text-brand-fg px-4 py-2.5 text-[14px] font-semibold tap hover:opacity-90"
-          >
-            View my reports
-            <Arrow />
-          </Link>
-          <Link
-            href="/book"
-            className="inline-flex items-center gap-2 rounded-lg border border-line bg-elev text-text px-4 py-2.5 text-[14px] font-medium tap hover:border-muted"
-          >
-            Book home collection
-          </Link>
-          <a
-            href="tel:6202924306"
-            className="inline-flex items-center gap-2 rounded-lg text-soft px-4 py-2.5 text-[14px] font-medium tap hover:text-text"
-          >
-            <PhoneIcon /> Call the lab
-          </a>
-        </div>
-
-        <p className="mt-5 text-[12.5px] text-muted">
-          Sign in with your phone number and the 6-character code printed at the
-          bottom of your receipt.
-        </p>
-      </section>
-
-      {/* ─── Three things ───────────────────────────────────────────────── */}
-      <section className="grid sm:grid-cols-3 gap-3">
-        <Card
-          href="/login"
-          title="View &amp; download reports"
-          body="See past test results, mark notes, and download a copy as PDF. The same render the lab prints in-house."
-        />
-        <Card
-          href="/book"
-          title="Have us collect at home"
-          body="No need to visit the lab — a phlebotomist comes to your address. We confirm by phone first."
-        />
-        <Card
-          href="/login?next=/invoices"
-          title="Pay by UPI"
-          body="Outstanding bills open a UPI app with the exact amount filled in. Cash and online both accepted."
-        />
-      </section>
-
-      {/* ─── Popular tests ──────────────────────────────────────────────── */}
-      {featured.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[19px] text-text font-heading font-semibold">
-              Frequently requested tests
-            </h2>
-            <Link
-              href="/tests"
-              className="text-[13px] text-brand hover:underline inline-flex items-center gap-1"
-            >
-              See all
-              <Arrow small />
-            </Link>
-          </div>
-          <ul className="rounded-xl border border-line bg-elev overflow-hidden divide-y divide-line">
-            {featured.map((t) => (
-              <li
-                key={t.id}
-                className="flex items-center justify-between gap-4 px-4 py-3 text-[14px] hover:bg-surface tap"
-              >
-                <div className="min-w-0">
-                  <p className="text-text truncate">{t.name}</p>
-                </div>
-                {t.category && (
-                  <p className="text-[12px] text-muted shrink-0">{t.category}</p>
-                )}
-              </li>
+        {/* ─── Quick actions ─────────────────────────────────────────── */}
+        <nav aria-label="Quick actions">
+          <ul className="grid grid-cols-5 gap-0.5 sm:gap-1">
+            {[
+              { href: "/login", label: "Reports", icon: <Report size={21} /> },
+              { href: "/book", label: "Home visit", icon: <HomeVisit size={21} /> },
+              { href: "/tests", label: "Tests", icon: <Vial size={21} /> },
+              { href: "/login?next=/invoices", label: "Pay bill", icon: <Wallet size={21} /> },
+              { href: "/info", label: "Lab info", icon: <MapPin size={21} /> },
+            ].map((a, i) => (
+              <QuickAction key={a.href} {...a} index={i} />
             ))}
           </ul>
-          <p className="text-[12.5px] text-muted">
-            {testCount ?? tests.length} tests offered in total. Need something else?{" "}
-            <a href="tel:6202924306" className="text-brand hover:underline">
-              Call the lab
-            </a>
-            .
-          </p>
-        </section>
-      )}
+        </nav>
 
-      {/* ─── Upcoming closures ─────────────────────────────────────────── */}
-      {closureRows.length > 0 && (
-        <section className="rounded-xl border border-notice/30 bg-notice-soft p-5">
-          <div className="flex items-start gap-3">
-            <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-notice shrink-0" />
-            <div className="flex-1">
-              <p className="text-[14px] text-text font-medium">
-                Upcoming closures
-              </p>
-              <ul className="mt-2 space-y-1 text-[13px] text-soft">
-                {closureRows.map((c, i) => (
-                  <li key={i} className="flex gap-3 num">
-                    <span className="font-mono text-text shrink-0 w-28">
-                      {new Date(c.date).toLocaleDateString("en-IN", {
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "short",
-                      })}
+        {/* ─── Categories ────────────────────────────────────────────── */}
+        {categories.length > 0 && (
+          <section>
+            <SectionHead title="What we test for" href="/tests" />
+            <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              {categories.map(([name, count], i) => (
+                <li
+                  key={name}
+                  className="rise"
+                  style={{ "--i": i + 2 } as React.CSSProperties}
+                >
+                  <Link
+                    href={`/tests#${slug(name)}`}
+                    className="tap group glass sheen relative flex h-full items-center gap-3 overflow-hidden rounded-2xl p-3 sm:flex-col sm:gap-2 sm:p-4 sm:text-center"
+                  >
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand transition-all duration-300 ease-out-fluid group-hover:scale-105 group-hover:bg-brand group-hover:text-brand-fg sm:h-12 sm:w-12">
+                      <CategoryIcon category={name} size={21} />
                     </span>
-                    <span>{c.reason ?? "Closed"}</span>
+                    <span className="min-w-0 flex-1 sm:flex-none">
+                      <span className="block truncate text-[12px] font-medium leading-tight text-text sm:text-[11.5px]">
+                        {name}
+                      </span>
+                      <span className="mt-0.5 block font-mono num text-[10.5px] text-muted">
+                        {count} tests
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* ─── What you can do here ──────────────────────────────────── */}
+        <section>
+          <SectionHead title="What you can do here" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              {
+                href: "/login",
+                icon: <Report size={20} />,
+                title: "Read & download reports",
+                body: "Past results, with a PDF that matches what the lab prints in-house.",
+              },
+              {
+                href: "/book",
+                icon: <HomeVisit size={20} />,
+                title: "Have us collect at home",
+                body: "A phlebotomist comes to your address. We confirm by phone first.",
+              },
+              {
+                href: "/login?next=/invoices",
+                icon: <Wallet size={20} />,
+                title: "Pay by UPI",
+                body: "Bills open your UPI app with the exact amount already filled in.",
+              },
+            ].map((c, i) => (
+              <ActionCard key={c.href} {...c} index={i} />
+            ))}
+          </div>
+        </section>
+
+        {/* ─── Popular tests ─────────────────────────────────────────── */}
+        {featured.length > 0 && (
+          <section>
+            <SectionHead title="Frequently requested" href="/tests" />
+            <Card className="overflow-hidden">
+              <ul className="divide-y divide-line">
+                {featured.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between gap-4 px-5 py-3.5"
+                  >
+                    <p className="min-w-0 truncate text-[14px] text-text">{t.name}</p>
+                    {t.category && (
+                      <p className="shrink-0 text-[11.5px] text-muted">{t.category}</p>
+                    )}
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ─── Find us ───────────────────────────────────────────────────── */}
-      <section className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted pt-1">
-        <span>{settings?.lab_address ?? "Main Road, Golmuri Chowk, Jamshedpur"}</span>
-        {settings?.lab_address && (
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.lab_address)}`}
-            target="_blank"
-            rel="noopener"
-            className="inline-flex items-center gap-1 text-brand hover:underline"
-          >
-            Open in Maps
-            <Arrow small />
-          </a>
+            </Card>
+            <p className="mt-3 px-1 text-[12.5px] text-muted">
+              {testCount ?? tests.length} tests offered in total. Need something
+              else?{" "}
+              <a href="tel:6202924306" className="font-medium text-brand hover:underline">
+                Call the lab
+              </a>
+              .
+            </p>
+          </section>
         )}
-        <Link href="/info" className="text-brand hover:underline inline-flex items-center gap-1">
-          Hours &amp; full details
-          <Arrow small />
-        </Link>
-      </section>
-    </div>
+
+        {/* ─── Sign-in hint ──────────────────────────────────────────── */}
+        <Note>
+          Sign in with your phone number and the 6-character code printed at the
+          bottom of your receipt. No code to hand?{" "}
+          <a href="tel:6202924306" className="font-medium text-brand hover:underline">
+            Call the lab
+          </a>{" "}
+          and staff can read it out after confirming who you are.
+        </Note>
+
+        {/* ─── Find us ───────────────────────────────────────────────── */}
+        <Card className="p-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <Fact
+              label="Find us"
+              value={
+                <span className="text-[14px] font-medium leading-relaxed">
+                  {settings?.lab_address ?? "Main Road, Golmuri Chowk, Jamshedpur"}
+                </span>
+              }
+            />
+            {settings?.lab_address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.lab_address)}`}
+                target="_blank"
+                rel="noopener"
+                className="tap inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-4 py-2 text-[13px] font-semibold text-brand"
+              >
+                <MapPin size={14} />
+                Open in Maps
+              </a>
+            )}
+          </div>
+        </Card>
+      </Container>
+    </>
   );
 }
 
 /* ─────────────────────────── components ──────────────────────────── */
 
-function Card({
+function QuickAction({
   href,
-  title,
-  body,
+  label,
+  icon,
+  index,
 }: {
   href: string;
+  label: string;
+  icon: React.ReactNode;
+  index: number;
+}) {
+  return (
+    <li className="rise" style={{ "--i": index + 4 } as React.CSSProperties}>
+      <Link
+        href={href}
+        className="tap group glass sheen relative flex min-h-[86px] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl px-1 py-3.5"
+      >
+        <span className="text-brand transition-transform duration-300 ease-out-fluid group-hover:-translate-y-0.5 group-hover:scale-110">
+          {icon}
+        </span>
+        <span className="text-center text-[10.5px] font-medium leading-tight text-soft sm:text-[11px]">
+          {label}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function ActionCard({
+  href,
+  icon,
+  title,
+  body,
+  index,
+}: {
+  href: string;
+  icon: React.ReactNode;
   title: string;
   body: string;
+  index: number;
 }) {
   return (
     <Link
       href={href}
-      className="group block rounded-xl border border-line bg-elev p-5 tap hover:border-muted hover:-translate-y-0.5"
+      style={{ "--i": index + 1 } as React.CSSProperties}
+      className="tap rise group glass sheen relative block overflow-hidden rounded-3xl p-5"
     >
-      <p
-        className="font-heading text-[16px] text-text font-semibold leading-snug"
-        dangerouslySetInnerHTML={{ __html: title }}
-      />
-      <p className="text-[13px] text-soft mt-2 leading-relaxed">{body}</p>
-      <span className="inline-flex items-center gap-1 mt-3 text-[12.5px] text-brand">
+      <IconChip>{icon}</IconChip>
+      <p className="mt-4 font-heading text-[15px] font-bold leading-snug tracking-snug text-text">
+        {title}
+      </p>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{body}</p>
+      <span className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand">
         Open
-        <Arrow small />
+        <ArrowRight
+          size={13}
+          className="transition-transform duration-200 ease-out-fluid group-hover:translate-x-0.5"
+        />
       </span>
     </Link>
-  );
-}
-
-function Arrow({ small = false }: { small?: boolean }) {
-  return (
-    <svg
-      width={small ? 12 : 14}
-      height={small ? 12 : 14}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 8h10M9 4l4 4-4 4" />
-    </svg>
-  );
-}
-
-function PhoneIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-    </svg>
   );
 }

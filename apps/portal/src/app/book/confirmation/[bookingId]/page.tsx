@@ -2,40 +2,74 @@
 // Static & shareable; links to the status page where the patient can poll.
 
 import Link from "next/link";
+import { Band, Card, Container, Note, btnPrimary, btnSecondary } from "@portal/components/ui";
+import { ArrowRight, Check, Clock, Phone } from "@portal/components/icons";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfirmationPage({ params: paramsPromise }: { params: Promise<{ bookingId: string }> }) {
   const params = await paramsPromise;
   return (
-    <div className="mt-6 max-w-md mx-auto space-y-4 text-center">
-      <div className="mx-auto h-14 w-14 rounded-full bg-green-100 text-green-700 grid place-items-center text-3xl">
-        ✓
-      </div>
-      <h1 className="text-xl font-semibold">Booking received</h1>
-      <p className="text-sm text-slate-700">
-        Your booking ID is <strong className="font-mono">{params.bookingId}</strong>.
-      </p>
-      <p className="text-sm text-slate-700">
-        Our staff will call you within 4 working hours to confirm the visit.
-      </p>
-      <p className="text-sm text-slate-600">
-        Lab phone:{" "}
-        <a className="text-blue-700 underline" href="tel:6202924306">
-          6202924306
-        </a>
-      </p>
-      <div className="flex flex-col gap-2 items-stretch pt-2">
-        <Link
-          href={`/book/status/${params.bookingId}`}
-          className="block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
-        >
-          Check status
-        </Link>
-        <Link href="/" className="block px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded text-sm">
-          Back to home
-        </Link>
-      </div>
-    </div>
+    <>
+      <Band waves className="pb-28">
+        <Container className="pt-10">
+          <div className="mx-auto max-w-md text-center">
+            <span className="rise mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/15 text-band ring-1 ring-inset ring-white/25">
+              <Check size={30} />
+            </span>
+            <h1
+              className="rise mt-6 font-heading text-[30px] font-extrabold leading-[1.08] tracking-tighter text-band"
+              style={{ "--i": 1 } as React.CSSProperties}
+            >
+              Booking received
+            </h1>
+            <p
+              className="rise mt-3 text-[14px] leading-relaxed text-band/70"
+              style={{ "--i": 2 } as React.CSSProperties}
+            >
+              Our staff will call you within 4 working hours to confirm the visit.
+            </p>
+          </div>
+        </Container>
+      </Band>
+
+      <Container>
+        <div className="mx-auto -mt-10 max-w-md space-y-4">
+          <Card className="p-6 text-center">
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.1em] text-muted">
+              Your booking ID
+            </p>
+            <p className="mt-2 font-mono num text-[26px] font-medium tracking-[0.08em] text-text">
+              {params.bookingId}
+            </p>
+            <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
+              Keep this handy — it’s how you check the status of your visit.
+            </p>
+          </Card>
+
+          <Note icon={<Clock size={17} />}>
+            Nothing is confirmed until we call. If your slot doesn’t work for the
+            phlebotomist, staff will offer you the nearest one that does.
+          </Note>
+
+          <div className="space-y-2.5">
+            <Link
+              href={`/book/status/${params.bookingId}`}
+              className={`${btnPrimary} w-full`}
+            >
+              Check status
+              <ArrowRight size={16} />
+            </Link>
+            <a href="tel:6202924306" className={`${btnSecondary} w-full`}>
+              <Phone size={16} />
+              Call the lab
+            </a>
+            <Link href="/" className={`${btnSecondary} w-full`}>
+              Back to home
+            </Link>
+          </div>
+        </div>
+      </Container>
+    </>
   );
 }

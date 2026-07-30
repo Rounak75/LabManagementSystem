@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Sun, Moon } from "./icons";
 
 type Theme = "light" | "dark";
 const STORAGE_KEY = "gjg-theme";
 
 function readTheme(): Theme {
   if (typeof document === "undefined") return "light";
-  const t = document.documentElement.dataset.theme;
-  return t === "dark" ? "dark" : "light";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
 export function ThemeToggle() {
@@ -17,21 +17,32 @@ export function ThemeToggle() {
   useEffect(() => {
     setMounted(true);
     setTheme(readTheme());
+
+    // The bootstrap script keeps following the OS for as long as nobody has
+    // chosen for themselves. Mirror those changes into the icon so the button
+    // never claims the page is in a mode it isn't.
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => {
+      if (!localStorage.getItem(STORAGE_KEY)) setTheme(readTheme());
+    };
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
   }, []);
 
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.dataset.theme = next;
+    // Writing this is what stops the OS overriding the choice later.
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {}
   }
 
-  // Render an invisible placeholder until mounted so SSR markup matches what
-  // the pre-hydration script produced. Prevents hydration warnings.
+  // An invisible placeholder until mounted, so the server markup matches what
+  // the pre-hydration script produced and the row doesn't shift.
   if (!mounted) {
-    return <span className="inline-block w-8 h-8" aria-hidden />;
+    return <span className="inline-block h-[42px] w-[52px]" aria-hidden />;
   }
 
   const isDark = theme === "dark";
@@ -41,26 +52,12 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={isDark ? "Switch to day mode" : "Switch to night mode"}
       title={isDark ? "Day mode" : "Night mode"}
-      className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-soft hover:text-text hover:bg-surface tap"
+      className="dock-item tap inline-flex items-center justify-center rounded-full px-4 py-2.5 text-band/70 hover:bg-white/10 hover:text-band"
     >
-      {isDark ? <SunIcon /> : <MoonIcon />}
+      {/* Keyed so the icon swap animates rather than snapping. */}
+      <span key={theme} className="pop inline-flex">
+        {isDark ? <Sun size={17} /> : <Moon size={17} />}
+      </span>
     </button>
-  );
-}
-
-function SunIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z" />
-    </svg>
   );
 }

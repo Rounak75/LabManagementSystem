@@ -5,46 +5,80 @@
 /* ─── Day mode (default) ─────────────────────────────────────────── */
 :root,
 [data-theme="light"] {
-  --bg: 250 248 244;          /* warm off-white */
+  --bg: 237 241 244;           /* cool paper canvas */
   --elev: 255 255 255;         /* card surface (popped) */
-  --surface: 245 241 234;      /* recessed strip */
-  --line: 222 215 204;         /* hairline */
-  --text: 24 25 28;            /* primary text */
-  --soft: 64 69 75;            /* secondary text */
-  --muted: 110 116 124;        /* tertiary text */
-  --ink: 18 19 22;             /* darkest */
+  --surface: 244 247 249;      /* recessed strip / chip fill */
+  --line: 226 233 237;         /* hairline */
+  --text: 18 38 47;            /* primary text */
+  --soft: 74 98 109;           /* secondary text */
+  --muted: 125 145 155;        /* tertiary text */
+  --ink: 12 27 34;             /* darkest */
 
-  --brand: 198 38 38;          /* brand red, darker for light bg */
-  --brand-soft: 251 230 226;
+  --brand: 58 119 136;         /* teal — buttons, links, active chips */
+  --brand-deep: 42 95 111;     /* the band surface */
+  --brand-hover: 42 95 111;    /* brand button hover — moves away from --brand-fg */
+  --brand-soft: 230 240 243;   /* pale tint behind icons */
   --brand-fg: 255 255 255;     /* text on brand button */
 
   --ok: 21 122 78;
-  --ok-soft: 220 240 228;
-  --notice: 161 98 16;
-  --notice-soft: 250 235 207;
+  --ok-soft: 221 241 232;
+  --notice: 166 108 20;
+  --notice-soft: 251 240 218;
+  --alert: 186 55 55;
+  --alert-soft: 252 232 230;
+
+  /* Band text is white in both themes — the band is always deep teal. */
+  --band-fg: 255 255 255;
+
+  /* Frosted tiles. Day mode frosts *white* over the cool canvas. */
+  --glass-top: 255 255 255 / 0.95;
+  --glass-bottom: 255 255 255 / 0.62;
+  --glass-edge: 16 40 50 / 0.07;
+  --glass-bevel: 255 255 255 / 0.9;
+  --glass-drop: 16 40 50 / 0.22;
+  --glass-sheen: 255 255 255 / 0.55;
 
   color-scheme: light;
 }
 
 /* ─── Night mode ────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  --bg: 11 13 17;
-  --elev: 24 28 33;
-  --surface: 18 22 27;
-  --line: 38 45 53;
-  --text: 233 236 240;
-  --soft: 178 187 198;
-  --muted: 136 145 156;
-  --ink: 8 10 13;
+  --bg: 10 19 23;
+  --elev: 19 32 38;
+  --surface: 15 26 31;
+  --line: 33 51 59;
+  --text: 230 238 241;
+  --soft: 169 190 199;
+  --muted: 126 148 158;
+  --ink: 6 14 17;
 
-  --brand: 255 105 105;
-  --brand-soft: 56 22 22;
-  --brand-fg: 11 13 17;
+  --brand: 106 185 204;
+  --brand-deep: 16 44 53;
+  /* Night mode inverts the button: --brand-fg is near-black, so hover has to
+     get *lighter*. Reusing --brand-deep here would put dark ink on a dark
+     plate and the label would vanish on hover. */
+  --brand-hover: 143 208 224;
+  --brand-soft: 19 49 58;
+  --brand-fg: 6 23 29;
 
   --ok: 88 207 137;
-  --ok-soft: 24 50 36;
-  --notice: 248 191 70;
-  --notice-soft: 60 42 14;
+  --ok-soft: 20 46 34;
+  --notice: 240 186 78;
+  --notice-soft: 55 40 15;
+  --alert: 255 128 128;
+  --alert-soft: 56 24 24;
+
+  --band-fg: 233 243 246;
+
+  /* Night mode frosts *light* over the near-black canvas — the same idea
+     inverted. Alphas are an order of magnitude lower because a dark surface
+     shows far less light before it stops reading as glass. */
+  --glass-top: 255 255 255 / 0.08;
+  --glass-bottom: 255 255 255 / 0.02;
+  --glass-edge: 255 255 255 / 0.10;
+  --glass-bevel: 255 255 255 / 0.07;
+  --glass-drop: 0 0 0 / 0.6;
+  --glass-sheen: 255 255 255 / 0.14;
 
   color-scheme: dark;
 }
@@ -52,6 +86,7 @@
 @layer base {
   html {
     transition: background-color 200ms ease, color 200ms ease;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     background-color: rgb(var(--bg));
@@ -63,9 +98,9 @@
   }
 
   h1, h2, h3, h4 {
-    font-family: var(--font-heading), Georgia, serif;
-    letter-spacing: -0.012em;
-    font-weight: 600;
+    font-family: var(--font-heading), system-ui, sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
 
   .num {
@@ -75,18 +110,51 @@
   *:focus-visible {
     outline: 2px solid rgb(var(--brand));
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 8px;
+  }
+
+  /* Inside the deep-teal band the brand outline disappears — use white. */
+  .band *:focus-visible {
+    outline-color: rgb(var(--band-fg));
   }
 
   ::selection {
-    background: rgb(var(--brand) / 0.28);
+    background: rgb(var(--brand) / 0.24);
     color: rgb(var(--text));
   }
 }
 
 @layer components {
+  /* ─── The teal band ──────────────────────────────────────────────
+     Full-bleed header surface every page opens with. The glow is two
+     radial gradients rather than an image, so it costs one paint and
+     nothing to download.                                            */
+  .band {
+    background-color: rgb(var(--brand-deep));
+    background-image:
+      radial-gradient(120% 90% at 88% -10%, rgb(255 255 255 / 0.14), transparent 58%),
+      radial-gradient(90% 70% at 4% 108%, rgb(0 0 0 / 0.16), transparent 60%);
+    color: rgb(var(--band-fg));
+  }
+
+  /* ─── Press feedback ─────────────────────────────────────────────
+     Every tappable surface gets it. 140ms is under the threshold
+     where a press starts to feel reported rather than felt.         */
+  .tap {
+    transition:
+      background-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+      border-color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+      color 160ms cubic-bezier(0.23, 1, 0.32, 1),
+      box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1),
+      transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .tap:active {
+    transform: scale(0.975);
+  }
+
+  /* Live status dot. */
   @keyframes ping-soft {
-    0%   { transform: scale(1);   opacity: 0.7; }
+    0%   { transform: scale(1);   opacity: 0.6; }
     70%  { transform: scale(2.4); opacity: 0; }
     100% { transform: scale(2.4); opacity: 0; }
   }
@@ -97,11 +165,201 @@
     inset: 0;
     border-radius: 9999px;
     background: currentColor;
-    animation: ping-soft 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    animation: ping-soft 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
   }
 
-  .tap {
-    transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  /* ─── Entry choreography ─────────────────────────────────────────
+     One orchestrated page load. `--i` staggers siblings; nothing
+     blocks interaction while it plays.                              */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-  .tap:active { transform: translateY(1px); }
+  .rise {
+    opacity: 0;
+    animation: rise 520ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    animation-delay: calc(var(--i, 0) * 55ms);
+  }
+
+  /* Popovers and dropdowns. Origin-aware — a menu grows out of the control
+     that opened it, never from its own centre. Nothing starts at scale(0). */
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.97) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .pop {
+    transform-origin: top center;
+    animation: pop-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* Paged lists. `--shift` carries the direction of travel so page 3 arrives
+     from the right and page 1 from the left — the list feels like a strip
+     being moved, not a panel being swapped. */
+  @keyframes shift-in {
+    from { opacity: 0; transform: translateX(var(--shift, 14px)); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .shift {
+    animation: shift-in 240ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* ─── Band waves ─────────────────────────────────────────────────
+     Decoration for the sparser bands. Each layer holds two identical
+     periods, so translating it by exactly half its width returns it to
+     where it started and the loop has no seam. Different durations give
+     the layers parallax without any of them drawing attention.
+
+     The band is deep teal in both themes, so white at low alpha is the
+     one fill that works in day and night without a second definition. */
+  @keyframes wave-drift {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .wave {
+    animation: wave-drift linear infinite;
+    will-change: transform;
+  }
+
+  /* ─── Frosted tiles ──────────────────────────────────────────────
+     Glass built from layered translucency, a hairline edge and a top
+     bevel — deliberately NOT `backdrop-filter`.
+
+     Two reasons. These tiles sit on a flat canvas, and blurring a flat
+     colour returns the same flat colour, so the filter would buy nothing
+     visually. And there are thirteen of them on the landing page inside a
+     scrolling container, where a real backdrop blur repaints on every
+     frame of every scroll — the one thing that reliably wrecks a mid-range
+     Android, which is most of this lab's traffic. */
+  .glass {
+    background-image: linear-gradient(
+      to bottom,
+      rgb(var(--glass-top)),
+      rgb(var(--glass-bottom))
+    );
+    border: 1px solid rgb(var(--glass-edge));
+    box-shadow:
+      inset 0 1px 0 rgb(var(--glass-bevel)),
+      0 10px 26px -16px rgb(var(--glass-drop));
+    transition:
+      transform 260ms cubic-bezier(0.23, 1, 0.32, 1),
+      box-shadow 260ms cubic-bezier(0.23, 1, 0.32, 1),
+      border-color 260ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* A light sweeping across the surface on hover. The pseudo-element is
+     clipped by the tile's own `overflow-hidden`, and only `transform`
+     moves — no layout, no paint beyond the composited layer. */
+  .sheen::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    background-image: linear-gradient(
+      105deg,
+      transparent 38%,
+      rgb(var(--glass-sheen)) 50%,
+      transparent 62%
+    );
+    transform: translateX(-130%);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .glass:hover {
+      transform: translateY(-3px);
+      border-color: rgb(var(--brand) / 0.35);
+      box-shadow:
+        inset 0 1px 0 rgb(var(--glass-bevel)),
+        0 18px 34px -18px rgb(var(--glass-drop));
+    }
+    .sheen::after {
+      transition: transform 720ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .group:hover .sheen::after {
+      transform: translateX(130%);
+    }
+  }
+
+  /* ─── Dock nav ───────────────────────────────────────────────────
+     The transform is written straight onto the element by NavDock on
+     every frame; this transition is what smooths the gap between frames
+     and lets an interrupted sweep retarget instead of restarting. */
+  .dock-item {
+    transform-origin: center bottom;
+    transition:
+      transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
+      background-color 180ms cubic-bezier(0.23, 1, 0.32, 1),
+      color 180ms cubic-bezier(0.23, 1, 0.32, 1);
+    will-change: transform;
+  }
+  /* The press feedback would fight the magnification for the transform. */
+  .dock-item.tap:active {
+    transform: none;
+  }
+
+  /* Horizontal chip rails — scrollable without the scrollbar. */
+  .rail {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-snap-type: x proximity;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail > * { scroll-snap-align: start; }
+
+  /* Cards that lead somewhere lift on hover — pointer devices only, since a
+     touch tap fires :hover and would leave the card stuck raised. */
+  @media (hover: hover) and (pointer: fine) {
+    .lift {
+      transition:
+        transform 220ms cubic-bezier(0.23, 1, 0.32, 1),
+        box-shadow 220ms cubic-bezier(0.23, 1, 0.32, 1),
+        border-color 220ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .lift:hover {
+      transform: translateY(-2px);
+    }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Reduced motion: keep the fades that aid comprehension, drop the travel.
+   A paged list still needs to signal that its contents changed, so `.shift`
+   and `.pop` keep their opacity ramp and lose the movement. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .rise {
+    animation: none;
+    opacity: 1;
+  }
+
+  @keyframes fade-only {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .shift,
+  .pop {
+    animation: fade-only 160ms ease;
+    transform: none;
+  }
+
+  /* The waves stay — they are shape, not movement — but they stop drifting. */
+  .wave { animation: none; }
+
+  /* Glass keeps its depth; it just stops moving. */
+  .glass:hover { transform: none; }
+  .sheen::after { display: none; }
+
+  /* NavDock also checks this at runtime and stops writing transforms; this
+     is the belt to that braces. */
+  .dock-item {
+    transition: background-color 180ms ease, color 180ms ease;
+    transform: none !important;
+  }
+
+  .dot-pulse::before { animation: none; }
+  .tap:active { transform: none; }
+  .lift:hover { transform: none; }
 }

@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card, IconChip, Note, btnPrimary, fieldLabel, hintCls, inputCls } from "@portal/components/ui";
+import { ArrowLeft, ArrowRight, Lock, Phone, ShieldAlert } from "@portal/components/icons";
 
 export function LoginForm({ nextUrl }: { nextUrl: string }) {
   const router = useRouter();
@@ -103,165 +105,184 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
 
   if (choices) {
     return (
-      <div className="rounded-xl border border-line bg-surface p-4">
-        <h2 className="text-[15px] font-semibold text-text">Who is signing in?</h2>
-        <p className="mt-1 text-[13px] text-text-muted">
+      <Card className="p-6">
+        <h2 className="font-heading text-[16px] font-bold tracking-snug text-text">
+          Who is signing in?
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
           This phone number is shared by more than one patient.
         </p>
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-4 space-y-2">
           {choices.map((p) => (
             <li key={p.id}>
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => submit(p.id)}
-                className="w-full rounded-lg border border-line px-3 py-2 text-left text-[14px] hover:bg-surface-2 disabled:opacity-50"
+                className="tap flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 text-left hover:border-brand/40 hover:bg-elev disabled:opacity-50"
               >
-                <span className="font-medium text-text">{p.name}</span>
-                <span className="ml-2 text-text-muted">age {p.age}</span>
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft font-heading text-[13px] font-bold text-brand">
+                  {p.name.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14.5px] font-semibold text-text">
+                    {p.name}
+                  </span>
+                  <span className="block text-[12.5px] text-muted">age {p.age}</span>
+                </span>
+                <ArrowRight size={16} className="shrink-0 text-brand" />
               </button>
             </li>
           ))}
         </ul>
-        {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
+        {error && (
+          <div className="mt-4 rounded-2xl bg-alert-soft px-4 py-3 text-[13px] text-text">
+            {error}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setChoices(null)}
-          className="mt-3 text-[13px] text-text-muted underline"
+          className="tap mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-soft hover:text-text"
         >
+          <ArrowLeft size={14} />
           Back
         </button>
-      </div>
+      </Card>
     );
   }
 
   if (lockedUntil) {
     return (
-      <div className="rounded-xl border border-notice/30 bg-notice-soft p-4 text-[13.5px] text-text">
-        Too many failed attempts. Please try again at{" "}
-        <strong className="text-text font-mono num">
-          {new Date(lockedUntil).toLocaleTimeString()}
-        </strong>
-        , or call the lab at{" "}
-        <a className="text-brand hover:underline" href="tel:6202924306">
+      <Card className="p-6">
+        <IconChip tone="notice">
+          <ShieldAlert size={20} />
+        </IconChip>
+        <h2 className="mt-4 font-heading text-[16px] font-bold tracking-snug text-text">
+          Too many failed attempts
+        </h2>
+        <p className="mt-2 text-[13.5px] leading-relaxed text-soft">
+          Please try again at{" "}
+          <strong className="font-mono num font-medium text-text">
+            {new Date(lockedUntil).toLocaleTimeString()}
+          </strong>
+          , or call the lab to verify your identity.
+        </p>
+        <a
+          href="tel:6202924306"
+          className="tap mt-5 inline-flex items-center gap-2 rounded-2xl bg-brand px-5 py-3 font-mono num text-[14px] font-semibold text-brand-fg hover:bg-brand-hover"
+        >
+          <Phone size={15} />
           6202924306
-        </a>{" "}
-        to verify your identity.
-      </div>
+        </a>
+      </Card>
     );
   }
 
-  const inputCls =
-    "block w-full rounded-lg bg-bg border border-line text-text px-3.5 py-2.5 text-[14.5px] placeholder:text-muted focus:outline-none focus:border-brand";
-
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-line bg-elev p-5 space-y-4"
-    >
-      <div
-        role="tablist"
-        aria-label="Sign-in method"
-        className="inline-flex rounded-lg bg-surface border border-line p-1"
-      >
-        <ModeTab
-          active={mode === "code"}
-          onClick={() => setMode("code")}
-          label="Access code"
-        />
-        <ModeTab
-          active={mode === "password"}
-          onClick={() => setMode("password")}
-          label="Password"
-        />
-      </div>
-
-      <Field label="Phone number" hint="10 digits, no spaces">
-        <input
-          type="tel"
-          inputMode="numeric"
-          maxLength={10}
-          value={phone}
-          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-          required
-          autoComplete="tel-national"
-          className={`${inputCls} font-mono num`}
-          placeholder="9876543210"
-        />
-      </Field>
-
-      {mode === "code" ? (
-        <Field
-          label="Access code"
-          hint="6 characters · printed at the bottom of your receipt"
+    <form onSubmit={handleSubmit}>
+      <Card className="space-y-5 p-6">
+        {/* Segmented control — one filled pill, one plain. */}
+        <div
+          role="tablist"
+          aria-label="Sign-in method"
+          className="grid grid-cols-2 gap-1 rounded-2xl bg-surface p-1"
         >
-          <input
-            type="text"
-            maxLength={6}
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            required
-            autoComplete="one-time-code"
-            className={`${inputCls} font-mono text-[17px] tracking-[0.3em] uppercase`}
-            placeholder="K7P2QX"
+          <ModeTab
+            active={mode === "code"}
+            onClick={() => setMode("code")}
+            label="Access code"
           />
-        </Field>
-      ) : (
-        <Field label="Password" hint="Set after first sign-in via Access code">
-          <input
-            type="password"
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className={inputCls}
+          <ModeTab
+            active={mode === "password"}
+            onClick={() => setMode("password")}
+            label="Password"
           />
-        </Field>
-      )}
-
-      {captchaQuestion && (
-        <Field label={captchaQuestion} hint="A quick check that you're not a script">
-          <input
-            type="text"
-            inputMode="numeric"
-            value={captchaAnswer}
-            onChange={(e) => setCaptchaAnswer(e.target.value.replace(/\D/g, ""))}
-            required
-            autoComplete="off"
-            className={`${inputCls} font-mono num`}
-            placeholder="Your answer"
-          />
-        </Field>
-      )}
-
-      {error && (
-        <div className="rounded-lg border border-brand/40 bg-brand-soft text-[13.5px] text-text px-3 py-2.5">
-          {error}
         </div>
-      )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-lg bg-brand text-brand-fg py-3 text-[14.5px] font-semibold tap hover:opacity-90 disabled:opacity-50"
-      >
-        {submitting ? "Signing in…" : "Sign in"}
-      </button>
+        <Field label="Phone number" hint="10 digits, no spaces">
+          <input
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+            required
+            autoComplete="tel-national"
+            className={`${inputCls} font-mono num`}
+            placeholder="Your 10-digit number"
+          />
+        </Field>
 
-      <details className="text-[12.5px] text-soft pt-2 border-t border-line">
-        <summary className="cursor-pointer hover:text-text">
-          I don’t have my receipt
-        </summary>
-        <p className="mt-2 leading-relaxed">
+        {mode === "code" ? (
+          <Field
+            label="Access code"
+            hint="6 characters · printed at the bottom of your receipt"
+          >
+            <input
+              type="text"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              required
+              autoComplete="one-time-code"
+              className={`${inputCls} text-center font-mono text-[20px] font-medium uppercase tracking-[0.4em]`}
+              placeholder="K7P2QX"
+            />
+          </Field>
+        ) : (
+          <Field label="Password" hint="Set after first sign-in via Access code">
+            <input
+              type="password"
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className={inputCls}
+            />
+          </Field>
+        )}
+
+        {captchaQuestion && (
+          <Field label={captchaQuestion} hint="A quick check that you're not a script">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={captchaAnswer}
+              onChange={(e) => setCaptchaAnswer(e.target.value.replace(/\D/g, ""))}
+              required
+              autoComplete="off"
+              className={`${inputCls} font-mono num`}
+              placeholder="Type the number"
+            />
+          </Field>
+        )}
+
+        {error && (
+          <div className="rounded-2xl bg-alert-soft px-4 py-3.5 text-[13px] leading-relaxed text-text">
+            {error}
+          </div>
+        )}
+
+        <button type="submit" disabled={submitting} className={`${btnPrimary} w-full`}>
+          <Lock size={16} />
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+      </Card>
+
+      <div className="mt-4">
+        <Note>
+          <span className="font-semibold text-text">
+            Don’t have your receipt?
+          </span>{" "}
           Call the lab at{" "}
-          <a className="text-brand hover:underline" href="tel:6202924306">
+          <a className="font-medium text-brand hover:underline" href="tel:6202924306">
             6202924306
           </a>{" "}
-          — staff can read your code to you over the phone after confirming your
-          identity.
-        </p>
-      </details>
+          — staff can read your code out after confirming your identity.
+        </Note>
+      </div>
     </form>
   );
 }
@@ -281,9 +302,9 @@ function ModeTab({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-[13px] tap ${
+      className={`tap rounded-xl py-2.5 text-[13.5px] font-semibold ${
         active
-          ? "bg-elev text-text border border-line shadow-sm"
+          ? "bg-brand text-brand-fg shadow-card"
           : "text-muted hover:text-soft"
       }`}
     >
@@ -303,9 +324,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="block text-[12.5px] text-soft mb-1.5">{label}</span>
+      <span className={fieldLabel}>{label}</span>
       {children}
-      {hint && <span className="block text-[11.5px] text-muted mt-1.5">{hint}</span>}
+      {hint && <span className={hintCls}>{hint}</span>}
     </label>
   );
 }
