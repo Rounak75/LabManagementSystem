@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   isOpenNow,
@@ -45,6 +45,10 @@ interface Test {
 // How many days of one-tap date chips to offer. Anything further out still
 // works — the calendar input below the rail takes any future date.
 const RAIL_DAYS = 14;
+
+// The signed puzzle is good for ten minutes; replace it well inside that so a
+// slow form never submits against a dead one.
+const CAPTCHA_REFRESH_MS = 7 * 60_000;
 
 /** Local YYYY-MM-DD. Never `toISOString`, which would roll the date back
  *  before 5:30am IST and offer the patient yesterday. */
@@ -130,23 +134,46 @@ export function BookingForm({
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaQuestion, setCaptchaQuestion] = useState("");
   const [captchaAnswer, setCaptchaAnswer] = useState("");
+  // Distinguishes "still loading" from "the request failed". Without it a
+  // failed fetch leaves the submit button disabled forever with nothing on
+  // screen to explain why.
+  const [captchaFailed, setCaptchaFailed] = useState(false);
+  const captchaIssuedAt = useRef(0);
 
-  async function refreshCaptcha() {
+  const refreshCaptcha = useCallback(async () => {
     try {
       const res = await fetch("/api/captcha", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
+      if (!data?.token) throw new Error("no token");
       setCaptchaQuestion(data.question ?? "");
-      setCaptchaToken(data.token ?? "");
+      setCaptchaToken(data.token);
       setCaptchaAnswer("");
+      setCaptchaFailed(false);
+      captchaIssuedAt.current = Date.now();
     } catch {
       setCaptchaQuestion("");
       setCaptchaToken("");
+      setCaptchaFailed(true);
     }
-  }
+  }, []);
 
   useEffect(() => {
     refreshCaptcha();
-  }, []);
+  }, [refreshCaptcha]);
+
+  // The puzzle is a signed token that expires after ten minutes, and this form
+  // is long enough on a phone to outlive one — leaving a patient answering
+  // correctly and being refused. Replace it while it is still valid, but only
+  // while the box is empty, so a typed answer is never swapped out from under
+  // whoever typed it.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const age = Date.now() - captchaIssuedAt.current;
+      if (age > CAPTCHA_REFRESH_MS && captchaAnswer === "") refreshCaptcha();
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [captchaAnswer, refreshCaptcha]);
 
   // Which discipline the browse panel is showing. Null means everything, and
   // a search query overrides it entirely.
@@ -187,14 +214,22 @@ export function BookingForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const createdBookingId = await submitBooking(captchaToken, captchaAnswer);
-    if (createdBookingId) {
-      router.push(`/book/confirmation/${createdBookingId}`);
-    } else {
-      if (error === "That answer wasn't right. Please try the new question.") {
-        await refreshCaptcha();
-      }
+    const result = await submitBooking(captchaToken, captchaAnswer);
+
+    if (typeof result === "string") {
+      router.push(`/book/confirmation/${result}`);
+      return;
     }
+
+    // `null` means the server saw the submission and refused it; `false` means
+    // it never left the browser, so the puzzle is still good.
+    //
+    // This used to read `error` to decide, but `error` is the value captured
+    // when this handler was created — `submitBooking` had only just called
+    // `setError`, so the check compared against the *previous* error and was
+    // false on the first failure. The question therefore never changed, and a
+    // patient whose token had expired retried the same dead puzzle forever.
+    if (result === null) await refreshCaptcha();
   }
 
   if (bookingId)
@@ -609,19 +644,43 @@ export function BookingForm({
 
         {/* ─── 4. Confirm ─────────────────────────────────────────────── */}
         <Section step={4} title="Confirm it’s you" icon={<Shield size={18} />}>
-          <Field label={captchaQuestion || "Loading question…"} hint="A quick spam check.">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={captchaAnswer}
-              onChange={(e) => setCaptchaAnswer(e.target.value)}
-              required
-              disabled={!captchaToken}
-              className={`${inputCls} font-mono num`}
-              aria-label="Captcha answer"
-              placeholder="Type the number"
-            />
-          </Field>
+          {captchaFailed ? (
+            <Note tone="notice" icon={<Shield size={17} />}>
+              <span className="font-semibold text-text">
+                The spam check didn’t load.
+              </span>{" "}
+              Without it we can’t accept the booking.{" "}
+              <button
+                type="button"
+                onClick={refreshCaptcha}
+                className="font-semibold text-brand underline underline-offset-2"
+              >
+                Try again
+              </button>
+              , or call the lab on{" "}
+              <a href="tel:6202924306" className="font-medium text-brand hover:underline">
+                6202924306
+              </a>
+              .
+            </Note>
+          ) : (
+            <Field
+              label={captchaQuestion || "Loading question…"}
+              hint="A quick spam check."
+            >
+              <input
+                type="text"
+                inputMode="numeric"
+                value={captchaAnswer}
+                onChange={(e) => setCaptchaAnswer(e.target.value.replace(/[^\d-]/g, ""))}
+                required
+                disabled={!captchaToken}
+                className={`${inputCls} font-mono num`}
+                aria-label="Answer to the spam check"
+                placeholder="Type the number"
+              />
+            </Field>
+          )}
         </Section>
 
         {error && (
