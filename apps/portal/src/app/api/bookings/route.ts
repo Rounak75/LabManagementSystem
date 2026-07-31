@@ -8,6 +8,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { verifyPuzzle } from "@portal/lib/captcha";
+import {
+  slotsAvailableOn,
+  type ClosureRow,
+  type LabConfig,
+  type Slot,
+} from "@portal/lib/lab-status";
 
 export const runtime = "nodejs";
 
@@ -24,6 +30,82 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 function istStartOfToday(now: number = Date.now()): number {
   const ist = new Date(now + IST_OFFSET_MS);
   return Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+}
+
+function parseWeeklyHolidays(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Why this slot cannot be booked on this day, or null if it can.
+ *
+ * Fails open. If the settings or closure rows cannot be read, the booking is
+ * allowed through: staff confirm every booking by phone, so an occasional one
+ * on a closed day costs a call, while refusing a real request because a lookup
+ * blipped costs the patient their appointment and the lab the work.
+ */
+async function slotUnavailableReason(
+  sb: ReturnType<typeof getServiceClient>,
+  date: Date,
+  slot: Slot,
+): Promise<string | null> {
+  try {
+    const dayStart = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+
+    const [{ data: settings }, { data: closures }] = await Promise.all([
+      sb
+        .from("lab_settings")
+        .select(
+          "morning_open_time, morning_close_time, evening_open_time, evening_close_time, weekly_holidays, is_open_today, manual_closure_reason",
+        )
+        .eq("id", "singleton")
+        .maybeSingle(),
+      sb
+        .from("lab_closures")
+        .select("date, reason")
+        .gte("date", dayStart.toISOString())
+        .lt("date", dayEnd.toISOString()),
+    ]);
+
+    if (!settings) return null;
+
+    const cfg: LabConfig = {
+      morningOpenTime: settings.morning_open_time ?? "08:00",
+      morningCloseTime: settings.morning_close_time ?? "13:00",
+      eveningOpenTime: settings.evening_open_time ?? null,
+      eveningCloseTime: settings.evening_close_time ?? null,
+      weeklyHolidays: parseWeeklyHolidays(settings.weekly_holidays),
+      isOpenToday: settings.is_open_today ?? true,
+      manualClosureReason: settings.manual_closure_reason ?? null,
+    };
+
+    const rows: ClosureRow[] = (closures ?? []).map((c) => ({
+      date: String(c.date),
+      reason: c.reason ?? null,
+    }));
+
+    const available = slotsAvailableOn(cfg, rows, date);
+    if (available.includes(slot)) return null;
+
+    const reason = rows[0]?.reason;
+    if (available.length === 0) {
+      return reason
+        ? `The lab is closed that day — ${reason}. Please pick another date.`
+        : "The lab is closed on that date. Please pick another date.";
+    }
+    return "That slot isn't collected on the day you picked. Please choose another slot.";
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -81,6 +163,24 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = getServiceClient();
+
+  // The lab has to be open on the day, for that slot.
+  //
+  // The form already refuses to offer a closed day, but a booking is not only
+  // ever made through the form, and one landing on a day the lab is shut looks
+  // exactly like a real request in staff's queue — someone rings a patient to
+  // arrange a visit that was never possible.
+  //
+  // `slotsAvailableOn` is the same rule the form applies, so the two cannot
+  // drift: it accounts for one-off closures, whole weekly holidays and days
+  // where only one session is closed.
+  const closedReason = await slotUnavailableReason(sb, dateObj, preferredSlot as Slot);
+  if (closedReason) {
+    return NextResponse.json(
+      { error: "lab_closed", message: closedReason },
+      { status: 400 },
+    );
+  }
 
   // Reject duplicate submissions: same phone + same preferred date within 5 min.
   // (Browsers occasionally double-submit; this also blunts naive replay.)

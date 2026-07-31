@@ -178,6 +178,21 @@ export async function runPull<TRow extends Record<string, unknown>>(
 const REPLAY_LIMIT = 20;
 
 /**
+ * How long a quarantined row waits between replays.
+ *
+ * Replaying exists so a value a staff member typed is not lost the moment its
+ * parent row is late. But some rows are not late — they are broken, and their
+ * parents are never coming: a result whose visit_test, parameter and user all
+ * refer to records this machine has no trace of will fail identically forever.
+ *
+ * Without a wait, every tick re-ran every such row. On a five-second tick that
+ * is seventeen thousand pointless attempts a day, each one a failed write and a
+ * stack trace, for the life of the installation. The retry is still automatic —
+ * it just stops being the thing the sync loop spends its time on.
+ */
+const REPLAY_COOLDOWN_MS = 5 * 60_000;
+
+/**
  * Re-attempts rows that were quarantined earlier.
  *
  * Quarantining lets the cursor move past a row that will not apply, so one bad
@@ -195,7 +210,11 @@ async function replayDeadLetters<TRow extends Record<string, unknown>>(
   stats: PullStats,
 ): Promise<void> {
   const stuck = await prisma().syncDeadLetter.findMany({
-    where: { source: spec.source, resolvedAt: null },
+    where: {
+      source: spec.source,
+      resolvedAt: null,
+      lastSeenAt: { lt: new Date(Date.now() - REPLAY_COOLDOWN_MS) },
+    },
     orderBy: { lastSeenAt: "asc" },
     take: REPLAY_LIMIT,
   });
@@ -219,12 +238,32 @@ async function replayDeadLetters<TRow extends Record<string, unknown>>(
       logger.info("cloud", `[${spec.source}] quarantined row ${entry.rowId} applied on replay`);
     } catch {
       // Still failing. It keeps its place in the dead-letter table rather than
-      // being counted as a fresh failure, so the attempt count stays meaningful.
+      // being counted as a fresh failure, so the attempt count stays meaningful
+      // as a record of what the *pull* did. Only the clock is moved, which is
+      // what starts its next cooldown.
+      await touchDeadLetter(spec.source, entry.rowId);
     }
   }
 }
 
 /** Records or re-counts a failing row. Returns how many times it has now failed. */
+/**
+ * Restarts a quarantined row's cooldown without touching its attempt count.
+ *
+ * Best effort: the row may have been cleared by a concurrent success, and a
+ * missing row here is not worth failing a sync tick over.
+ */
+async function touchDeadLetter(source: string, rowId: string): Promise<void> {
+  try {
+    await prisma().syncDeadLetter.update({
+      where: { source_rowId: { source, rowId } },
+      data: { lastSeenAt: new Date() },
+    });
+  } catch {
+    // Nothing to move on.
+  }
+}
+
 async function recordDeadLetter(
   source: string,
   rowId: string,

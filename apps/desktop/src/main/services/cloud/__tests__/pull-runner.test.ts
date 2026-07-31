@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   deadLetterUpsert: vi.fn(),
   deadLetterFindMany: vi.fn(),
   deadLetterFindUnique: vi.fn(),
+  deadLetterUpdate: vi.fn(),
 }));
 
 vi.mock("@main/db", () => ({
@@ -16,6 +17,7 @@ vi.mock("@main/db", () => ({
       upsert: mocks.deadLetterUpsert,
       findUnique: mocks.deadLetterFindUnique,
       findMany: mocks.deadLetterFindMany,
+      update: mocks.deadLetterUpdate,
     },
   }),
 }));
@@ -45,6 +47,7 @@ beforeEach(() => {
   mocks.syncCursorFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindUnique.mockResolvedValue(null);
   mocks.deadLetterFindMany.mockResolvedValue([]);
+  mocks.deadLetterUpdate.mockResolvedValue(undefined);
 });
 
 describe("runPull", () => {
@@ -253,6 +256,34 @@ describe("runPull", () => {
       await runPull(makeFakeCloudClient(), { source: "widgets", table: "widgets", cursorColumn: "updated_at", applyRow });
 
       expect(applyRow).toHaveBeenCalledOnce();
+      expect(mocks.deadLetterUpsert).not.toHaveBeenCalled();
+    });
+
+    it("only considers rows whose cooldown has elapsed", async () => {
+      const applyRow = vi.fn().mockResolvedValue(undefined);
+
+      await runPull(makeFakeCloudClient(), { source: "widgets", table: "widgets", cursorColumn: "updated_at", applyRow });
+
+      // Replaying every stuck row on every tick meant a row whose parents are
+      // never coming was retried around seventeen thousand times a day, for
+      // the life of the install. It waits its turn now.
+      const where = mocks.deadLetterFindMany.mock.calls[0]?.[0]?.where;
+      expect(where.lastSeenAt.lt).toBeInstanceOf(Date);
+      expect(where.lastSeenAt.lt.getTime()).toBeLessThan(Date.now());
+    });
+
+    it("restarts the cooldown of a row that fails again, without counting a failure", async () => {
+      mocks.deadLetterFindMany.mockResolvedValue([
+        { source: "widgets", rowId: "stuck-1", payload: JSON.stringify({ id: "stuck-1" }), resolvedAt: null },
+      ]);
+      const applyRow = vi.fn().mockRejectedValue(new Error("still broken"));
+
+      await runPull(makeFakeCloudClient(), { source: "widgets", table: "widgets", cursorColumn: "updated_at", applyRow });
+
+      expect(mocks.deadLetterUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ lastSeenAt: expect.any(Date) }) }),
+      );
+      // The attempt count records what the pull did, not the replay.
       expect(mocks.deadLetterUpsert).not.toHaveBeenCalled();
     });
 
