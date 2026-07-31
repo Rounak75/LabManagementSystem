@@ -62,7 +62,8 @@ describe("lab-status — isOpenNow", () => {
 
   it("returns 'Lab opens at' before morning opening", () => {
     const t = new Date("2026-05-20T07:00:00");
-    expect(isOpenNow(cfg, [], t).reason).toMatch(/opens at 08:00/);
+    // Shown to patients, so 12-hour with a meridiem rather than "08:00".
+    expect(isOpenNow(cfg, [], t).reason).toMatch(/opens at 8:00 AM/);
   });
 
   it("returns 'Closed for the day' after evening close", () => {

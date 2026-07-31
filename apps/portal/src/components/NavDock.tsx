@@ -1,21 +1,23 @@
 "use client";
 
-// macOS-dock magnification for the header nav.
+// The header navigation, in two forms.
 //
-// Same idea as React Bits' Dock: each item's size follows how close the
-// pointer is to its centre, so the one under the cursor swells and its
-// neighbours taper off. Two deliberate differences from that component:
+// On a pointer device it is a dock: each item's size follows how close the
+// cursor is to its centre, so the one under it swells and its neighbours
+// taper off. Same idea as React Bits' Dock, with two deliberate differences —
+// it animates `transform` rather than `width`/`height`, so the compositor
+// handles it without a layout pass, and the falloff curve is a few lines of
+// arithmetic rather than ~34KB of animation library on a bundle patients load
+// over mobile data.
 //
-//  1. It animates `width`/`height`. This animates `transform`, which the
-//     compositor handles without a layout pass — the header sits above a
-//     scrolling page, and re-laying it out on every pointer move is exactly
-//     the sort of thing that drops frames on a mid-range phone.
-//  2. No animation library. The falloff curve and the easing are a few lines
-//     of arithmetic; pulling in ~34KB for them would be the largest single
-//     addition to a bundle patients load on mobile data.
+// On a phone there is no room for five items, so the links move into a menu
+// that drops out of the header. Sign in stays on the bar — it is the reason
+// most people arrive, and burying the primary action behind a tap is the
+// usual way these menus go wrong.
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface DockItem {
   href: string;
@@ -50,6 +52,13 @@ export function NavDock({
   const centres = useRef<number[]>([]);
   const frame = useRef<number | null>(null);
   const active = useRef(false);
+
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  const primary = items.find((i) => i.primary);
+  const secondary = items.filter((i) => !i.primary);
 
   const paint = useCallback((pointerX: number | null) => {
     nodes.current.forEach((el, i) => {
@@ -94,6 +103,30 @@ export function NavDock({
     };
   }, [paint]);
 
+  // Arriving somewhere new closes the menu — otherwise it hangs over the page
+  // the patient just asked for.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [open]);
+
   function handleMove(e: React.PointerEvent<HTMLUListElement>) {
     if (!active.current) return;
     const x = e.clientX;
@@ -125,34 +158,104 @@ export function NavDock({
     paint(i === -1 ? null : (centres.current[i] ?? null));
   }
 
+  const linkCls = (item: DockItem) =>
+    `dock-item tap inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold sm:text-[13.5px] ${
+      item.primary
+        ? "bg-white text-brand-deep hover:bg-white/90"
+        : "font-medium text-band/70 hover:bg-white/10 hover:text-band"
+    }`;
+
   return (
-    <ul
-      ref={listRef}
-      onPointerMove={handleMove}
-      onPointerEnter={handleEnter}
-      onPointerLeave={handleLeave}
-      onFocus={handleFocus}
-      onBlur={handleLeave}
-      // One gap and one padding for every item, the sign-in pill and the
-      // theme toggle included, so the spacing between any two neighbours is
-      // identical.
-      className="flex shrink-0 items-center gap-2 sm:gap-3"
-    >
-      {items.map((item) => (
-        <li key={item.href} className={item.primary ? "" : "hidden sm:block"}>
-          <Link
-            href={item.href}
-            className={`dock-item tap inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold sm:text-[13.5px] ${
-              item.primary
-                ? "bg-white text-brand-deep hover:bg-white/90"
-                : "font-medium text-band/70 hover:bg-white/10 hover:text-band"
-            }`}
-          >
-            {item.label}
+    <div ref={menuRef} className="relative flex w-full items-center justify-center">
+      {/* ─── Pointer devices: the dock ──────────────────────────────── */}
+      <ul
+        ref={listRef}
+        onPointerMove={handleMove}
+        onPointerEnter={handleEnter}
+        onPointerLeave={handleLeave}
+        onFocus={handleFocus}
+        onBlur={handleLeave}
+        // One gap and one padding for every item, the sign-in pill and the
+        // theme toggle included, so the spacing between any two neighbours is
+        // identical.
+        className="hidden shrink-0 items-center gap-2 sm:flex sm:gap-3"
+      >
+        {items.map((item) => (
+          <li key={item.href}>
+            <Link href={item.href} className={linkCls(item)}>
+              {item.label}
+            </Link>
+          </li>
+        ))}
+        {action && <li>{action}</li>}
+      </ul>
+
+      {/* ─── Phones: menu button, and the primary action kept in view ── */}
+      <div className="flex w-full items-center justify-between sm:hidden">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls="portal-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          className="tap inline-flex h-11 w-11 items-center justify-center rounded-full text-band hover:bg-white/10"
+        >
+          <Burger open={open} />
+        </button>
+
+        {primary && (
+          <Link href={primary.href} className={linkCls(primary)}>
+            {primary.label}
           </Link>
-        </li>
-      ))}
-      {action && <li>{action}</li>}
-    </ul>
+        )}
+      </div>
+
+      {/* ─── The menu itself ────────────────────────────────────────── */}
+      {open && (
+        <div
+          id="portal-menu"
+          className="band pop absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl shadow-lift ring-1 ring-inset ring-white/15 sm:hidden"
+        >
+          <ul className="p-2">
+            {secondary.map((item, i) => (
+              <li
+                key={item.href}
+                className="rise"
+                style={{ "--i": i } as React.CSSProperties}
+              >
+                <Link
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="tap block rounded-xl px-4 py-3 text-[14.5px] font-medium text-band/85 hover:bg-white/10 hover:text-band"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {action && (
+            <div className="flex items-center justify-between gap-3 border-t border-white/10 px-5 py-3">
+              <span className="text-[13px] text-band/60">Appearance</span>
+              {action}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Three lines that fold into a cross rather than swapping for one. */
+function Burger({ open }: { open: boolean }) {
+  const bar =
+    "absolute left-0 block h-[1.5px] w-full rounded-full bg-current transition-all duration-300 ease-out-fluid";
+  return (
+    <span aria-hidden className="relative block h-[14px] w-[19px]">
+      <span className={`${bar} ${open ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"}`} />
+      <span
+        className={`${bar} top-1/2 -translate-y-1/2 ${open ? "opacity-0" : "opacity-100"}`}
+      />
+      <span className={`${bar} ${open ? "top-1/2 -translate-y-1/2 -rotate-45" : "bottom-0 top-auto"}`} />
+    </span>
   );
 }

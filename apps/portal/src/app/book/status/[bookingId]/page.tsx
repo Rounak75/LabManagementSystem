@@ -14,6 +14,7 @@ import {
   Tag,
 } from "@portal/components/ui";
 import { Calendar, Clock, Phone, User } from "@portal/components/icons";
+import { labDate } from "@portal/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,9 @@ export default async function StatusPage({ params: paramsPromise }: { params: Pr
     );
   }
 
-  const date = new Date(row!.preferred_date).toLocaleDateString("en-IN", {
+  // Stored as UTC midnight of the day the patient chose, so it is formatted
+  // in UTC too — otherwise the server's own zone can shift it a day.
+  const date = labDate(row!.preferred_date, {
     weekday: "short",
     day: "2-digit",
     month: "short",

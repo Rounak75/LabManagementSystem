@@ -42,7 +42,8 @@ export default async function TestsCataloguePage() {
   return (
     <>
       <Band waves className="pb-14">
-        <Container className="pt-8">
+        {/* Centred: the band is a nameplate, so its lines sit on one axis. */}
+        <Container className="pt-8 text-center">
           <p className="rise text-[12px] font-semibold uppercase tracking-[0.18em] text-band/60">
             Catalogue
           </p>
@@ -53,7 +54,7 @@ export default async function TestsCataloguePage() {
             Every test we run
           </h1>
           <p
-            className="rise mt-4 max-w-prose text-[14px] leading-relaxed text-band/70 sm:text-[14.5px]"
+            className="rise mx-auto mt-4 max-w-prose text-[14px] leading-relaxed text-band/70 sm:text-[14.5px]"
             style={{ "--i": 2 } as React.CSSProperties}
           >
             The tests offered at our Golmuri Chowk branch. Call the lab for
@@ -61,7 +62,7 @@ export default async function TestsCataloguePage() {
             tests can be set up the same day.
           </p>
           <div
-            className="rise mt-6 flex flex-wrap gap-2.5"
+            className="rise mt-6 flex flex-wrap justify-center gap-2.5"
             style={{ "--i": 3 } as React.CSSProperties}
           >
             <Link href="/book" className={`${btnOnBand} px-5 py-3`}>

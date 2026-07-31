@@ -164,7 +164,11 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         <p className="mt-2 text-[13.5px] leading-relaxed text-soft">
           Please try again at{" "}
           <strong className="font-mono num font-medium text-text">
-            {new Date(lockedUntil).toLocaleTimeString()}
+            {new Date(lockedUntil).toLocaleTimeString("en-IN", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })}
           </strong>
           , or call the lab to verify your identity.
         </p>

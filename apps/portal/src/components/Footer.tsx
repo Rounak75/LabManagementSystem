@@ -52,8 +52,10 @@ export function Footer() {
             <ul className="space-y-2.5 text-[13.5px] text-soft">
               <li className="flex items-baseline justify-between gap-3">
                 <span>Mon – Sat</span>
-                <span className="font-mono num text-[12.5px] text-text">
-                  8 AM–1 PM, 6–8 PM
+                <span className="text-right font-mono num text-[12.5px] text-text">
+                  8:00 AM – 1:00 PM
+                  <br />
+                  6:00 PM – 8:00 PM
                 </span>
               </li>
               <li className="flex items-baseline justify-between gap-3">

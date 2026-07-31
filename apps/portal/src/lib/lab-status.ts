@@ -1,6 +1,8 @@
 // Phase 3d Plan H — shared open/closed + slot-availability logic for /book and /info.
 // One source of truth so both pages agree on what the lab is doing right now.
 
+import { to12Hour } from "./format";
+
 export type Slot = "Morning" | "Afternoon" | "Evening";
 
 export interface LabConfig {
@@ -115,7 +117,7 @@ export function isOpenNow(
   }
 
   if (mins < mOpen) {
-    return { open: false, reason: `Lab opens at ${cfg.morningOpenTime}` };
+    return { open: false, reason: `Lab opens at ${to12Hour(cfg.morningOpenTime)}` };
   }
   if (mins >= mClose && hasEvening && mins < eOpen!) {
     return { open: false, reason: "Closed between sessions" };
@@ -156,8 +158,11 @@ export function restrictionLabel(r: NonNullable<CollectionTimeRestriction>): str
   return "evening only";
 }
 
+// Hours are stored 24-hour and shown 12-hour with AM/PM: patients read clocks
+// that way, and "6:00 PM" cannot be misread as morning the way "18:00" can be
+// skimmed past.
 export function slotLabel(s: Slot): string {
-  if (s === "Morning") return "Morning (08:00–11:00)";
-  if (s === "Afternoon") return "Afternoon (12:00–15:00)";
-  return "Evening (16:00–19:00)";
+  if (s === "Morning") return "Morning (8:00 AM – 11:00 AM)";
+  if (s === "Afternoon") return "Afternoon (12:00 PM – 3:00 PM)";
+  return "Evening (4:00 PM – 7:00 PM)";
 }

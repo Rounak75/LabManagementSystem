@@ -77,7 +77,8 @@ export default async function BookPage() {
   return (
     <>
       <Band waves className="pb-24 sm:pb-28">
-        <Container className="pt-8">
+        {/* Centred: the band is a nameplate, so its lines sit on one axis. */}
+        <Container className="pt-8 text-center">
           <span className="rise inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-band ring-1 ring-inset ring-white/20">
             <HomeVisit size={14} />
             Home collection
@@ -89,7 +90,7 @@ export default async function BookPage() {
             We’ll come to you
           </h1>
           <p
-            className="rise mt-4 max-w-prose text-[14.5px] leading-relaxed text-band/70"
+            className="rise mx-auto mt-4 max-w-prose text-[14.5px] leading-relaxed text-band/70"
             style={{ "--i": 2 } as React.CSSProperties}
           >
             Tell us where the phlebotomist should come and what tests you need.

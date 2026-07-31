@@ -1,5 +1,7 @@
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { isOpenNow, type LabConfig, type ClosureRow } from "@portal/lib/lab-status";
+import { hourRange, labDate } from "@portal/lib/format";
+import { labMapsHref } from "@portal/lib/lab-location";
 import {
   Band,
   BandCard,
@@ -78,9 +80,7 @@ export default async function InfoPage() {
   }));
 
   const status = isOpenNow(cfg, closureRows);
-  const mapsHref = settings.lab_address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.lab_address)}`
-    : null;
+  const mapsHref = labMapsHref();
 
   return (
     <>
@@ -153,8 +153,7 @@ export default async function InfoPage() {
                 {settings.lab_address}
               </p>
             )}
-            {mapsHref && (
-              <a
+            <a
                 href={mapsHref}
                 target="_blank"
                 rel="noopener"
@@ -163,7 +162,6 @@ export default async function InfoPage() {
                 Open in Google Maps
                 <ArrowRight size={13} />
               </a>
-            )}
           </Card>
 
           <Card className="p-5">
@@ -200,13 +198,13 @@ export default async function InfoPage() {
               <Row
                 icon={<Clock size={17} />}
                 label="Morning"
-                value={`${cfg.morningOpenTime} – ${cfg.morningCloseTime}`}
+                value={hourRange(cfg.morningOpenTime, cfg.morningCloseTime)}
               />
               {cfg.eveningOpenTime && cfg.eveningCloseTime && (
                 <Row
                   icon={<Clock size={17} />}
                   label="Evening"
-                  value={`${cfg.eveningOpenTime} – ${cfg.eveningCloseTime}`}
+                  value={hourRange(cfg.eveningOpenTime, cfg.eveningCloseTime)}
                 />
               )}
               {cfg.weeklyHolidays.length > 0 && (
@@ -233,7 +231,7 @@ export default async function InfoPage() {
                       <Calendar size={16} />
                     </span>
                     <span className="w-28 shrink-0 font-mono num text-[13px] font-medium text-text">
-                      {new Date(c.date).toLocaleDateString("en-IN", {
+                      {labDate(c.date, {
                         weekday: "short",
                         day: "2-digit",
                         month: "short",

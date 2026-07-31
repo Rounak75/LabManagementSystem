@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { isOpenNow, type LabConfig, type ClosureRow } from "@portal/lib/lab-status";
+import { hourRange, labDate } from "@portal/lib/format";
+import { labMapsHref } from "@portal/lib/lab-location";
 import {
   Band,
   BandCard,
@@ -125,9 +127,10 @@ export default async function Landing() {
     <>
       {/* ─── Hero band ────────────────────────────────────────────────── */}
       <Band waves className="pb-14">
-        <Container className="pt-8">
+        {/* Centred: the band is a nameplate, so its lines sit on one axis. */}
+        <Container className="pt-8 text-center">
           {status && (
-            <div className="rise flex items-center gap-2.5">
+            <div className="rise flex items-center justify-center gap-2.5">
               <StatusDot tone={status.open ? "ok" : "notice"} />
               <span className="text-[12.5px] font-semibold text-band">
                 {status.open ? "We’re open right now" : "Currently closed"}
@@ -148,7 +151,7 @@ export default async function Landing() {
           </h1>
 
           <p
-            className="rise mt-4 max-w-prose text-[15px] leading-relaxed text-band/70"
+            className="rise mx-auto mt-4 max-w-prose text-[15px] leading-relaxed text-band/70"
             style={{ "--i": 2 } as React.CSSProperties}
           >
             Golmuri Janch Ghar has run diagnostics in Jamshedpur for over a
@@ -157,7 +160,7 @@ export default async function Landing() {
           </p>
 
           <div
-            className="rise mt-7 flex flex-wrap items-center gap-2.5"
+            className="rise mt-7 flex flex-wrap items-center justify-center gap-2.5"
             style={{ "--i": 3 } as React.CSSProperties}
           >
             <Link href="/login" className={`${btnOnBand} px-5 py-3`}>
@@ -181,7 +184,7 @@ export default async function Landing() {
 
           {/* Today at a glance — the card that sits inside the band. */}
           {cfg && (
-            <BandCard className="rise mt-8">
+            <BandCard className="rise mx-auto mt-8 max-w-xl text-left">
               <div className="rounded-[20px] bg-elev px-5 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -193,9 +196,9 @@ export default async function Landing() {
                         Today
                       </p>
                       <p className="mt-0.5 font-mono num text-[14px] font-medium text-text">
-                        {cfg.morningOpenTime}–{cfg.morningCloseTime}
+                        {hourRange(cfg.morningOpenTime, cfg.morningCloseTime)}
                         {cfg.eveningOpenTime && cfg.eveningCloseTime && (
-                          <> · {cfg.eveningOpenTime}–{cfg.eveningCloseTime}</>
+                          <> · {hourRange(cfg.eveningOpenTime, cfg.eveningCloseTime)}</>
                         )}
                       </p>
                     </div>
@@ -237,10 +240,7 @@ export default async function Landing() {
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 font-mono num text-[12px] font-medium text-band">
-              {new Date(nextClosure.date).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-              })}
+              {labDate(nextClosure.date)}
             </span>
           </div>
         )}
@@ -373,9 +373,8 @@ export default async function Landing() {
                 </span>
               }
             />
-            {settings?.lab_address && (
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.lab_address)}`}
+            <a
+                href={labMapsHref()}
                 target="_blank"
                 rel="noopener"
                 className="tap inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-4 py-2 text-[13px] font-semibold text-brand"
@@ -383,7 +382,6 @@ export default async function Landing() {
                 <MapPin size={14} />
                 Open in Maps
               </a>
-            )}
           </div>
         </Card>
       </Container>

@@ -44,7 +44,7 @@ export default function SelectPatientPage() {
     <>
       <Band waves className="pb-16">
         <Container className="pt-8">
-          <div className="mx-auto max-w-md">
+          <div className="mx-auto max-w-md text-center">
             <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-band/60">
               Sign-in
             </p>
