@@ -1,3 +1,10 @@
+// This file must sit beside `app/`, which in this project means inside `src/`.
+// At the package root it is silently ignored — Next reports nothing, the build
+// succeeds, and every authed page is left defended only by its own
+// `requirePatient()` call. The pages that read patient data all make that call,
+// so nothing leaked; what was lost was the layer meant to catch the page that
+// one day forgets, and the `?next=` return path after signing in.
+
 import { NextRequest, NextResponse } from "next/server";
 
 const AUTHED_PREFIXES = ["/dashboard", "/visits", "/invoices", "/account"];

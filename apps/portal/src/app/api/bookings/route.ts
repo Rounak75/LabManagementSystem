@@ -13,6 +13,19 @@ export const runtime = "nodejs";
 
 const SLOTS = new Set(["Morning", "Afternoon", "Evening"]);
 
+/**
+ * Midnight of the lab's current day, as a UTC instant.
+ *
+ * `preferredDate` arrives as YYYY-MM-DD and parses to UTC midnight of that
+ * calendar day, so shifting "now" into IST and taking its UTC date parts puts
+ * both sides on the same footing.
+ */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function istStartOfToday(now: number = Date.now()): number {
+  const ist = new Date(now + IST_OFFSET_MS);
+  return Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "bad_json" }, { status: 400 });
@@ -52,6 +65,19 @@ export async function POST(req: NextRequest) {
   const dateObj = new Date(preferredDate);
   if (Number.isNaN(dateObj.getTime())) {
     return NextResponse.json({ error: "bad_date", message: "Please pick a valid date." }, { status: 400 });
+  }
+  // A date already past cannot be collected, and the form only ever offers
+  // future ones — but the form is not the only thing that can post here, and a
+  // booking dated 2020 lands in staff's queue looking like a real request.
+  //
+  // "Today" is the lab's today. Comparing against the server's UTC date would
+  // refuse a same-day booking made before 05:30 IST, which is exactly when
+  // someone books a fasting test for that morning.
+  if (dateObj.getTime() < istStartOfToday()) {
+    return NextResponse.json(
+      { error: "past_date", message: "Please pick today's date or a later one." },
+      { status: 400 },
+    );
   }
 
   const sb = getServiceClient();
