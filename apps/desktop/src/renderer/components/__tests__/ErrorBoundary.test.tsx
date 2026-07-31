@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { ErrorBoundary } from "../ErrorBoundary";
 
 const invoke = vi.fn().mockResolvedValue({ ok: true, data: { ok: true } });
@@ -8,7 +9,9 @@ beforeEach(() => {
   (window as any).api = { invoke };
 });
 
-function Boom(): JSX.Element { throw new Error("render crash"); }
+// `ReactElement` rather than `JSX.Element`: React 19's types drop the global
+// JSX namespace, and this spelling is correct on either version.
+function Boom(): ReactElement { throw new Error("render crash"); }
 
 describe("ErrorBoundary", () => {
   it("renders children when there is no error", () => {

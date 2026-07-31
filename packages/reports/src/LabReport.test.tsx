@@ -4,7 +4,7 @@
 // working code, so each was checked by breaking the source and confirming it
 // failed before being kept.
 import { describe, it, expect } from "vitest";
-import { renderToBuffer } from "@react-pdf/renderer";
+import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 
 import { LabReport } from "./LabReport";
@@ -225,14 +225,14 @@ describe("LabReport calibration", () => {
 // so a change that renders as valid JSX but crashes react-pdf still gets caught.
 describe("LabReport end to end", () => {
   it("renders a real PDF", async () => {
-    const buffer = await renderToBuffer(LabReport(props) as ReactElement);
+    const buffer = await renderToBuffer(LabReport(props) as unknown as ReactElement<DocumentProps>);
 
     expect(buffer.length).toBeGreaterThan(0);
     expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   }, 30_000);
 
   it("renders a real PDF with no results at all", async () => {
-    const buffer = await renderToBuffer(LabReport({ ...props, groups: [] }) as ReactElement);
+    const buffer = await renderToBuffer(LabReport({ ...props, groups: [] }) as unknown as ReactElement<DocumentProps>);
 
     expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   }, 30_000);
@@ -252,7 +252,7 @@ describe("LabReport end to end", () => {
       },
     ];
 
-    const buffer = await renderToBuffer(LabReport({ ...props, groups: long }) as ReactElement);
+    const buffer = await renderToBuffer(LabReport({ ...props, groups: long }) as unknown as ReactElement<DocumentProps>);
 
     expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   }, 30_000);

@@ -2,6 +2,7 @@
 // matched loosely on the category name and falls back to a neutral trace
 // rather than rendering nothing when the lab adds a new discipline.
 
+import type { ReactElement } from "react";
 import {
   Droplet,
   Flask,
@@ -13,7 +14,9 @@ import {
   Pulse,
 } from "./icons";
 
-const MAP: [RegExp, (p: { size?: number }) => JSX.Element][] = [
+// `ReactElement` rather than `JSX.Element`: React 19's types drop the global
+// JSX namespace, and this spelling is correct on either version.
+const MAP: [RegExp, (p: { size?: number }) => ReactElement][] = [
   [/haemat|hemat|blood/i, Droplet],
   [/biochem|chemistry/i, Flask],
   [/serolog|immuno/i, Shield],
