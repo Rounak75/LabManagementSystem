@@ -40,9 +40,24 @@ export type IpcResult<T>  = IpcOk<T> | IpcErr;
 // ─── Phase 3e admin-portal create schemas ─────────────────────────────────
 import { z } from "zod";
 
+/**
+ * What a storable phone number looks like.
+ *
+ * Indian mobile numbers are ten digits beginning 6, 7, 8 or 9; 0–5 are landline
+ * trunk prefixes and service codes that can take neither the confirmation call
+ * nor an SMS. A number in that shape is always a typo — and since a patient's
+ * phone is also their portal login, storing one locks the real patient out and
+ * hands the record to whoever owns the number that was actually typed.
+ *
+ * The portal deploys separately and restates this rule in its own lib/phone.ts.
+ */
+export const MOBILE_RE = /^[6-9]\d{9}$/;
+export const INVALID_PHONE_MESSAGE =
+  "Invalid phone number — enter the 10-digit mobile number, starting with 6, 7, 8 or 9.";
+
 export const patientCreateSchema = z.object({
   name: z.string().min(2).max(100),
-  phone: z.string().regex(/^\d{10}$/, "Phone must be 10 digits"),
+  phone: z.string().regex(MOBILE_RE, INVALID_PHONE_MESSAGE),
   email: z.string().email().optional().or(z.literal("")),
   age: z.number().int().min(0).max(150),
   sex: z.enum(["Male", "Female", "Other"]),

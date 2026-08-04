@@ -34,6 +34,7 @@ import {
   Vial,
 } from "@portal/components/icons";
 import { onlyPopular } from "@portal/components/popular-tests";
+import { INVALID_PHONE_MESSAGE, isValidMobile } from "@portal/lib/phone";
 
 interface Test {
   id: string;
@@ -94,6 +95,14 @@ export function BookingForm({
   // here rather than by a phlebotomist ringing a stranger.
   const [confirmOpen, setConfirmOpen] = useState(false);
   const phoneRef = useRef<HTMLInputElement>(null);
+
+  // A first digit outside 6–9 can never become a mobile number, so it is called
+  // out on that keystroke. Length, by contrast, is only wrong once they have
+  // stopped typing — complaining at four digits would flag every number twice.
+  const phoneInvalid =
+    phone.length > 0 &&
+    !isValidMobile(phone) &&
+    (!/^[6-9]/.test(phone) || phone.length === 10);
 
   const [filter, setFilter] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -368,7 +377,13 @@ export function BookingForm({
                 placeholder="Full name, as it should print on the report"
               />
             </Field>
-            <Field label="Phone number" required hint="10 digits — we call this number to confirm">
+            <Field
+              label="Phone number"
+              required
+              hint={
+                phoneInvalid ? undefined : "10 digits — we call this number to confirm"
+              }
+            >
               <input
                 ref={phoneRef}
                 type="tel"
@@ -377,9 +392,15 @@ export function BookingForm({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                 required
-                className={`${inputCls} font-mono num`}
+                aria-invalid={phoneInvalid}
+                className={`${inputCls} font-mono num ${
+                  phoneInvalid ? "border-rose-400 focus:border-rose-500" : ""
+                }`}
                 placeholder="9876543210"
               />
+              {phoneInvalid && (
+                <span className={`${hintCls} text-rose-600`}>{INVALID_PHONE_MESSAGE}</span>
+              )}
             </Field>
             <Field label="Email" hint="Optional">
               <input

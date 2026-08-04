@@ -59,6 +59,7 @@ function codeToMessage(code: string): string {
     case "FORBIDDEN":       return "You don't have permission for this action.";
     case "NOT_FOUND":       return "Record not found.";
     case "DUPLICATE_PHONE": return "A patient with that phone number already exists.";
+    case "INVALID_PHONE":   return "Invalid phone number — enter the 10-digit mobile number, starting with 6, 7, 8 or 9.";
     case "DUPLICATE_USERNAME": return "Username is already taken.";
     case "INVALID_INPUT":   return "Some fields are invalid.";
     case "ADMIN_LOCKOUT_PROTECTED": return "You can't disable yourself while you're the only Admin.";
@@ -70,6 +71,7 @@ function codeToMessage(code: string): string {
     case "INVALID_STATE":   return "That action isn't allowed in the current state.";
     case "STALE_VERSION":   return "Someone else updated these results since you opened the page. Reload and try again.";
     case "REASON_REQUIRED": return "A reason is required (at least 10 characters).";
+    case "PHONE_CONFIRM_REQUIRED": return "Record whether you reached the patient on the phone before approving.";
     // INVOICE_PAID_BEFORE_UNLOCK is gone: unlocking no longer depends on the
     // invoice, and the message told the owner to do something the app could not
     // do. Kept mapped only so an older renderer still shows words, not a code.

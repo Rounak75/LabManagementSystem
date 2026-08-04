@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { verifyPuzzle } from "@portal/lib/captcha";
+import { INVALID_PHONE_MESSAGE, isValidMobile } from "@portal/lib/phone";
 import {
   slotHasPassed,
   slotsAvailableOn,
@@ -134,8 +135,11 @@ export async function POST(req: NextRequest) {
   if (!patientName) {
     return NextResponse.json({ error: "missing_name", message: "Please enter the patient's name." }, { status: 400 });
   }
-  if (patientPhone.length !== 10) {
-    return NextResponse.json({ error: "bad_phone", message: "Phone must be 10 digits." }, { status: 400 });
+  if (!isValidMobile(patientPhone)) {
+    return NextResponse.json(
+      { error: "bad_phone", message: INVALID_PHONE_MESSAGE },
+      { status: 400 },
+    );
   }
   if (!address) {
     return NextResponse.json({ error: "missing_address", message: "Please enter a collection address." }, { status: 400 });

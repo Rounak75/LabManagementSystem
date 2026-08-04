@@ -61,6 +61,27 @@ describe("POST /api/bookings", () => {
     expect((await POST(req({ ...valid, patientPhone: "12345" }))).status).toBe(400);
   });
 
+  // 0–5 are landline trunk prefixes and service codes: they can take neither the
+  // confirmation call nor an SMS, so a number in that shape is always a typo.
+  // It matters more than a plain format check because an approved booking writes
+  // this number onto a Patient, where it becomes that patient's portal login.
+  it.each(["0876543210", "1876543210", "2876543210", "3876543210", "4876543210", "5876543210"])(
+    "rejects the mobile number %s, which cannot start with that digit",
+    async (patientPhone) => {
+      const res = await POST(req({ ...valid, patientPhone }));
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("bad_phone");
+      expect(stub.calls.some((c) => c.method === "insert")).toBe(false);
+    },
+  );
+
+  it.each(["6876543210", "7876543210", "8876543210", "9876543210"])(
+    "accepts the mobile number %s",
+    async (patientPhone) => {
+      expect((await POST(req({ ...valid, patientPhone }))).status).toBe(200);
+    },
+  );
+
   it("rejects a booking with no tests", async () => {
     expect((await POST(req({ ...valid, testIds: [] }))).status).toBe(400);
   });

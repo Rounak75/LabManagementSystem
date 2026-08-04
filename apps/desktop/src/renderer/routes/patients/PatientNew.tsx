@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { Card } from "@/components/ui/Card";
 import { useNavigate } from "react-router-dom";
+import { INVALID_PHONE_MESSAGE, MOBILE_RE } from "@lab/types";
 
 type Doctor = { id: string; name: string; clinic: string | null; isActive: boolean };
 
@@ -57,7 +58,21 @@ export default function PatientNew() {
           <div className="col-span-2 mt-4 mb-2 border-b border-slate-100 pb-2">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Contact & Reference</h2>
           </div>
-          <Input label="Phone (10 digits)" {...register("phone", { required: true, pattern: /^[0-9+\-\s]{7,}$/ })} error={errors.phone?.message as string} placeholder="9876543210" />
+          {/* Was `{7,}` over digits, +, - and spaces, with no message — so "12345"
+              and a landline both saved, and a rejection showed an empty error.
+              The phone is the patient's portal login; a number that cannot take
+              the call locks them out and lets its real owner in. */}
+          <Input
+            label="Phone (10 digits)"
+            inputMode="numeric"
+            maxLength={10}
+            {...register("phone", {
+              required: INVALID_PHONE_MESSAGE,
+              pattern: { value: MOBILE_RE, message: INVALID_PHONE_MESSAGE },
+            })}
+            error={errors.phone?.message as string}
+            placeholder="9876543210"
+          />
           <Input
             label="Email (optional — for digital reports)"
             type="email"

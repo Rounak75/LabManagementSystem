@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { INVALID_PHONE_MESSAGE, isValidMobile } from "@portal/lib/phone";
 import {
   slotsAvailableOn,
   restrictionForSlots,
@@ -80,7 +81,7 @@ export function useBookingState(
    */
   function validate(captchaAnswer: string): string | null {
     if (testIds.length === 0) return "Please choose at least one test.";
-    if (phone.length !== 10) return "Please enter a 10-digit phone number.";
+    if (!isValidMobile(phone)) return INVALID_PHONE_MESSAGE;
     if (pincode.length !== 6) return "Please enter a 6-digit PIN code.";
     if (!date) return "Please pick a preferred date.";
     if (isBlackedOut(date)) return "The lab is closed on that date — please pick another.";
