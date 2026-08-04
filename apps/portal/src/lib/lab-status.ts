@@ -98,8 +98,17 @@ export function slotHasPassed(slot: Slot, date: Date, now: Date = new Date()): b
   return istMinutesOfDay(now) >= hhmmToMinutes(SLOT_WINDOWS[slot].end);
 }
 
+/**
+ * Which weekday a booking date falls on.
+ *
+ * Read in UTC, because a booking date is a YYYY-MM-DD the patient picked and
+ * so parses to UTC midnight. `getDay()` would read that instant in whatever
+ * zone the code happens to run in — and on the *client*, that is the patient's
+ * browser. West of UTC, Sunday's UTC midnight is still Saturday locally, so
+ * the form would offer a Sunday the lab is shut.
+ */
 function dayLabel(d: Date): string {
-  return DAYS[d.getDay()] ?? "";
+  return DAYS[d.getUTCDay()] ?? "";
 }
 
 function sameYMDUTC(a: Date, b: Date): boolean {
@@ -108,16 +117,12 @@ function sameYMDUTC(a: Date, b: Date): boolean {
     && a.getUTCDate() === b.getUTCDate();
 }
 
-function sameYMD(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
-}
-
 function isClosedByWholeDayClosure(closures: ClosureRow[], date: Date): boolean {
   for (const c of closures) {
     const d = new Date(c.date);
-    if (sameYMD(d, date)) return true;
+    // Both sides are UTC midnight of the intended day — compare them there,
+    // the same frame `isOpenNow` already uses for the same rows.
+    if (sameYMDUTC(d, date)) return true;
   }
   return false;
 }

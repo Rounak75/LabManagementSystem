@@ -88,12 +88,7 @@ export default async function StatusPage({ params: paramsPromise }: { params: Pr
 
   // Stored as UTC midnight of the day the patient chose, so it is formatted
   // in UTC too — otherwise the server's own zone can shift it a day.
-  const date = labDate(row!.preferred_date, {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = labDate(row!.preferred_date, { weekday: true, year: true });
   const tone = STATUS_TONE[row!.status] ?? "notice";
   const noteTone = tone === "neutral" ? "brand" : tone;
 

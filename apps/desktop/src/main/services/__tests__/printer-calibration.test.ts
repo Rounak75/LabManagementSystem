@@ -1,14 +1,67 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { prisma } from "@main/db";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   getCalibration,
   upsertCalibration,
   listAllCalibrations,
 } from "../printer-calibration.service";
 
+/**
+ * Calibration offsets decide where text lands on the lab's pre-printed
+ * letterhead, so what is worth asserting is the service's own arithmetic — the
+ * ±20mm clamp, the zero default for a printer nobody has calibrated, and that
+ * a second save updates rather than piling up rows.
+ *
+ * The table is stood up in memory rather than in Prisma. Reaching a real
+ * database meant reading DATABASE_URL, which lives in a developer's untracked
+ * .env and nowhere else — so this file passed on the machine it was written on
+ * and failed everywhere else, CI included. The fake still stores and returns
+ * rows, so the assertions below are about the service, not about which Prisma
+ * calls it happened to make.
+ */
+
+interface CalibrationRow {
+  printerName: string;
+  xOffsetMm: number;
+  yOffsetMm: number;
+}
+
+const db = vi.hoisted(() => {
+  const rows = new Map<string, CalibrationRow>();
+  return {
+    rows,
+    findUnique: async ({ where }: { where: { printerName: string } }) =>
+      rows.get(where.printerName) ?? null,
+    upsert: async ({
+      where,
+      create,
+      update,
+    }: {
+      where: { printerName: string };
+      create: CalibrationRow;
+      update: Omit<CalibrationRow, "printerName">;
+    }) => {
+      const existing = rows.get(where.printerName);
+      const row = existing ? { ...existing, ...update } : { ...create };
+      rows.set(where.printerName, row);
+      return row;
+    },
+    findMany: async () => [...rows.values()],
+  };
+});
+
+vi.mock("@main/db", () => ({
+  prisma: () => ({
+    printerCalibration: {
+      findUnique: db.findUnique,
+      upsert: db.upsert,
+      findMany: db.findMany,
+    },
+  }),
+}));
+
 describe("printer-calibration.service", () => {
-  beforeEach(async () => {
-    await prisma().printerCalibration.deleteMany();
+  beforeEach(() => {
+    db.rows.clear();
   });
 
   it("returns zero offsets for an unknown printer", async () => {

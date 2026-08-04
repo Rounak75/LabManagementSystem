@@ -28,19 +28,41 @@ export function hourRange(from: string | null | undefined, to: string | null | u
   return `${to12Hour(from)} – ${to12Hour(to)}`;
 }
 
+const SHORT_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const SHORT_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 /**
  * A calendar day the lab picked — a closure, a preferred collection date.
+ * "20 May", or "Wed, 20 May 2026" with the flags on.
  *
- * These are stored as UTC midnight of the intended day, so the formatting has
- * to be pinned to UTC as well. Left to the runtime's own zone, the same row
- * renders as one day on a UTC server and the day before on anything west of
- * it, which is the sort of bug that only shows up after deploying.
+ * Read in UTC, because these are stored as UTC midnight of the intended day.
+ * Left to the runtime's own zone the same row renders as one day on a UTC
+ * server and the day before on anything west of it — and on the client, that
+ * zone is the patient's own browser.
+ *
+ * Built by hand rather than through toLocaleDateString("en-IN"). CLDR changed
+ * en-IN's short-month forms from "20 May" to "20-May", so the separator
+ * depended on which ICU the runtime happened to ship: the lab saw spaces
+ * locally and hyphens on Vercel, and a Node upgrade could flip it back with no
+ * change to this repo. The admin app's `formatDateShort` reads the same dates,
+ * so the two have to agree.
+ *
+ * The options are booleans rather than Intl.DateTimeFormatOptions: the old
+ * signature advertised the whole Intl surface, and nothing here can honour it.
  */
 export function labDate(
   value: string | Date,
-  opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" },
+  opts: { weekday?: boolean; year?: boolean } = {},
 ): string {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-IN", { ...opts, timeZone: "UTC" });
+
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  let out = `${day} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+  if (opts.year) out += ` ${d.getUTCFullYear()}`;
+  if (opts.weekday) out = `${SHORT_WEEKDAYS[d.getUTCDay()]}, ${out}`;
+  return out;
 }

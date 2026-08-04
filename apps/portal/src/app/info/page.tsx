@@ -231,11 +231,7 @@ export default async function InfoPage() {
                       <Calendar size={16} />
                     </span>
                     <span className="w-28 shrink-0 font-mono num text-[13px] font-medium text-text">
-                      {labDate(c.date, {
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "short",
-                      })}
+                      {labDate(c.date, { weekday: true })}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[13.5px] text-soft">
                       {c.reason ?? "Closed"}
