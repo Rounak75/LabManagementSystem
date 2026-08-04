@@ -70,30 +70,37 @@ export function useBookingState(
     setTestIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  /**
+   * Everything wrong with the form right now, or null.
+   *
+   * Split out of `submitBooking` because the phone-confirmation step runs
+   * between the two: asking the patient to check their number and only then
+   * telling them they picked no tests wastes the one moment they are actually
+   * reading the screen.
+   */
+  function validate(captchaAnswer: string): string | null {
+    if (testIds.length === 0) return "Please choose at least one test.";
+    if (phone.length !== 10) return "Please enter a 10-digit phone number.";
+    if (pincode.length !== 6) return "Please enter a 6-digit PIN code.";
+    if (!date) return "Please pick a preferred date.";
+    if (isBlackedOut(date)) return "The lab is closed on that date — please pick another.";
+    if (availableSlots.length === 0) {
+      return "No collection slots are left on that date. Please pick another date.";
+    }
+    if (!Number.isFinite(parseInt(captchaAnswer, 10))) {
+      return "Please answer the question at the bottom.";
+    }
+    return null;
+  }
+
   async function submitBooking(captchaToken: string, captchaAnswer: string) {
     setError(null);
-    if (testIds.length === 0) {
-      setError("Please choose at least one test.");
+    const invalid = validate(captchaAnswer);
+    if (invalid) {
+      setError(invalid);
       return false;
     }
-    if (!date) {
-      setError("Please pick a preferred date.");
-      return false;
-    }
-    if (isBlackedOut(date)) {
-      setError("The lab is closed on that date — please pick another.");
-      return false;
-    }
-    if (availableSlots.length === 0) {
-      setError("No slots are available on that date. Please pick another date.");
-      return false;
-    }
-
     const answerNum = parseInt(captchaAnswer, 10);
-    if (!Number.isFinite(answerNum)) {
-      setError("Please answer the question at the bottom.");
-      return false;
-    }
 
     setSubmitting(true);
     try {
@@ -105,7 +112,7 @@ export function useBookingState(
           patientPhone: phone,
           patientEmail: email || null,
           address,
-          pincode: pincode || null,
+          pincode,
           testIds,
           preferredDate: date,
           preferredSlot: slot,
@@ -141,7 +148,7 @@ export function useBookingState(
     },
     actions: {
       setName, setPhone, setEmail, setAddress, setPincode, setDate, setSlot, setNotes,
-      toggleTest, isBlackedOut, submitBooking, setError
+      toggleTest, isBlackedOut, validate, submitBooking, setError
     }
   };
 }

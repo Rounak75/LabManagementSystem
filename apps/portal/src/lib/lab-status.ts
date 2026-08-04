@@ -35,6 +35,19 @@ export interface TestRestriction {
 const ALL_SLOTS: readonly Slot[] = ["Morning", "Afternoon", "Evening"];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/**
+ * The wall-clock window each slot covers, in IST.
+ *
+ * `slotLabel` reads from here rather than carrying its own copy of the hours.
+ * The label is what the patient books against, so a slot shown as ending at
+ * 7:00 PM has to be the same 7:00 PM that decides whether it has already gone.
+ */
+const SLOT_WINDOWS: Record<Slot, { start: string; end: string }> = {
+  Morning: { start: "08:00", end: "11:00" },
+  Afternoon: { start: "12:00", end: "15:00" },
+  Evening: { start: "16:00", end: "19:00" },
+};
+
 // The lab is in Jamshedpur (IST, UTC+5:30, no DST). Server time is UTC on Vercel,
 // so reading getHours()/getDay() directly would compute "open now" against the
 // wrong wall clock. Shift the instant by the IST offset and read UTC parts to get
@@ -47,6 +60,42 @@ function toIST(d: Date): Date {
 function hhmmToMinutes(s: string): number {
   const [h, m] = s.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
+}
+
+/**
+ * UTC-midnight instant of the lab's current calendar day.
+ *
+ * Booking dates arrive as YYYY-MM-DD and parse to UTC midnight, so "is this
+ * date today?" has to be asked in the same frame. Comparing against the
+ * server's own date would answer for UTC, and between 18:30 and 24:00 UTC the
+ * lab is already on the next day — the window in which an evening booking is
+ * most likely to be made.
+ */
+function istStartOfDay(now: Date): number {
+  const ist = toIST(now);
+  return Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+}
+
+/** Minutes since midnight on the lab's wall clock. */
+function istMinutesOfDay(now: Date): number {
+  const ist = toIST(now);
+  return ist.getUTCHours() * 60 + ist.getUTCMinutes();
+}
+
+/** The requested day, as a UTC-midnight instant, however it was constructed. */
+function startOfDayUTC(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/**
+ * True when `slot` on `date` is a time that has already gone.
+ *
+ * Only same-day bookings can be late; earlier dates are refused outright by the
+ * booking route's past-date guard, and later ones are always ahead of now.
+ */
+export function slotHasPassed(slot: Slot, date: Date, now: Date = new Date()): boolean {
+  if (startOfDayUTC(date) !== istStartOfDay(now)) return false;
+  return istMinutesOfDay(now) >= hhmmToMinutes(SLOT_WINDOWS[slot].end);
 }
 
 function dayLabel(d: Date): string {
@@ -128,16 +177,26 @@ export function isOpenNow(
 export function slotsAvailableOn(
   cfg: LabConfig,
   closures: ClosureRow[],
-  date: Date
+  date: Date,
+  now: Date = new Date()
 ): Slot[] {
-  if (!cfg.isOpenToday && sameYMD(date, new Date())) return [];
+  const isToday = startOfDayUTC(date) === istStartOfDay(now);
+
+  if (!cfg.isOpenToday && isToday) return [];
 
   if (isClosedByWholeDayClosure(closures, date)) return [];
 
   const today = dayLabel(date);
   if (cfg.weeklyHolidays.includes(today)) return [];
 
-  return ALL_SLOTS.filter((s) => !cfg.weeklyHolidays.includes(`${today}-${s}`));
+  const open = ALL_SLOTS.filter((s) => !cfg.weeklyHolidays.includes(`${today}-${s}`));
+
+  // A slot the clock has already passed cannot be collected. Without this the
+  // form offered this morning's slot all afternoon, and a booking made at 7pm
+  // for the 4pm–7pm window reached staff looking like any other request — for a
+  // collection that could only ever be made in the past.
+  if (!isToday) return open;
+  return open.filter((s) => !slotHasPassed(s, date, now));
 }
 
 export function restrictionForSlots(tests: TestRestriction[]): Slot[] | null {
@@ -162,7 +221,6 @@ export function restrictionLabel(r: NonNullable<CollectionTimeRestriction>): str
 // that way, and "6:00 PM" cannot be misread as morning the way "18:00" can be
 // skimmed past.
 export function slotLabel(s: Slot): string {
-  if (s === "Morning") return "Morning (8:00 AM – 11:00 AM)";
-  if (s === "Afternoon") return "Afternoon (12:00 PM – 3:00 PM)";
-  return "Evening (4:00 PM – 7:00 PM)";
+  const w = SLOT_WINDOWS[s];
+  return `${s} (${to12Hour(w.start)} – ${to12Hour(w.end)})`;
 }

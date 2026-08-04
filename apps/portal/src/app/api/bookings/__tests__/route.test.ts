@@ -18,14 +18,22 @@ function req(body: unknown): NextRequest {
   });
 }
 
+/** A date the lab could still collect on. Fixed dates rot: this fixture carried
+ *  2026-08-02, which quietly became a past date the route is right to refuse. */
+function daysFromNow(n: number): string {
+  const d = new Date(Date.now() + n * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
 const valid = {
   captchaToken: "t",
   captchaAnswer: 4,
   patientName: "Sujata Mahato",
   patientPhone: "9876543210",
   address: "Golmuri, Jamshedpur",
+  pincode: "831003",
   testIds: ["t1"],
-  preferredDate: "2026-08-02",
+  preferredDate: daysFromNow(7),
   preferredSlot: "Morning",
 };
 
@@ -55,6 +63,55 @@ describe("POST /api/bookings", () => {
 
   it("rejects a booking with no tests", async () => {
     expect((await POST(req({ ...valid, testIds: [] }))).status).toBe(400);
+  });
+
+  // A wrong-length PIN code was previously coerced to null and saved, so the
+  // booking reached staff looking complete and the phlebotomist discovered the
+  // gap at the door.
+  it.each([
+    ["missing", undefined],
+    ["too short", "8310"],
+    ["not digits", "abcdef"],
+  ])("rejects a PIN code that is %s", async (_label, pincode) => {
+    const res = await POST(req({ ...valid, pincode }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("bad_pincode");
+    expect(stub.calls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  // The form offered every slot of the current day whatever the time, so at 7pm
+  // a patient could book the 4pm–7pm window — a collection only possible in the
+  // past. The form no longer offers it; this is the half that a direct POST hits.
+  it("rejects a slot that has already passed today", async () => {
+    vi.useFakeTimers();
+    try {
+      // 19:30 IST — the evening window (16:00–19:00) has closed.
+      vi.setSystemTime(new Date("2026-08-04T14:00:00Z"));
+      const res = await POST(
+        req({ ...valid, preferredDate: "2026-08-04", preferredSlot: "Evening" }),
+      );
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("slot_passed");
+      expect(stub.calls.some((c) => c.method === "insert")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still accepts a slot later the same day", async () => {
+    vi.useFakeTimers();
+    try {
+      // 09:30 IST — the evening window is hours away.
+      vi.setSystemTime(new Date("2026-08-04T04:00:00Z"));
+      const res = await POST(
+        req({ ...valid, preferredDate: "2026-08-04", preferredSlot: "Evening" }),
+      );
+
+      expect(res.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // Booking numbers used to be minted by counting the year's bookings and adding

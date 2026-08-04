@@ -15,6 +15,7 @@ import {
   Note,
   Tag,
   btnPrimary,
+  btnSecondary,
   fieldLabel,
   hintCls,
   inputCls,
@@ -50,6 +51,12 @@ const RAIL_DAYS = 14;
 // slow form never submits against a dead one.
 const CAPTCHA_REFRESH_MS = 7 * 60_000;
 
+/** "9876543210" → "98765 43210". Grouped so the patient reads the number back
+ *  instead of skimming ten digits they already believe are right. */
+function spacedPhone(p: string): string {
+  return p.length === 10 ? `${p.slice(0, 5)} ${p.slice(5)}` : p;
+}
+
 /** Local YYYY-MM-DD. Never `toISOString`, which would roll the date back
  *  before 5:30am IST and offer the patient yesterday. */
 function ymd(d: Date): string {
@@ -80,8 +87,13 @@ export function BookingForm({
   } = state;
   const {
     setName, setPhone, setEmail, setAddress, setPincode, setDate, setSlot, setNotes,
-    toggleTest, isBlackedOut, submitBooking, setError
+    toggleTest, isBlackedOut, validate, submitBooking, setError
   } = actions;
+
+  // Last stop before submitting: the number is read back so a typo is caught
+  // here rather than by a phlebotomist ringing a stranger.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const phoneRef = useRef<HTMLInputElement>(null);
 
   const [filter, setFilter] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -212,8 +224,39 @@ export function BookingForm({
 
   const labStatus = cfg ? isOpenNow(cfg, closures) : { open: true, reason: null };
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Check the form before asking about the phone number. Confirming a number
+    // and *then* being told a test is missing wastes the one screen the patient
+    // is certain to read carefully.
+    const invalid = validate(captchaAnswer);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    setError(null);
+    setConfirmOpen(true);
+  }
+
+  function editPhone() {
+    setConfirmOpen(false);
+    // Land the caret in the field they came back to fix.
+    requestAnimationFrame(() => phoneRef.current?.focus());
+  }
+
+  // Escape backs out to the form rather than submitting — dismissing a dialog
+  // must never be the thing that confirms it.
+  useEffect(() => {
+    if (!confirmOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") editPhone();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmOpen]);
+
+  async function confirmAndSubmit() {
+    setConfirmOpen(false);
     const result = await submitBooking(captchaToken, captchaAnswer);
 
     if (typeof result === "string") {
@@ -252,6 +295,56 @@ export function BookingForm({
 
   return (
     <div className="space-y-5">
+      {confirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-text/40 p-4 backdrop-blur-[2px] sm:items-center"
+          onClick={editPhone}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-phone-title"
+            className="w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+          <Card className="pop p-6">
+            <div className="flex items-center gap-2.5 text-brand">
+              <Phone size={18} />
+              <h2
+                id="confirm-phone-title"
+                className="font-heading text-[16px] font-bold tracking-snug text-text"
+              >
+                Is this number correct?
+              </h2>
+            </div>
+
+            <p className="mt-4 text-center font-mono num text-[26px] font-bold tracking-wider text-text">
+              {spacedPhone(phone)}
+            </p>
+
+            <p className="mt-4 text-[13px] leading-relaxed text-muted">
+              We call this number to confirm your collection, and your report
+              link goes here. A wrong digit means we cannot reach you.
+            </p>
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">
+              <button type="button" onClick={editPhone} className={`${btnSecondary} flex-1`}>
+                Change number
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={confirmAndSubmit}
+                className={`${btnPrimary} flex-1`}
+              >
+                Yes, it&apos;s correct
+              </button>
+            </div>
+          </Card>
+          </div>
+        </div>
+      )}
+
       {cfg && !labStatus.open && (
         <Note tone="notice" icon={<Clock size={17} />}>
           <strong className="font-semibold text-text">
@@ -266,7 +359,7 @@ export function BookingForm({
         {/* ─── 1. Patient details ─────────────────────────────────────── */}
         <Section step={1} title="Patient details" icon={<User size={18} />}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Full name" className="md:col-span-2">
+            <Field label="Full name" required className="md:col-span-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -275,8 +368,9 @@ export function BookingForm({
                 placeholder="Full name, as it should print on the report"
               />
             </Field>
-            <Field label="Phone number" hint="10 digits, no spaces">
+            <Field label="Phone number" required hint="10 digits — we call this number to confirm">
               <input
+                ref={phoneRef}
                 type="tel"
                 inputMode="numeric"
                 maxLength={10}
@@ -296,7 +390,7 @@ export function BookingForm({
                 placeholder="name@example.com — for a copy of the report"
               />
             </Field>
-            <Field label="Collection address" className="md:col-span-2">
+            <Field label="Collection address" required className="md:col-span-2">
               <textarea
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -306,11 +400,14 @@ export function BookingForm({
                 placeholder="House no., street, locality — and a landmark we can find"
               />
             </Field>
-            <Field label="PIN code" hint="Optional">
+            <Field label="PIN code" required hint="6 digits — needed so the phlebotomist can find you">
               <input
+                type="text"
+                inputMode="numeric"
                 value={pincode}
                 onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
                 maxLength={6}
+                required
                 className={`${inputCls} font-mono num`}
                 placeholder="e.g. 831003"
               />
@@ -666,6 +763,7 @@ export function BookingForm({
           ) : (
             <Field
               label={captchaQuestion || "Loading question…"}
+              required
               hint="A quick spam check."
             >
               <input
@@ -763,20 +861,37 @@ function Section({
   );
 }
 
+/**
+ * A labelled input.
+ *
+ * `required` marks the label rather than leaving it implied. The form used to
+ * signal it only by the *absence* of the word "Optional" on the one field that
+ * had it, which reads as nothing at all — an empty box with no marking looks
+ * skippable, and PIN code was skipped often enough to reach the phlebotomist.
+ */
 function Field({
   label,
   hint,
+  required = false,
   className = "",
   children,
 }: {
   label: string;
   hint?: string;
+  required?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className={fieldLabel}>{label}</span>
+      <span className={fieldLabel}>
+        {label}
+        {required && (
+          <span className="ml-0.5 text-rose-500" title="Required">
+            *
+          </span>
+        )}
+      </span>
       {children}
       {hint && <span className={hintCls}>{hint}</span>}
     </label>

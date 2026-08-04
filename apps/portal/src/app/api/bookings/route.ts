@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { verifyPuzzle } from "@portal/lib/captcha";
 import {
+  slotHasPassed,
   slotsAvailableOn,
   type ClosureRow,
   type LabConfig,
@@ -122,8 +123,9 @@ export async function POST(req: NextRequest) {
   const patientPhone = String(body.patientPhone ?? "").replace(/\D/g, "");
   const patientEmail = body.patientEmail ? String(body.patientEmail).trim() : null;
   const address = String(body.address ?? "").trim();
-  const pincodeRaw = body.pincode ? String(body.pincode).replace(/\D/g, "") : "";
-  const pincode = pincodeRaw.length === 6 ? pincodeRaw : null;
+  // A wrong-length PIN code used to be quietly discarded, so a typo produced a
+  // booking with no PIN at all and the phlebotomist found out at the door.
+  const pincode = body.pincode ? String(body.pincode).replace(/\D/g, "") : "";
   const testIds: string[] = Array.isArray(body.testIds) ? body.testIds.map(String) : [];
   const preferredDate = String(body.preferredDate ?? "");
   const preferredSlot = String(body.preferredSlot ?? "Morning");
@@ -137,6 +139,12 @@ export async function POST(req: NextRequest) {
   }
   if (!address) {
     return NextResponse.json({ error: "missing_address", message: "Please enter a collection address." }, { status: 400 });
+  }
+  if (pincode.length !== 6) {
+    return NextResponse.json(
+      { error: "bad_pincode", message: "Please enter a 6-digit PIN code." },
+      { status: 400 },
+    );
   }
   if (testIds.length === 0) {
     return NextResponse.json({ error: "no_tests", message: "Please choose at least one test." }, { status: 400 });
@@ -174,6 +182,21 @@ export async function POST(req: NextRequest) {
   // `slotsAvailableOn` is the same rule the form applies, so the two cannot
   // drift: it accounts for one-off closures, whole weekly holidays and days
   // where only one session is closed.
+  // Checked before the closure lookup so the patient is told the real reason.
+  // `slotsAvailableOn` also drops passed slots, but with every slot of the day
+  // gone it returns an empty list, which reads as "the lab is closed on that
+  // date" — untrue, and it sends the patient hunting for another day when the
+  // next slot is a few hours away.
+  if (slotHasPassed(preferredSlot as Slot, dateObj)) {
+    return NextResponse.json(
+      {
+        error: "slot_passed",
+        message: "That collection time has already passed today. Please pick a later slot or another day.",
+      },
+      { status: 400 },
+    );
+  }
+
   const closedReason = await slotUnavailableReason(sb, dateObj, preferredSlot as Slot);
   if (closedReason) {
     return NextResponse.json(

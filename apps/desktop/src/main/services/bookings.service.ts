@@ -25,6 +25,9 @@ export interface PatientChoice {
   sex: string;
 }
 
+/** What the confirmation call found. Never inferred — staff pick one. */
+export type PhoneConfirmOutcome = "Reached" | "NoAnswer";
+
 export interface ApproveInput {
   bookingId: string;
   staffUserId: string;
@@ -32,6 +35,15 @@ export interface ApproveInput {
   /** When the chooser surfaced previously, the staff's selection. "__new__"
    *  means create a fresh patient even though phone matches existed. */
   chosenPatientId?: string | null;
+  /**
+   * Outcome of the call staff make before approving.
+   *
+   * Required, and with no default on purpose. A booking's phone becomes the
+   * patient's portal login the moment it is approved, so "we never checked" and
+   * "we checked and nobody answered" have to be distinguishable afterwards —
+   * a default would quietly record whichever one was cheaper to leave alone.
+   */
+  phoneConfirmOutcome: PhoneConfirmOutcome;
   expectedVersion?: number;
 }
 
@@ -97,6 +109,7 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
     booking,
     staffUserId: input.staffUserId,
     assignedToUserId: input.assignedToUserId,
+    phoneConfirmOutcome: input.phoneConfirmOutcome,
     targetPatientId,
     expectedVersion: input.expectedVersion,
     requireStatus: "Pending",
@@ -134,6 +147,8 @@ async function writeConversion(opts: {
   booking: BookingRow;
   staffUserId: string;
   assignedToUserId: string | null;
+  /** Null when the approval came from the staff portal, which does not ask. */
+  phoneConfirmOutcome: PhoneConfirmOutcome | null;
   targetPatientId: string | null;
   expectedVersion?: number;
   requireStatus: "Pending" | "Approved";
@@ -222,6 +237,15 @@ async function writeConversion(opts: {
         assignedToUserId: opts.assignedToUserId ?? null,
         resultingVisitId: visit.id,
         resultingPatientId: patientId,
+        // Left untouched when the portal approved: recording "no call" there
+        // would overwrite an outcome the desktop may already have stored.
+        ...(opts.phoneConfirmOutcome
+          ? {
+              phoneConfirmOutcome: opts.phoneConfirmOutcome,
+              phoneConfirmedAt: new Date(),
+              phoneConfirmedById: opts.staffUserId,
+            }
+          : {}),
         version: { increment: 1 },
       },
     });
@@ -271,6 +295,10 @@ export async function convertApprovedBooking(bookingId: string): Promise<Convert
     // The portal recorded who approved it; fall back only if that is missing.
     staffUserId: booking.approvedByUserId ?? "system",
     assignedToUserId: booking.assignedToUserId ?? null,
+    // The staff portal's Approve does not ask about the call, so there is no
+    // outcome to record. Null here means "not asked", which is the truth, and
+    // is deliberately distinct from "asked, nobody answered".
+    phoneConfirmOutcome: null,
     targetPatientId: candidates[0]?.id ?? null,
     requireStatus: "Approved",
   });

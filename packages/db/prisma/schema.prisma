@@ -563,6 +563,20 @@ model Booking {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
+  // Phase 3g — the confirmation call, recorded.
+  //
+  // Nothing on the portal proves the number a patient typed is theirs, and an
+  // approved booking writes that number onto a real Patient, where it becomes
+  // the portal login. A typo therefore locks the real patient out permanently
+  // and hands the account to whoever owns the number that was typed. Staff
+  // already ring every booking to confirm; this stores what that call found,
+  // so an unreachable number is a decision rather than a silence.
+  //
+  // "Reached" | "NoAnswer" — set at approval, never inferred.
+  phoneConfirmOutcome String?
+  phoneConfirmedAt    DateTime?
+  phoneConfirmedById  String?
+
   @@index([status, preferredDate])
   @@index([patientPhone])
   @@index([createdAt])

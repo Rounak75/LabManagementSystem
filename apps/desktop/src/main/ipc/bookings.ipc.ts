@@ -12,6 +12,7 @@ import {
   approveBooking,
   declineBooking,
   type ApproveResult,
+  type PhoneConfirmOutcome,
 } from "@main/services/bookings.service";
 
 register("bookings:list", async ({ status }: { status?: string } = {}) => {
@@ -27,19 +28,28 @@ register("bookings:approve", async ({
   bookingId,
   assignedToUserId,
   chosenPatientId,
+  phoneConfirmOutcome,
   expectedVersion,
 }: {
   bookingId: string;
   assignedToUserId?: string | null;
   chosenPatientId?: string | null;
+  phoneConfirmOutcome?: PhoneConfirmOutcome;
   expectedVersion?: number;
 }): Promise<ApproveResult> => {
   const u = requireAdmin();
+  // Validated here as well as in the dialog: the renderer is not the only thing
+  // that can reach this channel, and a booking approved without the call
+  // recorded is indistinguishable afterwards from one that was checked.
+  if (phoneConfirmOutcome !== "Reached" && phoneConfirmOutcome !== "NoAnswer") {
+    throw new Error("PHONE_CONFIRM_REQUIRED");
+  }
   const result = await approveBooking({
     bookingId,
     staffUserId: u.id,
     assignedToUserId: assignedToUserId ?? null,
     chosenPatientId: chosenPatientId ?? null,
+    phoneConfirmOutcome,
     expectedVersion,
   });
 

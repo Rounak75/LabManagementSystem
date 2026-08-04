@@ -3,6 +3,12 @@
 //   2. Multi-patient: when the patient's phone matches >1 existing record,
 //      the IPC returns { kind: "chooser", candidates } and we ask the staff
 //      which patient this booking is for (or "a new family member").
+//
+// Phase 3g — approving also records the confirmation call. The number on a
+// booking is unverified until someone rings it, and approval writes it onto a
+// real Patient, where it becomes that patient's portal login. Neither option is
+// preselected: a default would be ticked without dialling, which is the one
+// outcome that makes the record worse than having none.
 
 import { useEffect, useState } from "react";
 import { call } from "@/lib/api";
@@ -43,6 +49,7 @@ export function ApproveBookingModal({
   const [chooser, setChooser] = useState<PatientChoice[] | null>(null);
   const [chosen, setChosen] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [phoneConfirm, setPhoneConfirm] = useState<"Reached" | "NoAnswer" | "">("");
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<Extract<ApproveResult, { kind: "approved" }> | null>(null);
 
@@ -61,6 +68,7 @@ export function ApproveBookingModal({
         bookingId: booking.id,
         assignedToUserId: assignedTo || null,
         chosenPatientId: chosen || null,
+        phoneConfirmOutcome: phoneConfirm || undefined,
         expectedVersion: booking.version,
       });
       if (result.kind === "chooser") {
@@ -140,7 +148,39 @@ export function ApproveBookingModal({
           </div>
         </div>
       ) : (
-        <div className="mt-3">
+        <div className="mt-3 space-y-4">
+          <fieldset>
+            <legend className="text-sm font-medium text-slate-900">
+              Did you reach {booking.patientPhone} on the phone?
+            </legend>
+            <p className="mt-0.5 text-xs text-slate-500">
+              This number becomes the patient's portal login. If it's wrong, they
+              can never sign in — and whoever owns it can.
+            </p>
+            <div className="mt-2 space-y-1">
+              <label className="flex items-center gap-2 rounded border p-2 text-sm hover:bg-slate-50">
+                <input
+                  type="radio"
+                  name="phoneConfirm"
+                  value="Reached"
+                  checked={phoneConfirm === "Reached"}
+                  onChange={() => setPhoneConfirm("Reached")}
+                />
+                <span>Yes — spoke to the patient and confirmed the booking</span>
+              </label>
+              <label className="flex items-center gap-2 rounded border p-2 text-sm hover:bg-slate-50">
+                <input
+                  type="radio"
+                  name="phoneConfirm"
+                  value="NoAnswer"
+                  checked={phoneConfirm === "NoAnswer"}
+                  onChange={() => setPhoneConfirm("NoAnswer")}
+                />
+                <span>No — couldn't reach them, approving anyway</span>
+              </label>
+            </div>
+          </fieldset>
+
           <Select
             label="Assign to phlebotomist"
             value={assignedTo}
@@ -169,7 +209,7 @@ export function ApproveBookingModal({
         <Button variant="secondary" onClick={() => onClose(false)}>Cancel</Button>
         <Button
           onClick={handleApprove}
-          disabled={submitting || (chooser !== null && !chosen)}
+          disabled={submitting || !phoneConfirm || (chooser !== null && !chosen)}
         >
           {submitting ? "Approving…" : chooser ? "Confirm patient" : "Approve"}
         </Button>

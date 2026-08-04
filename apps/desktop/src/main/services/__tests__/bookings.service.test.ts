@@ -69,7 +69,12 @@ function booking(over: Record<string, unknown> = {}) {
   };
 }
 
-const input = { bookingId: "b1", staffUserId: "staff-1", assignedToUserId: "phleb-1" };
+const input = {
+  bookingId: "b1",
+  staffUserId: "staff-1",
+  assignedToUserId: "phleb-1",
+  phoneConfirmOutcome: "Reached" as const,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
