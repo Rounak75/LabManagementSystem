@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatINR, formatPhone, formatDateShort } from "./format";
+import { formatINR, formatPhone, formatDateShort, formatDateTime } from "./format";
 
 describe("format", () => {
   it("formatINR adds ₹ and groups in the Indian system", () => {
@@ -21,5 +21,23 @@ describe("format", () => {
     // BookingRow passes `preferred_date ?? ""`; "Invalid Date" is not a thing
     // to show a receptionist.
     expect(formatDateShort("")).toBe("");
+  });
+
+  // An audit row is a real instant, unlike the date-only columns formatDateShort
+  // reads. Staff reading it are standing in the lab, so it is shown in IST — and
+  // in IST regardless of whether Vercel rendered it on the server or the
+  // browser did, which is what "en-IN" could not promise.
+  it("formatDateTime reads an instant in IST, not the runtime's zone", () => {
+    expect(formatDateTime("2026-05-20T09:34:00Z")).toBe("20 May 2026, 3:04 pm");
+  });
+  it("formatDateTime keeps the IST day when UTC is still the day before", () => {
+    expect(formatDateTime("2026-05-19T22:30:00Z")).toBe("20 May 2026, 4:00 am");
+  });
+  it("formatDateTime writes midnight and noon as 12", () => {
+    expect(formatDateTime("2026-05-19T18:30:00Z")).toBe("20 May 2026, 12:00 am");
+    expect(formatDateTime("2026-05-20T06:30:00Z")).toBe("20 May 2026, 12:00 pm");
+  });
+  it("formatDateTime renders nothing for a missing date", () => {
+    expect(formatDateTime("")).toBe("");
   });
 });

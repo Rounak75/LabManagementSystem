@@ -66,3 +66,41 @@ export function labDate(
   if (opts.weekday) out = `${SHORT_WEEKDAYS[d.getUTCDay()]}, ${out}`;
   return out;
 }
+
+/**
+ * The weekday and month of a date the browser built for itself.
+ *
+ * Read in local time, deliberately — the opposite of `labDate`. These label the
+ * booking rail's day buttons, whose value comes from a local `ymd()`. Shifting
+ * them to UTC would print one day on a button that books another, which is the
+ * class of bug the rail has already had once.
+ *
+ * Written out by hand for the same reason as everything else here: the labels
+ * came from toLocaleDateString("en-IN", …), whose output depends on the ICU the
+ * browser ships.
+ */
+export function localWeekday(d: Date): string {
+  return Number.isNaN(d.getTime()) ? "" : (SHORT_WEEKDAYS[d.getDay()] ?? "");
+}
+
+export function localMonth(d: Date): string {
+  return Number.isNaN(d.getTime()) ? "" : (SHORT_MONTHS[d.getMonth()] ?? "");
+}
+
+/**
+ * A wall-clock time as "3:04 pm".
+ *
+ * Read in the reader's own zone, deliberately: the only use is telling someone
+ * when their login lockout ends, and the clock that answers that is theirs.
+ * Only the format is pinned here — toLocaleTimeString("en-IN", …) rendered
+ * "pm" or "PM" depending on the runtime.
+ */
+export function clockTime(value: string | Date): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const hours24 = d.getHours();
+  const suffix = hours24 < 12 ? "am" : "pm";
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return `${hours12}:${String(d.getMinutes()).padStart(2, "0")} ${suffix}`;
+}

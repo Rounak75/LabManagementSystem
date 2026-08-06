@@ -12,6 +12,8 @@ import {
 } from "@portal/components/ui";
 import { ArrowRight, Check, Wallet } from "@portal/components/icons";
 
+import { labDate } from "@portal/lib/format";
+
 export const runtime = "nodejs";
 
 export default async function InvoicesPage() {
@@ -99,11 +101,7 @@ export default async function InvoicesPage() {
                         {v?.visit_id ?? "Visit"}
                       </p>
                       <p className="mt-0.5 text-[12px] text-muted">
-                        {new Date(i.created_at).toLocaleDateString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
+                        {labDate(i.created_at, { year: true })}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">

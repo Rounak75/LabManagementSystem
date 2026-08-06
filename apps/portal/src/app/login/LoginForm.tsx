@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { Card, IconChip, Note, btnPrimary, fieldLabel, hintCls, inputCls } from "@portal/components/ui";
 import { ArrowLeft, ArrowRight, Lock, Phone, ShieldAlert } from "@portal/components/icons";
 
+import { clockTime } from "@portal/lib/format";
+
 export function LoginForm({ nextUrl }: { nextUrl: string }) {
   const router = useRouter();
   // "first" covers everyone signing in for the first time, with whichever id the
@@ -178,11 +180,7 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         <p className="mt-2 text-[13.5px] leading-relaxed text-soft">
           Please try again at{" "}
           <strong className="font-mono num font-medium text-text">
-            {new Date(lockedUntil).toLocaleTimeString("en-IN", {
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            })}
+            {clockTime(lockedUntil)}
           </strong>
           , or call the lab to verify your identity.
         </p>

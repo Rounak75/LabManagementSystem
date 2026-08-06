@@ -28,6 +28,8 @@ import {
   Wallet,
 } from "@portal/components/icons";
 
+import { labDate } from "@portal/lib/format";
+
 export const runtime = "nodejs";
 
 interface VisitRow {
@@ -133,11 +135,7 @@ export default async function DashboardPage() {
                     Latest visit
                   </p>
                   <span className="font-mono num text-[11.5px] text-band/60">
-                    {new Date(latest.visit_date).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {labDate(latest.visit_date, { year: true })}
                   </span>
                 </div>
               </div>
@@ -259,11 +257,7 @@ export default async function DashboardPage() {
                           {v.visit_id}
                         </p>
                         <p className="mt-0.5 text-[12px] text-muted">
-                          {new Date(v.visit_date).toLocaleDateString("en-IN", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {labDate(v.visit_date, { year: true })}
                         </p>
                       </div>
                       <Tag tone={done ? "ok" : "notice"}>{v.status}</Tag>

@@ -33,3 +33,36 @@ export function formatDateShort(iso: string): string {
   const day = String(d.getUTCDate()).padStart(2, "0");
   return `${day} ${SHORT_MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
+
+/** IST is a fixed +5:30 with no daylight saving, so the offset can be added and
+ *  the UTC fields read straight off. */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/**
+ * A moment something happened — an audit row, a logged client error — as
+ * "20 May 2026, 3:04 pm".
+ *
+ * Read in IST, not UTC, and that difference from `formatDateShort` is the
+ * point. Those are date-only columns holding UTC midnight of the day the lab
+ * meant. These are real timestamps, and the people reading them are staff
+ * standing in the lab.
+ *
+ * Left to `toLocaleString("en-IN")` this rendered in whatever zone the process
+ * happened to be in — UTC when Vercel rendered it on the server, the machine's
+ * own zone when the browser did — so the same audit row could read two
+ * different times depending on where it was drawn. The format was ICU's to
+ * change, too.
+ */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const ist = new Date(d.getTime() + IST_OFFSET_MS);
+  const day = String(ist.getUTCDate()).padStart(2, "0");
+  const date = `${day} ${SHORT_MONTHS[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
+
+  const hours24 = ist.getUTCHours();
+  const suffix = hours24 < 12 ? "am" : "pm";
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return `${date}, ${hours12}:${String(ist.getUTCMinutes()).padStart(2, "0")} ${suffix}`;
+}

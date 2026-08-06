@@ -3,6 +3,8 @@ import { getServerSupabase } from "@/lib/supabase-client";
 import { resolveUserNames } from "@/lib/data-audit";
 import { redirect } from "next/navigation";
 
+import { formatDateTime } from "@/lib/format";
+
 interface ClientErrorRow {
   id: string;
   user_id: string | null;
@@ -39,7 +41,7 @@ export default async function DiagnosticsPage() {
             <li key={e.id} className="card p-3.5 text-sm">
               <div className="flex justify-between gap-2">
                 <span className="font-semibold text-rose-700">{e.message}</span>
-                <span className="shrink-0 text-xs text-slate-400">{new Date(e.logged_at).toLocaleString("en-IN")}</span>
+                <span className="shrink-0 text-xs text-slate-400">{formatDateTime(e.logged_at)}</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">
                 {(e.user_id && names.get(e.user_id)) || "anon"} · {e.url}

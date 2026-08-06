@@ -24,6 +24,8 @@ import {
   Wallet,
 } from "@portal/components/icons";
 
+import { labDate } from "@portal/lib/format";
+
 export const runtime = "nodejs";
 
 interface Param {
@@ -108,12 +110,7 @@ export default async function VisitPage({ params: paramsPromise }: { params: Pro
                   {visit!.visit_id}
                 </p>
                 <p className="mt-0.5 truncate text-[12.5px] text-muted">
-                  {new Date(visit!.visit_date).toLocaleDateString("en-IN", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {labDate(visit!.visit_date, { weekday: true, year: true })}
                 </p>
               </div>
               <Tag tone={done ? "ok" : "notice"}>{visit!.status}</Tag>

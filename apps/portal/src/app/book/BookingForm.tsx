@@ -10,6 +10,7 @@ import {
   type Slot,
   type CollectionTimeRestriction,
 } from "@portal/lib/lab-status";
+import { localWeekday, localMonth } from "@portal/lib/format";
 import {
   Card,
   Note,
@@ -125,8 +126,8 @@ export function BookingForm({
       return {
         iso: ymd(d),
         day: d.getDate(),
-        weekday: d.toLocaleDateString("en-IN", { weekday: "short" }),
-        month: d.toLocaleDateString("en-IN", { month: "short" }),
+        weekday: localWeekday(d),
+        month: localMonth(d),
       };
     });
   }, [todayIso]);
