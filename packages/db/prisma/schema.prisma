@@ -394,6 +394,13 @@ model SyncCursor {
   source       String   @unique
   lastSyncedAt DateTime
   lastId       String?
+  // The cursor column's value exactly as the cloud returned it. Postgres
+  // timestamps carry microseconds and `lastSyncedAt` is a DateTime, so rebuilding
+  // the query from it dropped the last three digits — and `updated_at > since`
+  // stayed true of the very row the cursor pointed at, which came back on every
+  // tick forever. Null on rows written before this column existed; the ISO form
+  // of lastSyncedAt is the fallback.
+  lastCursorValue String?
 }
 
 // ─── Sync Dead Letters ────────────────────────────────────────────────────

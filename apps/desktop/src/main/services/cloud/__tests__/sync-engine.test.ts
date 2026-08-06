@@ -104,18 +104,56 @@ describe("SyncEngine.runPulls", () => {
     expect(stats.errors[0]).toContain("cloud rejected the read");
   });
 
-  it("does not count a failed handler as pulled", async () => {
-    const engine = new SyncEngine();
-    engine.register({ name: "ok", pull: async () => {} });
-    engine.register({
-      name: "bad",
-      pull: async () => {
-        throw new Error("nope");
-      },
+  // `pulled` is documented as "cloud rows successfully applied locally", and the
+  // sync worker calls a tick idle when nothing was pushed and nothing pulled. It
+  // counted handlers that ran instead, which is a constant ten while the cloud is
+  // reachable — so `idle` was never true, the tick never backed off from five
+  // seconds to sixty, and the free-tier cost control the backoff exists to
+  // provide had no effect at any point, including overnight with the lab shut.
+  describe("counting what was pulled", () => {
+    it("reports rows applied, not handlers run", async () => {
+      const engine = new SyncEngine();
+      engine.register({ name: "a", pull: async () => ({ applied: 3, skipped: 0, failed: 0 }) });
+      engine.register({ name: "b", pull: async () => ({ applied: 1, skipped: 0, failed: 0 }) });
+
+      const stats = await engine.runPulls({} as never);
+
+      expect(stats.pulled).toBe(4);
     });
 
-    const stats = await engine.runPulls({} as never);
+    it("reports nothing pulled when every handler found no new rows", async () => {
+      const engine = new SyncEngine();
+      engine.register({ name: "a", pull: async () => ({ applied: 0, skipped: 0, failed: 0 }) });
+      engine.register({ name: "b", pull: async () => ({ applied: 0, skipped: 2, failed: 0 }) });
 
-    expect(stats.pulled).toBe(1);
+      const stats = await engine.runPulls({} as never);
+
+      // Skipped rows are rows we deliberately did nothing with — echoes of our own
+      // pushes, soft-deletes, rows the replayer owns. They are not activity.
+      expect(stats.pulled).toBe(0);
+    });
+
+    it("counts nothing for a handler that reports no stats", async () => {
+      const engine = new SyncEngine();
+      engine.register({ name: "heartbeat", pull: async () => {} });
+
+      expect((await engine.runPulls({} as never)).pulled).toBe(0);
+    });
+
+    it("does not count rows from a handler that threw", async () => {
+      const engine = new SyncEngine();
+      engine.register({ name: "ok", pull: async () => ({ applied: 2, skipped: 0, failed: 0 }) });
+      engine.register({
+        name: "bad",
+        pull: async () => {
+          throw new Error("nope");
+        },
+      });
+
+      const stats = await engine.runPulls({} as never);
+
+      expect(stats.pulled).toBe(2);
+      expect(stats.errors).toHaveLength(1);
+    });
   });
 });

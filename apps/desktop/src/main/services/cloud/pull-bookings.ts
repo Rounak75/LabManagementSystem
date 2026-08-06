@@ -10,7 +10,7 @@ import { logger } from "./logger";
 
 import { prisma } from "@main/db";
 import type { CloudClient } from "./sync-engine";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import * as triggers from "@main/services/notifications/triggers";
 import { convertPendingApprovedBookings } from "@main/services/bookings.service";
 // Deliberately the file logger rather than this module's `logger`, which only
@@ -53,7 +53,7 @@ interface RawBookingRow extends Record<string, unknown> {
   phone_confirmed_by_id: string | null;
 }
 
-export async function pullBookings(client: CloudClient): Promise<void> {
+export async function pullBookings(client: CloudClient): Promise<PullStats> {
   // Driven by the shared runner rather than its own loop. The hand-rolled
   // version rethrew any error that was not a constraint conflict, which skipped
   // the cursor write — so the next tick re-fetched the same page, hit the same
@@ -61,7 +61,7 @@ export async function pullBookings(client: CloudClient): Promise<void> {
   // every later booking from ever reaching the lab PC, with nothing in the UI to
   // say so. The runner retries a failing row a bounded number of times and then
   // quarantines it in SyncDeadLetter, where it is visible and the stream moves on.
-  await runPull<RawBookingRow>(client, {
+  const stats = await runPull<RawBookingRow>(client, {
     source: SOURCE,
     table: "bookings",
     cursorColumn: "updated_at",
@@ -193,4 +193,6 @@ export async function pullBookings(client: CloudClient): Promise<void> {
     logger.error("cloud", "[pull-bookings] approval sweep failed", e);
     logError("cloud:booking-convert", e);
   }
+
+  return stats;
 }

@@ -10,7 +10,7 @@
 
 import { prisma } from "@main/db";
 import { logger } from "./logger";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import type { CloudClient } from "./sync-engine";
 import * as triggers from "@main/services/notifications/triggers";
 
@@ -25,8 +25,8 @@ interface RawVerificationRow extends Record<string, unknown> {
   updated_at: string;
 }
 
-export async function pullVerifications(client: CloudClient): Promise<void> {
-  await runPull<RawVerificationRow>(client, {
+export async function pullVerifications(client: CloudClient): Promise<PullStats> {
+  return runPull<RawVerificationRow>(client, {
     source: SOURCE,
     table: "visits",
     cursorColumn: "verified_at",

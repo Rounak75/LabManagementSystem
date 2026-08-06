@@ -4,7 +4,7 @@
 // write needed. The desktop's print pipeline reads Picked jobs from local SQLite.
 
 import { prisma } from "@main/db";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "print_jobs";
@@ -20,8 +20,8 @@ interface RawPrintJobRow extends Record<string, unknown> {
   error_message: string | null;
 }
 
-export async function pullPrintJobs(client: CloudClient): Promise<void> {
-  await runPull<RawPrintJobRow>(client, {
+export async function pullPrintJobs(client: CloudClient): Promise<PullStats> {
+  return runPull<RawPrintJobRow>(client, {
     source: SOURCE,
     table: "print_jobs",
     cursorColumn: "requested_at",

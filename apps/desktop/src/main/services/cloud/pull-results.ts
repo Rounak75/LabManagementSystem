@@ -8,11 +8,46 @@ import { prisma } from "@main/db";
 import { isAbnormal } from "@main/services/abnormality";
 import { audit } from "@main/services/audit-best-effort";
 import { logger } from "./logger";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import type { CloudClient } from "./sync-engine";
 import type { ResultType, Sex } from "@lab/types";
 
 const SOURCE = "results";
+
+/**
+ * Works out which of a result's three parents this machine is actually missing.
+ *
+ * Runs only after a constraint has already fired, so three extra reads cost
+ * nothing on the happy path — and they are read from the database rather than
+ * the page caches, because a replay of a quarantined row arrives with no page
+ * and so no caches at all.
+ */
+async function describeMissingParents(
+  r: RawResultRow,
+  enteredById: string,
+  cause: Error,
+): Promise<string> {
+  const missing: string[] = [];
+  try {
+    const [vt, param, user] = await Promise.all([
+      prisma().visitTest.findUnique({ where: { id: r.visit_test_id }, select: { id: true } }),
+      prisma().testParameter.findUnique({ where: { id: r.parameter_id }, select: { id: true } }),
+      prisma().user.findUnique({ where: { id: enteredById }, select: { id: true } }),
+    ]);
+    if (!vt) missing.push(`visit_test ${r.visit_test_id}`);
+    if (!param) missing.push(`parameter ${r.parameter_id}`);
+    if (!user) missing.push(`user ${enteredById}`);
+  } catch {
+    // Diagnosis is a bonus; the constraint failure is the fact being reported.
+  }
+
+  if (missing.length === 0) {
+    // The constraint fired but every parent is present now — a race with the
+    // stream that owns them, not an orphan. It should apply on the next replay.
+    return `result ${r.id} hit a foreign key constraint but its parents are all present — likely a sync race: ${cause.message}`;
+  }
+  return `result ${r.id} cannot be applied: this machine has no ${missing.join(", no ")}. ${cause.message}`;
+}
 
 interface RawResultRow extends Record<string, unknown> {
   id: string;
@@ -33,7 +68,7 @@ type ParameterRow = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type VisitTestRow = any;
 
-export async function pullResults(client: CloudClient): Promise<void> {
+export async function pullResults(client: CloudClient): Promise<PullStats> {
   // Parameters and visit tests for the whole page, so abnormality can be
   // recomputed without a query per row.
   let paramsCache = new Map<string, ParameterRow>();
@@ -49,7 +84,7 @@ export async function pullResults(client: CloudClient): Promise<void> {
   // lab has configured is the one that decides.
   let childAgeBoundary = 12;
 
-  await runPull<RawResultRow>(client, {
+  return runPull<RawResultRow>(client, {
     source: SOURCE,
     table: "results",
     cursorColumn: "updated_at",
@@ -204,15 +239,11 @@ export async function pullResults(client: CloudClient): Promise<void> {
         await prisma().testResult.upsert({ where: { id: r.id }, create: data, update: data });
       } catch (e) {
         // Every id on this row is a foreign key, and Prisma reports a violation
-        // on any of them with the same message, naming none. Say which row and
-        // which parents were involved, so a quarantined result can be diagnosed
-        // from the log instead of by reading the sync code.
+        // on any of them with the same message, naming none. Listing all three
+        // left the reader to work out which was actually absent, against the
+        // production database — so look, and name only what is missing.
         if ((e as { code?: string })?.code === "P2003") {
-          throw new Error(
-            `result ${r.id} references something this machine does not have ` +
-              `(visit_test ${r.visit_test_id}, parameter ${r.parameter_id}, user ${enteredById}): ` +
-              `${(e as Error).message}`,
-          );
+          throw new Error(await describeMissingParents(r, enteredById, e as Error));
         }
         throw e;
       }

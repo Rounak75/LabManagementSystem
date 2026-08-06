@@ -1,35 +1,48 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/stores/auth.store";
 import { call } from "@/lib/api";
 import { evictOldDrafts } from "@/lib/draft";
+import { RequireRole } from "./components/RequireRole";
+import { AppShell } from "./components/AppShell";
+import { PageLoading } from "@/components/PageLoading";
+import { Toaster } from "@/components/ui/Toast";
+
+// Eager: the three screens that can be the first thing on screen. Anything the
+// app might open with has to be in the initial chunk, or splitting just trades
+// a slow start for a slow start with a spinner on it.
 import Login from "./routes/Login";
 import Recover from "./routes/Recover";
 import FirstRunWizard from "./routes/FirstRunWizard";
 import Dashboard from "./routes/Dashboard";
-import { RequireRole } from "./components/RequireRole";
-import { AppShell } from "./components/AppShell";
-import { Toaster } from "@/components/ui/Toast";
-import PatientSearch from "./routes/patients/PatientSearch";
-import PatientNew from "./routes/patients/PatientNew";
-import PatientDetail from "./routes/patients/PatientDetail";
-import VisitNew from "./routes/visits/VisitNew";
-import VisitDetail from "./routes/visits/VisitDetail";
-import ResultEntry from "./routes/results/ResultEntry";
-import ReportsList from "./routes/reports/ReportsList";
-import ReportPreview from "./routes/reports/ReportPreview";
-import InvoiceView from "./routes/invoices/InvoiceView";
-import TestCatalogue from "./routes/tests/TestCatalogue";
-import OutsourcedList from "./routes/outsourced/OutsourcedList";
-import DoctorDirectory from "./routes/doctors/DoctorDirectory";
-import LabSettings from "./routes/settings/LabSettings";
-import UserManagement from "./routes/users/UserManagement";
-import AuditLog from "./routes/audit/AuditLog";
-import NotificationsLog from "./routes/notifications/NotificationsLog";
-import SyncLog from "./routes/sync/SyncLog";
-import TemplateList from "./routes/templates/TemplateList";
-import TemplateEditor from "./routes/templates/TemplateEditor";
-import BookingsPage from "./routes/bookings/BookingsPage";
+
+// Everything else is fetched when it is first navigated to.
+//
+// Every route used to be a static import, so Vite emitted one 3.7 MB bundle that
+// Electron had to parse before React could paint — which is the blank white
+// window the app opened on. The worst of it was never needed at startup at all:
+// the report-template editor pulls in @react-pdf/renderer, and the invoice page
+// pulls in a QR code library, neither of which the owner touches on login.
+const PatientSearch = lazy(() => import("./routes/patients/PatientSearch"));
+const PatientNew = lazy(() => import("./routes/patients/PatientNew"));
+const PatientDetail = lazy(() => import("./routes/patients/PatientDetail"));
+const VisitNew = lazy(() => import("./routes/visits/VisitNew"));
+const VisitDetail = lazy(() => import("./routes/visits/VisitDetail"));
+const ResultEntry = lazy(() => import("./routes/results/ResultEntry"));
+const ReportsList = lazy(() => import("./routes/reports/ReportsList"));
+const ReportPreview = lazy(() => import("./routes/reports/ReportPreview"));
+const InvoiceView = lazy(() => import("./routes/invoices/InvoiceView"));
+const TestCatalogue = lazy(() => import("./routes/tests/TestCatalogue"));
+const OutsourcedList = lazy(() => import("./routes/outsourced/OutsourcedList"));
+const DoctorDirectory = lazy(() => import("./routes/doctors/DoctorDirectory"));
+const LabSettings = lazy(() => import("./routes/settings/LabSettings"));
+const UserManagement = lazy(() => import("./routes/users/UserManagement"));
+const AuditLog = lazy(() => import("./routes/audit/AuditLog"));
+const NotificationsLog = lazy(() => import("./routes/notifications/NotificationsLog"));
+const SyncLog = lazy(() => import("./routes/sync/SyncLog"));
+const TemplateList = lazy(() => import("./routes/templates/TemplateList"));
+const TemplateEditor = lazy(() => import("./routes/templates/TemplateEditor"));
+const BookingsPage = lazy(() => import("./routes/bookings/BookingsPage"));
 
 export default function App() {
   const { user, loading, bootstrap } = useAuth();
@@ -59,6 +72,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Toaster />
+      {/* AppShell carries its own boundary so the sidebar survives a page load.
+          This one is the backstop for any lazy route outside the shell. */}
+      <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/recover" element={user ? <Navigate to="/" replace /> : <Recover />} />
@@ -88,6 +104,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

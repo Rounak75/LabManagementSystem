@@ -1,0 +1,12 @@
+-- Keep the cloud's own cursor value alongside the truncated DateTime.
+--
+-- `lastSyncedAt` is a DateTime, so it holds milliseconds. Supabase's `updated_at`
+-- is a timestamptz written by `now()` and the moddatetime trigger, so it holds
+-- microseconds. Rebuilding the keyset query from `lastSyncedAt` asked the cloud
+-- for `updated_at > '...715Z'` when the boundary row actually held '...715022' —
+-- still greater, so every pull stream re-fetched and re-applied its newest row on
+-- every tick, indefinitely.
+--
+-- Nullable on purpose: existing installs keep working from `lastSyncedAt` until
+-- their next successful pull writes a raw value.
+ALTER TABLE "SyncCursor" ADD COLUMN "lastCursorValue" TEXT;

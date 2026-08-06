@@ -6,7 +6,7 @@
 
 import { prisma } from "@main/db";
 import { logger } from "./logger";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import * as triggers from "@main/services/notifications/triggers";
 import type { CloudClient } from "./sync-engine";
 
@@ -25,8 +25,8 @@ interface RawPaymentRow extends Record<string, unknown> {
   updated_at: string;
 }
 
-export async function pullPayments(client: CloudClient): Promise<void> {
-  await runPull<RawPaymentRow>(client, {
+export async function pullPayments(client: CloudClient): Promise<PullStats> {
+  return runPull<RawPaymentRow>(client, {
     source: SOURCE,
     table: "payments",
     cursorColumn: "updated_at",

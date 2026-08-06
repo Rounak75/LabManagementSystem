@@ -5,7 +5,7 @@ import { logger } from "./logger";
 
 import { prisma } from "@main/db";
 import type { CloudClient } from "./sync-engine";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import * as triggers from "@main/services/notifications/triggers";
 
 const SOURCE = "disputes";
@@ -23,14 +23,14 @@ interface RawDisputeRow extends Record<string, unknown> {
   resolution_note: string | null;
 }
 
-export async function pullDisputes(client: CloudClient): Promise<void> {
+export async function pullDisputes(client: CloudClient): Promise<PullStats> {
   // Driven by the shared runner rather than its own loop. The hand-rolled version
   // rethrew any error that was not a constraint conflict, which skipped the
   // cursor write — so the next tick re-fetched the same page, hit the same row
   // and threw again, indefinitely. One malformed dispute stopped every later one
   // from reaching the lab PC, and a dispute is a patient saying these results are
   // not mine: the one message that must not go unseen.
-  await runPull<RawDisputeRow>(client, {
+  return runPull<RawDisputeRow>(client, {
     source: SOURCE,
     table: "disputes",
     cursorColumn: "created_at",

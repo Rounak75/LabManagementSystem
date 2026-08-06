@@ -5,7 +5,7 @@
 
 import { prisma } from "@main/db";
 import { logger } from "./logger";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "visits";
@@ -47,13 +47,13 @@ interface RawInvoiceRow {
   total: number | string | null;
 }
 
-export async function pullVisits(client: CloudClient): Promise<void> {
+export async function pullVisits(client: CloudClient): Promise<PullStats> {
   // Children for every visit in the page, keyed by visit id. Populated by
   // `prepare` so a page costs one extra query rather than one per visit.
   let childrenByVisit = new Map<string, RawVisitTestRow[]>();
   let invoiceByVisit = new Map<string, RawInvoiceRow>();
 
-  await runPull<RawVisitRow>(client, {
+  return runPull<RawVisitRow>(client, {
     source: SOURCE,
     table: "visits",
     cursorColumn: "updated_at",

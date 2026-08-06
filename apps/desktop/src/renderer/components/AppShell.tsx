@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/stores/auth.store";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { call } from "@/lib/api";
 import { SidebarCloudIcon } from "@/components/SidebarCloudIcon";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { PageLoading } from "@/components/PageLoading";
 // @ts-ignore
 import logo from "@/assets/logo.png";
 import {
@@ -148,7 +149,11 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
       <main className="ml-4 flex flex-1 flex-col overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-ambient">
         <div className="flex-1 overflow-auto px-10 py-10">
-          {children ?? <Outlet />}
+          {/* Pages are loaded on demand, so the boundary belongs here rather than
+              around the router: suspending inside the content area keeps the
+              sidebar and header on screen instead of blanking the whole app for
+              the moment a chunk is read off disk. */}
+          <Suspense fallback={<PageLoading />}>{children ?? <Outlet />}</Suspense>
         </div>
       </main>
     </div>

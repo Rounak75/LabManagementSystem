@@ -51,8 +51,28 @@ let mainWindow: BrowserWindow | null = null;
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 800,
+    // Shown from `ready-to-show` instead of immediately. Electron paints a new
+    // window white the moment it is created, so the app opened on an empty white
+    // rectangle and sat there until the renderer had parsed its bundle and React
+    // had mounted — which is the blank screen the owner sees, not a slow boot.
+    // Waiting means the window appears already drawn.
+    show: false,
+    // Still worth setting: this is the colour of the frame between the window
+    // appearing and the first paint, and of any resize the compositor has not
+    // caught up with. Matches the app background (Tailwind slate-50).
+    backgroundColor: "#f8fafc",
     webPreferences: { preload: join(__dirname, "../preload/index.js"), contextIsolation: true, nodeIntegration: false }
   });
+  mainWindow.once("ready-to-show", () => mainWindow?.show());
+  // Belt and braces: if the renderer fails badly enough never to reach
+  // ready-to-show, a window that is never shown leaves the owner with no app and
+  // no error either. Better a blank window than an invisible one.
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      logError("boot:window", "renderer never reported ready-to-show — showing anyway");
+      mainWindow.show();
+    }
+  }, 10_000);
   if (process.env.ELECTRON_RENDERER_URL) mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   else mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   mainWindow.on("closed", () => { mainWindow = null; });
@@ -76,6 +96,29 @@ function showFatalDialog(scope: string, err: unknown): void {
 process.on("uncaughtException", (err) => showFatalDialog("uncaughtException", err));
 process.on("unhandledRejection", (reason) => logError("unhandledRejection", reason));
 
+/**
+ * Idempotent housekeeping that runs on every boot and that the first screen does
+ * not depend on.
+ *
+ * All of it used to run *before* `createWindow()`, so the owner watched an empty
+ * desktop while the app re-checked conversions that had already happened years
+ * of boots ago. None of it is needed to log in or to see the dashboard: the logo
+ * conversion matters when a report is rendered, the template seed and catalogue
+ * reconciliation matter when the catalogue is opened, and by then this has long
+ * since finished.
+ *
+ * Each step is guarded separately so one failure cannot skip the rest.
+ */
+async function runBootMaintenance(): Promise<void> {
+  // One-time idempotent migration: convert legacy file-path logos to data URIs.
+  try { await migrateLogoFieldOnce(); } catch (err) { logError("boot:logo-migration", err); }
+  try { await seedGolmuriTemplate(prisma()); } catch (err) { logError("seed:template", err); }
+  // Outside the seed guard on purpose: an existing install already exceeds the
+  // test-count threshold, so anything behind it would never run again.
+  try { await reconcileTestCatalogueOnce(); } catch (err) { logError("seed:catalogue", err); }
+  try { await migrateTestCategoriesOnce(); } catch (err) { logError("boot:category-migration", err); }
+}
+
 app.whenReady().then(async () => {
   const bootStart = Date.now();
   try {
@@ -86,23 +129,20 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
-  // One-time idempotent migration: convert legacy file-path logos to data URIs.
-  // Runs every boot but is a no-op once the conversion has happened.
-  await migrateLogoFieldOnce();
   // Seeds are idempotent; skip the per-test queries entirely once fully seeded.
+  // This one stays ahead of the window because a fresh install has no catalogue
+  // at all, and the first screen is not worth showing without one. It runs once
+  // in the life of the install.
   const testCount = await prisma().test.count();
   if (testCount < EXPECTED_SEED_TEST_COUNT) {
     try { await seedGolmuriTests(prisma()); } catch (err) { logError("seed:golmuri", err); }
     try { await seedSpecialTests(prisma()); } catch (err) { logError("seed:special", err); }
   }
-  try { await seedGolmuriTemplate(prisma()); } catch (err) { logError("seed:template", err); }
-  // Outside the testCount guard above on purpose: an existing install already
-  // exceeds that threshold, so anything behind it never runs again. This is
-  // idempotent and cheap once the catalogue is reconciled.
-  try { await reconcileTestCatalogueOnce(); } catch (err) { logError("seed:catalogue", err); }
-  await migrateTestCategoriesOnce();
+
   createWindow();
   logError("boot:timing", `window created in ${Date.now() - bootStart}ms`);
+
+  await runBootMaintenance();
   initAutoUpdater(() => mainWindow);
   startScheduler();
   startNotificationsScheduler();

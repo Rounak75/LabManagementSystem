@@ -2,12 +2,18 @@ import { prisma } from "@main/db";
 import { decryptSecret } from "@main/services/crypto.service";
 import { createSupabaseClient } from "./supabase-client";
 import { logger } from "./logger";
+import type { PullStats } from "./pull-runner";
 
 export type CloudClient = ReturnType<typeof createSupabaseClient>;
 
 export interface SyncHandler {
   name: string;
-  pull: (client: CloudClient) => Promise<void>;
+  /**
+   * Returns what the pass did, so the worker can tell a tick that moved data
+   * from one that found nothing. Handlers that do not read rows (the heartbeat)
+   * return nothing and count as zero.
+   */
+  pull: (client: CloudClient) => Promise<PullStats | void>;
   dependencies?: string[];
   priority?: number;
 }
@@ -81,8 +87,11 @@ export class SyncEngine {
 
     for (const handler of ordered) {
       try {
-        await handler.pull(client);
-        stats.pulled++;
+        // Rows applied, not handlers run. Counting handlers made `pulled` a
+        // constant while the cloud was reachable, so the worker's idle backoff
+        // never fired and the tick stayed at five seconds around the clock.
+        const result = await handler.pull(client);
+        stats.pulled += result?.applied ?? 0;
       } catch (e) {
         stats.errors.push(`${handler.name}: ${e instanceof Error ? e.message : String(e)}`);
         logger.error("sync-engine", `${handler.name} failed`, e);

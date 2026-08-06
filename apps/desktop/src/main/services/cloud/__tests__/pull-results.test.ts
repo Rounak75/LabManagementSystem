@@ -10,8 +10,11 @@ const mocks = vi.hoisted(() => ({
   testResultFindUnique: vi.fn(),
   testResultUpsert: vi.fn(),
   testParameterFindMany: vi.fn(),
+  testParameterFindUnique: vi.fn(),
   visitTestFindMany: vi.fn(),
+  visitTestFindUnique: vi.fn(),
   userFindMany: vi.fn(),
+  userFindUnique: vi.fn(),
   labSettingsFindUnique: vi.fn(),
   // Typed args so assertions can read what pull-results actually handed over —
   // the reference-range bounds and the child-age boundary it resolved.
@@ -24,9 +27,9 @@ vi.mock("@main/db", () => ({
     syncCursor: { findUnique: mocks.syncCursorFindUnique, upsert: mocks.syncCursorUpsert },
     syncDeadLetter: { findUnique: mocks.deadLetterFindUnique, upsert: mocks.deadLetterUpsert, findMany: mocks.deadLetterFindMany },
     testResult: { findUnique: mocks.testResultFindUnique, upsert: mocks.testResultUpsert },
-    testParameter: { findMany: mocks.testParameterFindMany },
-    visitTest: { findMany: mocks.visitTestFindMany },
-    user: { findMany: mocks.userFindMany },
+    testParameter: { findMany: mocks.testParameterFindMany, findUnique: mocks.testParameterFindUnique },
+    visitTest: { findMany: mocks.visitTestFindMany, findUnique: mocks.visitTestFindUnique },
+    user: { findMany: mocks.userFindMany, findUnique: mocks.userFindUnique },
     labSettings: { findUnique: mocks.labSettingsFindUnique },
   }),
 }));
@@ -61,6 +64,9 @@ beforeEach(() => {
   mocks.testParameterFindMany.mockResolvedValue([]);
   mocks.visitTestFindMany.mockResolvedValue([]);
   mocks.userFindMany.mockResolvedValue([{ id: "u1" }]);
+  mocks.testParameterFindUnique.mockResolvedValue({ id: "param1" });
+  mocks.visitTestFindUnique.mockResolvedValue({ id: "vt1" });
+  mocks.userFindUnique.mockResolvedValue({ id: "u1" });
   mocks.labSettingsFindUnique.mockResolvedValue({ childAgeBoundary: 12 });
   mocks.isAbnormal.mockReturnValue(false);
   mocks.auditTry.mockResolvedValue(undefined);
@@ -349,6 +355,67 @@ describe("pullResults", () => {
       await pullResults(cloud);
 
       expect(mocks.testResultUpsert).not.toHaveBeenCalled();
+      expect(mocks.deadLetterUpsert).toHaveBeenCalled();
+    });
+  });
+
+  // Every id on the row is a foreign key and Prisma reports a violation on any of
+  // them with one message naming none. The handler used to list all three, so the
+  // log said a result referenced "visit_test X, parameter Y, user Z" when two of
+  // the three were present and only one was the problem — which is a diagnosis
+  // the reader still has to do by hand, against the production database.
+  describe("when a parent row is missing", () => {
+    const fkViolation = () =>
+      Object.assign(new Error("Foreign key constraint violated: `foreign key`"), { code: "P2003" });
+
+    const errorRecorded = () =>
+      String(mocks.deadLetterUpsert.mock.calls[0]![0].create.error);
+
+    beforeEach(() => {
+      mocks.visitTestFindMany.mockResolvedValue([
+        { id: "vt1", isLocked: false, visit: { staffId: "staff-9", patient: { sex: "Male", age: 30 } } },
+      ]);
+      mocks.testResultUpsert.mockRejectedValue(fkViolation());
+    });
+
+    it("names the parent this machine does not have", async () => {
+      mocks.testParameterFindUnique.mockResolvedValue(null);
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      expect(errorRecorded()).toContain("parameter param1");
+    });
+
+    it("does not name the parents it does have", async () => {
+      mocks.testParameterFindUnique.mockResolvedValue(null);
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      expect(errorRecorded()).not.toContain("visit_test vt1");
+      expect(errorRecorded()).not.toContain("user u1");
+    });
+
+    it("names every missing parent when more than one is absent", async () => {
+      mocks.testParameterFindUnique.mockResolvedValue(null);
+      mocks.visitTestFindUnique.mockResolvedValue(null);
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      expect(errorRecorded()).toContain("parameter param1");
+      expect(errorRecorded()).toContain("visit_test vt1");
+    });
+
+    it("still records something useful when every parent turns out to be present", async () => {
+      const cloud = makeFakeCloudClient({ pullSince: vi.fn().mockResolvedValue([resultRow()]) });
+
+      await pullResults(cloud);
+
+      // A race, not an orphan — the constraint fired but the parents are there
+      // now. Saying so is more use than naming three rows that all exist.
+      expect(errorRecorded()).toContain("r1");
       expect(mocks.deadLetterUpsert).toHaveBeenCalled();
     });
   });

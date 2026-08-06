@@ -85,7 +85,16 @@ export async function runPull<TRow extends Record<string, unknown>>(
   const batchSize = spec.batchSize ?? DEFAULT_BATCH_SIZE;
 
   const cursor = await prisma().syncCursor.findUnique({ where: { source } });
-  const sinceIso = (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
+  // The cloud's own value, not a Date rebuilt from it. Postgres timestamps carry
+  // microseconds and a JS Date carries milliseconds, so `new Date(row.updated_at)`
+  // rounds '...715022' down to '...715' — and `updated_at > '...715Z'` is still
+  // true of the row the cursor points at. Every stream re-fetched and re-applied
+  // its newest row on every tick, for the life of the install: the results stream
+  // retried one unappliable row seven thousand times, and the visits stream
+  // re-wrote and re-pushed the same invoice to Supabase every five seconds.
+  // Falls back to the DateTime for cursors written before this column existed.
+  const sinceIso =
+    cursor?.lastCursorValue ?? (cursor?.lastSyncedAt ?? new Date(0)).toISOString();
   const lastId = cursor?.lastId ?? undefined;
 
   // Deliberately unguarded: a fetch failure is the engine's to report. Swallowing
@@ -107,10 +116,18 @@ export async function runPull<TRow extends Record<string, unknown>>(
 
   if (rows.length === 0) return stats;
 
+  // Rows the replayer already owns. A quarantined row can reappear in a page
+  // because it was genuinely updated, or simply because the cursor is parked on
+  // it — and applying it here would ignore the cooldown that quarantining exists
+  // to impose. Loaded after the replay above, so anything that just succeeded is
+  // not in the set.
+  const quarantined = await loadQuarantined(source);
+
   if (spec.prepare) await spec.prepare(rows);
 
   let latest = cursor?.lastSyncedAt ?? new Date(0);
   let latestId = cursor?.lastId ?? null;
+  let latestRaw = cursor?.lastCursorValue ?? null;
   let blocked = false;
 
   for (const row of rows) {
@@ -127,10 +144,23 @@ export async function runPull<TRow extends Record<string, unknown>>(
       if (typeof rowCursor !== "string" && !(rowCursor instanceof Date)) return;
       latest = new Date(rowCursor as string);
       latestId = rowId;
+      // Kept verbatim so the next query can express "strictly after this row"
+      // at the cloud's precision rather than the Date's.
+      latestRaw = rowCursor instanceof Date ? rowCursor.toISOString() : rowCursor;
     };
 
     try {
       if (spec.shouldApply && !spec.shouldApply(row)) {
+        stats.skipped += 1;
+        advance();
+        continue;
+      }
+
+      if (quarantined.has(rowId)) {
+        // Keep the newest version of the row for the replay to work from, but
+        // leave the cooldown clock alone: restarting it here would mean a row
+        // the cursor sits on never came off cooldown at all.
+        await refreshDeadLetterPayload(source, rowId, row);
         stats.skipped += 1;
         advance();
         continue;
@@ -163,15 +193,57 @@ export async function runPull<TRow extends Record<string, unknown>>(
     }
   }
 
-  if (latestId !== (cursor?.lastId ?? null) || latest.getTime() !== (cursor?.lastSyncedAt?.getTime() ?? 0)) {
+  const moved =
+    latestId !== (cursor?.lastId ?? null) ||
+    latest.getTime() !== (cursor?.lastSyncedAt?.getTime() ?? 0) ||
+    latestRaw !== (cursor?.lastCursorValue ?? null);
+  if (moved) {
     await prisma().syncCursor.upsert({
       where: { source },
-      update: { lastSyncedAt: latest, lastId: latestId },
-      create: { source, lastSyncedAt: latest, lastId: latestId },
+      update: { lastSyncedAt: latest, lastId: latestId, lastCursorValue: latestRaw },
+      create: { source, lastSyncedAt: latest, lastId: latestId, lastCursorValue: latestRaw },
     });
   }
 
   return stats;
+}
+
+/**
+ * Ids this source has given up on for now, so the page loop can leave them to
+ * `replayDeadLetters` and its cooldown instead of retrying them every tick.
+ */
+async function loadQuarantined(source: string): Promise<Set<string>> {
+  try {
+    const rows = await prisma().syncDeadLetter.findMany({
+      where: { source, resolvedAt: null, attempts: { gte: MAX_ROW_ATTEMPTS } },
+      select: { rowId: true },
+    });
+    return new Set(rows.map((r: { rowId: string }) => r.rowId));
+  } catch (e) {
+    // Not knowing which rows are quarantined is survivable — the worst case is
+    // the old behaviour of retrying one. Failing the whole pull is not.
+    logger.error("cloud", `[${source}] could not read quarantined rows`, e);
+    return new Set();
+  }
+}
+
+/**
+ * Stores a fresher copy of a quarantined row without touching its cooldown or
+ * attempt count, so a replay works from what the cloud holds now.
+ */
+async function refreshDeadLetterPayload(
+  source: string,
+  rowId: string,
+  row: unknown,
+): Promise<void> {
+  try {
+    await prisma().syncDeadLetter.update({
+      where: { source_rowId: { source, rowId } },
+      data: { payload: JSON.stringify(row) },
+    });
+  } catch {
+    // Cleared by a concurrent success; nothing to refresh.
+  }
 }
 
 /** How many quarantined rows one pass re-attempts. */

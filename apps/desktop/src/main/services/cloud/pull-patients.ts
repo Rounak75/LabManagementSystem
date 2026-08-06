@@ -3,7 +3,7 @@
 // outbox-pushed rows. Cursor handling, retry and quarantine live in runPull.
 
 import { prisma } from "@main/db";
-import { runPull } from "./pull-runner";
+import { runPull, type PullStats } from "./pull-runner";
 import type { CloudClient } from "./sync-engine";
 
 const SOURCE = "patients";
@@ -26,8 +26,8 @@ interface RawPatientRow extends Record<string, unknown> {
   deleted_at?: string | null;
 }
 
-export async function pullPatients(client: CloudClient): Promise<void> {
-  await runPull<RawPatientRow>(client, {
+export async function pullPatients(client: CloudClient): Promise<PullStats> {
+  return runPull<RawPatientRow>(client, {
     source: SOURCE,
     table: "patients",
     cursorColumn: "updated_at",
