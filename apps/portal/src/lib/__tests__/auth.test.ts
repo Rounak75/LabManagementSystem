@@ -12,6 +12,7 @@ import {
   tryPatientIdLogin,
   ACCESS_CODE_VALID_DAYS,
 } from "../auth";
+import { verifyPatientJwt } from "../jwt";
 
 function setStub(spec: ResultSpec) {
   stub = makeSupabaseStub(spec);
@@ -275,6 +276,21 @@ describe("tryBookingIdLogin", () => {
     expect(result.kind === "success" && result.mustSetPassword).toBe(true);
   });
 
+  // Telling the caller is not enough: the caller turns it into a redirect, and a
+  // redirect is advice the browser can ignore. The restriction has to be inside
+  // the session itself, because the middleware is what actually enforces it and
+  // the token is all it sees.
+  it("mints a session that carries the restriction, not just a flag in the reply", async () => {
+    setStub(bookingLogin());
+
+    const result = await tryBookingIdLogin("9999999999", BOOKING);
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    const payload = await verifyPatientJwt(result.jwt);
+    expect(payload.must_set_password).toBe(true);
+  });
+
   it("stops working once the patient has set a password", async () => {
     setStub(bookingLogin({ account: { id: "acc1", patient_id: "p1", password_hash: passwordHash } }));
 
@@ -290,6 +306,37 @@ describe("tryBookingIdLogin", () => {
     const result = await tryBookingIdLogin("9111111111", BOOKING);
 
     expect(result.kind).toBe("invalid_code");
+  });
+
+  // The booking id is the part an attacker already has — it is printed in an
+  // email and counts upwards. The phone number is the secret, and guessing at it
+  // hits the same patient every time, which is exactly the shape the per-account
+  // lockout exists to stop. Without this the counter never moved and the lockout
+  // was unreachable through this path, whatever the docstring claimed.
+  it("counts a wrong phone number as a failed attempt against that patient", async () => {
+    setStub(bookingLogin());
+
+    await tryBookingIdLogin("9111111111", BOOKING);
+
+    expect(stub.rpcCalls.map((c) => c.name)).toContain("record_failed_patient_login");
+  });
+
+  it("counts an attempt made after the credential was spent", async () => {
+    setStub(bookingLogin({ account: { id: "acc1", patient_id: "p1", password_hash: passwordHash } }));
+
+    await tryBookingIdLogin("9999999999", BOOKING);
+
+    expect(stub.rpcCalls.map((c) => c.name)).toContain("record_failed_patient_login");
+  });
+
+  // Nothing has been resolved yet, so there is no account to count against —
+  // and inventing one would be a way to ask whether a booking id exists.
+  it("counts nothing when the booking id matches no booking", async () => {
+    setStub(bookingLogin({ booking: null }));
+
+    await tryBookingIdLogin("9999999999", "BKG-2026-99999");
+
+    expect(stub.rpcCalls.map((c) => c.name)).not.toContain("record_failed_patient_login");
   });
 
   it("refuses a booking id that does not exist", async () => {
@@ -396,6 +443,17 @@ describe("tryPatientIdLogin", () => {
     expect(result.kind === "success" && result.mustSetPassword).toBe(true);
   });
 
+  it("mints a session that carries the restriction, not just a flag in the reply", async () => {
+    setStub(patientIdLogin());
+
+    const result = await tryPatientIdLogin("9999999999", PATIENT_ID);
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    const payload = await verifyPatientJwt(result.jwt);
+    expect(payload.must_set_password).toBe(true);
+  });
+
   it("stops working once the patient has set a password", async () => {
     setStub(
       patientIdLogin({ account: { id: "acc1", patient_id: "p1", password_hash: passwordHash } }),
@@ -409,6 +467,37 @@ describe("tryPatientIdLogin", () => {
     setStub(patientIdLogin());
 
     expect((await tryPatientIdLogin("9111111111", PATIENT_ID)).kind).toBe("invalid_code");
+  });
+
+  // `LAB-2026-00042` is printed on every report the patient has ever been given,
+  // so it is the half an attacker gets for free; the phone number is the half
+  // that has to be guessed. Every guess resolves the same patient, so the
+  // per-account lockout is the right defence — but it only works if the failure
+  // is actually recorded, which is the whole point of this test.
+  it("counts a wrong phone number as a failed attempt against that patient", async () => {
+    setStub(patientIdLogin());
+
+    await tryPatientIdLogin("9111111111", PATIENT_ID);
+
+    expect(stub.rpcCalls.map((c) => c.name)).toContain("record_failed_patient_login");
+  });
+
+  it("counts an attempt made after the credential was spent", async () => {
+    setStub(
+      patientIdLogin({ account: { id: "acc1", patient_id: "p1", password_hash: passwordHash } }),
+    );
+
+    await tryPatientIdLogin("9999999999", PATIENT_ID);
+
+    expect(stub.rpcCalls.map((c) => c.name)).toContain("record_failed_patient_login");
+  });
+
+  it("counts nothing when the patient id matches no patient", async () => {
+    setStub(patientIdLogin({ patient: null }));
+
+    await tryPatientIdLogin("9999999999", "LAB-2026-99999");
+
+    expect(stub.rpcCalls.map((c) => c.name)).not.toContain("record_failed_patient_login");
   });
 
   it("refuses a patient id that does not exist", async () => {

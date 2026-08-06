@@ -14,11 +14,9 @@ import {
   recentFailuresForOrigin,
   recordFailureForOrigin,
 } from "@portal/lib/login-throttle";
+import { setSessionCookie } from "@portal/lib/session-cookie";
 
 export const runtime = "nodejs"; // bcrypt requires Node runtime
-
-const COOKIE_NAME = "portal_session";
-const COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 
 export async function POST(req: NextRequest) {
   let body: {
@@ -120,6 +118,10 @@ export async function POST(req: NextRequest) {
   // access code it never expires. It buys exactly one trip to the password page;
   // `next` is deliberately ignored, since honouring it would leave that
   // credential live for as long as the patient kept using it.
+  //
+  // The redirect is where the patient is *sent*; the claim on the token is what
+  // *holds* them there. Sending alone was advice the browser could ignore, and
+  // typing /dashboard did ignore it — see the middleware.
   const res = NextResponse.json({
     ok: true,
     mustSetPassword: result.mustSetPassword === true,
@@ -127,12 +129,6 @@ export async function POST(req: NextRequest) {
       ? "/account/password?first=1"
       : (body.next ?? "/dashboard"),
   });
-  res.cookies.set(COOKIE_NAME, result.jwt, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: COOKIE_MAX_AGE,
-    path: "/",
-  });
+  setSessionCookie(res, result.jwt);
   return res;
 }

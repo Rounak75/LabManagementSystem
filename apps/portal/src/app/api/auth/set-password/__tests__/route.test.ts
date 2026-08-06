@@ -6,7 +6,7 @@ import { makeSupabaseStub, type ResultSpec } from "@portal/test/supabase-stub";
 let stub = makeSupabaseStub();
 vi.mock("@portal/lib/supabase-server", () => ({ getServiceClient: () => stub.client }));
 
-import { mintPatientJwt } from "@portal/lib/jwt";
+import { mintPatientJwt, verifyPatientJwt } from "@portal/lib/jwt";
 import { POST } from "../route";
 
 beforeAll(() => { process.env.SUPABASE_JWT_SECRET = "test-secret-at-least-32-chars-long-aaaaaaa"; });
@@ -61,5 +61,24 @@ describe("POST /api/auth/set-password", () => {
     expect(arg.password_hash.length).toBeGreaterThan(0);
     expect(arg.password_hash).not.toBe(plaintext); // hashed, not stored in the clear
     expect(arg.version).toBe(2); // account.version + 1
+  });
+
+  // The token that got a first-time patient here carries must_set_password, and
+  // the middleware bounces every other page while it does. Setting the password
+  // is what ends that state, so the session has to be reissued without the claim
+  // — otherwise the patient finishes the one screen they were allowed to reach
+  // and is redirected straight back to it, permanently.
+  it("reissues the session without the must-set-password claim", async () => {
+    setStub({ data: { id: "acct-1", version: 1 } });
+    const token = await mintPatientJwt("patient-1", { mustSetPassword: true });
+
+    const res = await POST(req({ password: "correcthorsebattery" }, token));
+
+    expect(res.status).toBe(200);
+    const reissued = res.cookies.get("portal_session")?.value;
+    expect(reissued).toBeTruthy();
+    const payload = await verifyPatientJwt(reissued!);
+    expect(payload.patient_id).toBe("patient-1");
+    expect(payload.must_set_password).toBeUndefined();
   });
 });

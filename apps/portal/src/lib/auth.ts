@@ -85,6 +85,23 @@ async function recordSuccess(patientId: string): Promise<void> {
   await sb.rpc("record_successful_patient_login", { p_patient_id: patientId });
 }
 
+/**
+ * Refuses an attempt, counting it against the patient it was aimed at.
+ *
+ * The two first-time paths below refuse in several places and used to do it with
+ * a bare `return { kind: "invalid_code" }`, so the counter never moved and the
+ * lockout was unreachable through them however many guesses were made — while
+ * their own docstrings claimed otherwise.
+ *
+ * Takes a possibly-absent id because some refusals happen before any patient has
+ * been resolved. There is nothing to count those against, and inventing
+ * something would turn the counter itself into a way of asking which ids exist.
+ */
+async function refuse(patientId: string | null | undefined): Promise<LoginResult> {
+  if (patientId) await recordFailure(String(patientId));
+  return { kind: "invalid_code" };
+}
+
 /** Picks the patient this login is for, or asks when a phone is shared. */
 function resolvePatient(
   patients: PatientSummary[],
@@ -219,7 +236,13 @@ export async function tryBookingIdLogin(phone: string, bookingId: string): Promi
   // One message for every "this is not a way in" case. Distinguishing them would
   // confirm which booking ids exist to someone reading the sequence.
   if (!booking) return { kind: "invalid_code" };
-  if (booking.patient_phone !== phone) return { kind: "invalid_code" };
+  // The booking id is the half an attacker gets for free — it is printed in the
+  // approval email and counts upwards — so the phone number is the half being
+  // guessed at, and every guess lands on this same patient. That is precisely
+  // the shape the per-account lockout exists to stop, so it has to be counted.
+  if (booking.patient_phone !== phone) {
+    return await refuse(booking.resulting_patient_id);
+  }
   if (booking.status !== "Approved" && booking.status !== "Completed") {
     return { kind: "invalid_code" };
   }
@@ -235,10 +258,10 @@ export async function tryBookingIdLogin(phone: string, bookingId: string): Promi
   if (until) return { kind: "locked", until };
 
   // Spent. From here on the password is the way in.
-  if (account?.password_hash) return { kind: "invalid_code" };
+  if (account?.password_hash) return await refuse(patientId);
 
   await recordSuccess(patientId);
-  const jwt = await mintPatientJwt(patientId);
+  const jwt = await mintPatientJwt(patientId, { mustSetPassword: true });
   return { kind: "success", jwt, patientId, mustSetPassword: true };
 }
 
@@ -274,8 +297,13 @@ export async function tryPatientIdLogin(phone: string, patientId: string): Promi
   // One message for every refusal. Distinguishing them would confirm which
   // patient ids exist to someone reading the sequence.
   if (!patient) return { kind: "invalid_code" };
+  // A removed record has no live account to count against, and this is not a
+  // guessing vector — the id names a patient the lab has already erased.
   if (patient.deleted_at) return { kind: "invalid_code" };
-  if (patient.phone !== phone) return { kind: "invalid_code" };
+  // `LAB-2026-00042` is on every report this patient has ever been handed, so it
+  // is the half an attacker already has; the phone number is the half they must
+  // guess, and every guess resolves this same patient. Counted for that reason.
+  if (patient.phone !== phone) return await refuse(patient.id);
 
   const id = String(patient.id);
   const account = await getAccount(id);
@@ -283,10 +311,10 @@ export async function tryPatientIdLogin(phone: string, patientId: string): Promi
   const until = lockedUntil(account);
   if (until) return { kind: "locked", until };
 
-  if (account?.password_hash) return { kind: "invalid_code" };
+  if (account?.password_hash) return await refuse(id);
 
   await recordSuccess(id);
-  const jwt = await mintPatientJwt(id);
+  const jwt = await mintPatientJwt(id, { mustSetPassword: true });
   return { kind: "success", jwt, patientId: id, mustSetPassword: true };
 }
 

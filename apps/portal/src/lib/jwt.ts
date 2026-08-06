@@ -16,6 +16,17 @@ function getSecret(): Uint8Array {
 
 export interface PatientJwtPayload {
   patient_id: string;
+  /**
+   * Present only on a session opened with a booking id or a patient id.
+   *
+   * Those two credentials are guessable by counting and never expire, so the
+   * session they open is not a full one: the middleware holds it at the password
+   * page until the patient trades it for something only they know. The
+   * requirement travels in the token because the middleware sees every request
+   * and has nothing else to go on — a redirect from the login response was
+   * advice the browser was free to ignore, and typing /dashboard did ignore it.
+   */
+  must_set_password?: true;
   iat: number;
   exp: number;
   iss: string;
@@ -23,12 +34,18 @@ export interface PatientJwtPayload {
   sub: string;
 }
 
-export async function mintPatientJwt(patientId: string): Promise<string> {
+export async function mintPatientJwt(
+  patientId: string,
+  opts: { mustSetPassword?: boolean } = {},
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   return await new SignJWT({
     patient_id: patientId,
     role: "anon",
     sub: patientId,
+    // Absent rather than false on an ordinary session, so the claim can only
+    // ever add a restriction and never quietly lift one.
+    ...(opts.mustSetPassword ? { must_set_password: true as const } : {}),
   })
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt(now)
