@@ -178,6 +178,43 @@ Added 2026-08-06:
 - LFT and KFT (combined), Jamshedpur — https://www.1mg.com/labs/test/lft-and-kft-liver-function-test-kidney-function-test-35075/jamshedpur/price — ₹649, MRP ₹1,547
 - KFT (standalone) — https://www.1mg.com/labs/test/kft-kidney-function-test-2561/jamshedpur/price — **returns "Sorry, test not found"** for Jamshedpur; this is the reason the KFT price is derived rather than cited
 
+## Competitor survey, 2026-08-07 — the named labs, not the aggregators
+
+The first two runs read only the national booking platforms (1mg, Apollo). That
+left eight duplicated test names unresolvable, because none of those platforms
+listed the tests at all. This run went to the diagnostic chains that actually
+operate in Jamshedpur.
+
+**Redcliffe Labs publishes Jamshedpur-specific prices** — `redcliffelabs.com/jamshedpur/tests/<test>`.
+That makes it the most directly comparable source in this whole document: a real
+competitor, in this city, with a public price.
+
+| Test | Redcliffe (Jamshedpur) | Dr Lal PathLabs | Other | Golmuri kept |
+|---|---|---|---|---|
+| Widal | ₹249 (MRP ₹460) | tube ₹320 / slide ₹260 | 1mg ₹229 (MRP ₹400) | **₹315** |
+| Urine Routine & Microscopy | ₹145 (MRP ₹376) | — | Healthians ₹199 | ₹225 |
+| CBC | ₹295 | — | 1mg ₹299 (MRP ₹350) | ₹325 |
+| LDH | ₹299 | ₹160 (Hyderabad) | Metropolis ₹360–650 | **₹300** |
+| HBsAg | ₹349 | — | — | **₹200** |
+| Haemoglobin | ₹110 | — | LabsAdvisor ₹42–60 | **₹120** |
+| ASO titre | — | — | LabsAdvisor ₹300 quant / ₹240 qual (market ₹600) | **₹200** |
+| Sickling | — | — | LabsAdvisor ₹120–240; Thyrocare ₹341 | **₹150** |
+| Sputum AFB | — | — | AFB stain ₹160 (market ₹460); HOD ₹299 | **₹200** |
+| Stool routine | — | — | LabsAdvisor ₹75–150 | ₹100 |
+
+Two findings worth carrying forward:
+
+1. **Redcliffe undercuts the catalogue on the high-volume tests.** CBC ₹295
+   against ₹325, Urine Routine ₹145 against ₹225. The ₹225 urine figure came
+   from averaging two aggregators that disagreed by 2×; Redcliffe's ₹145 is a
+   third reading and the only Jamshedpur-specific one, which argues for coming
+   down. Left unchanged for now because it is a repricing question, not a
+   duplicate question, and this pass was about the duplicates.
+2. **Where a duplicate pair straddled the market, the cheap row was always the
+   outlier** — ₹60 Widal against a ₹249–₹320 market, ₹50 Sputum AFB against
+   ₹160–₹400, ₹30 Haemoglobin against ₹110. In every case the cheaper row looks
+   like a component price or a stale entry rather than a considered rate.
+
 ## Gaps
 
 **Now priced** (2026-08-06, both runs): 28 tests — see the full table above.
