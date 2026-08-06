@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Select } from "@/components/ui/Select";
+import { labDateTime } from "@shared/lab-date";
 
 const PAGE_SIZE = 50;
 
@@ -18,7 +19,7 @@ const TABLE_OPTIONS = [
 
 function formatDate(val: string | Date | null | undefined): string {
   if (!val) return "—";
-  try { return new Date(val).toLocaleString(); } catch { return String(val); }
+  try { return labDateTime(val, { seconds: true }); } catch { return String(val); }
 }
 
 function statusClass(status: string): string {

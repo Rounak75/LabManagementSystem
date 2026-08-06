@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import type { DashboardStats } from "@shared/api";
+import { labDate } from "@shared/lab-date";
 
 const inrFmt = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -79,7 +80,7 @@ export default function Dashboard() {
   const money = data?.money;
   const backlog = data?.backlog;
 
-  const todayDate = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const todayDate = labDate(new Date());
 
   return (
     <div>

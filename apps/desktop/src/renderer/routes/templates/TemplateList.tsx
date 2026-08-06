@@ -9,11 +9,12 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { TemplateRow } from "@shared/api";
+import { labDateTime } from "@shared/lab-date";
 
 function formatDateTime(d: string): string {
   try {
     const dt = new Date(d);
-    return dt.toLocaleString();
+    return labDateTime(dt);
   } catch {
     return d;
   }

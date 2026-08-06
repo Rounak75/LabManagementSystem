@@ -1,6 +1,6 @@
 import { prisma } from "@main/db";
 import { createLinkForInvoice } from "@main/services/payments/link.service";
-import { labDate } from "@main/services/lab-date";
+import { labDate } from "@shared/lab-date";
 import * as queue from "./queue";
 import { sendBookingMail } from "./booking-mail";
 import type { EnqueueRow } from "./types";

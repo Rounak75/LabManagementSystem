@@ -14,6 +14,7 @@ import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import { ApproveBookingModal } from "./ApproveBookingModal";
 import { DeclineBookingModal } from "./DeclineBookingModal";
 import { ResolveBookingModal } from "./ResolveBookingModal";
+import { labDate, labDateTime } from "@shared/lab-date";
 
 interface BookingRow {
   id: string;
@@ -122,7 +123,7 @@ export default function BookingsPage() {
                   {u.approvedAt ? (
                     <span className="text-amber-700">
                       {" "}
-                      · approved {new Date(u.approvedAt).toLocaleDateString("en-IN")}
+                      · approved {labDate(u.approvedAt)}
                     </span>
                   ) : null}
                 </span>
@@ -160,7 +161,7 @@ export default function BookingsPage() {
               {bookings.map((b) => (
                 <tr key={b.id} className="border-b border-slate-100 align-top transition-colors hover:bg-slate-50">
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    <div>{new Date(b.createdAt).toLocaleString("en-IN")}</div>
+                    <div>{labDateTime(b.createdAt)}</div>
                     <div className="font-mono">{b.bookingId}</div>
                   </td>
                   <td className="px-4 py-3">
@@ -178,7 +179,7 @@ export default function BookingsPage() {
                     {b.address}{b.pincode ? <span className="text-slate-500"> · {b.pincode}</span> : null}
                   </td>
                   <td className="px-4 py-3">
-                    {new Date(b.preferredDate).toLocaleDateString("en-IN")}
+                    {labDate(b.preferredDate)}
                     <div className="text-xs text-slate-500">{b.preferredSlot}</div>
                   </td>
                   <td className="px-4 py-3 text-right">

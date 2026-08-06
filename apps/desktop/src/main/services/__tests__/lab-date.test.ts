@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { labDate } from "../lab-date";
+import { labDate, labDateTime } from "@shared/lab-date";
 
 /**
  * The date a patient is told, in the lab's own time zone and in a format no
@@ -43,5 +43,36 @@ describe("labDate", () => {
   it("returns empty for an unusable date", () => {
     expect(labDate(new Date("nonsense"))).toBe("");
     expect(labDate("nonsense")).toBe("");
+    expect(labDate(null)).toBe("");
+    expect(labDate(undefined)).toBe("");
+  });
+});
+
+describe("labDateTime", () => {
+  it("writes the time in IST, 12-hour", () => {
+    expect(labDateTime(new Date("2026-05-12T09:34:00Z"))).toBe("12 May 2026, 3:04 pm");
+  });
+
+  it("pads minutes but not hours", () => {
+    expect(labDateTime(new Date("2026-05-12T03:35:00Z"))).toBe("12 May 2026, 9:05 am");
+  });
+
+  it("writes IST midnight as 12:00 am on the right day", () => {
+    expect(labDateTime(new Date("2026-05-11T18:30:00Z"))).toBe("12 May 2026, 12:00 am");
+  });
+
+  it("writes IST noon as 12:00 pm", () => {
+    expect(labDateTime(new Date("2026-05-12T06:30:00Z"))).toBe("12 May 2026, 12:00 pm");
+  });
+
+  // The log views are read for the exact second something happened.
+  it("adds seconds when asked", () => {
+    expect(labDateTime(new Date("2026-05-12T09:34:07Z"), { seconds: true }))
+      .toBe("12 May 2026, 3:04:07 pm");
+  });
+
+  it("returns empty for an unusable date", () => {
+    expect(labDateTime(null)).toBe("");
+    expect(labDateTime("nonsense")).toBe("");
   });
 });

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/lib/toast.store";
+import { labDateTime } from "@shared/lab-date";
 
 interface CloudFormValues {
   cloudSyncEnabled: boolean;
@@ -150,7 +151,7 @@ export function CloudSyncTab() {
         </div>
         <p className="mt-3 text-xs text-slate-500">
           Last successful push:{" "}
-          {status?.lastPushAt ? new Date(status.lastPushAt).toLocaleString() : "never"} · refreshes every 30s
+          {status?.lastPushAt ? labDateTime(status.lastPushAt) : "never"} · refreshes every 30s
         </p>
       </Card>
 
@@ -217,7 +218,7 @@ export function CloudSyncTab() {
           <h2 className="mb-4 text-lg font-medium">Backfill</h2>
           <p className="mb-3 text-sm text-slate-600">
             {backfillDone
-              ? `Backfill last completed ${new Date(status.backfillCompletedAt).toLocaleString()}. Re-run to push anything added since (or to recover from an earlier partial sync).`
+              ? `Backfill last completed ${labDateTime(status.backfillCompletedAt)}. Re-run to push anything added since (or to recover from an earlier partial sync).`
               : "Push all existing lab data to the cloud. Runs in the background."}
           </p>
           <Button type="button" variant="secondary" onClick={handleBackfill} disabled={backfilling}>

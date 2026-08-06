@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import { SensitivityGridEditor } from "@/components/SensitivityGridEditor";
 import { TiterGridEditor } from "@/components/TiterGridEditor";
+import { labDateTime } from "@shared/lab-date";
 
 type Param = { id: string; name: string; unit: string; resultType: "Numeric" | "Qualitative" | "SensitivityGrid" | "TiterGrid";
   qualitativeOptions: string | null;
@@ -160,7 +161,7 @@ export default function ResultEntry() {
       </div>
       {draftBanner && (
         <div className="mb-3 flex items-center justify-between rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-          <span>Unsaved draft from {new Date(draftBanner.savedAt).toLocaleString("en-IN")}</span>
+          <span>Unsaved draft from {labDateTime(draftBanner.savedAt)}</span>
           <span className="flex gap-2">
             <Button variant="ghost" onClick={() => {
               const d = loadDraft<{ rows: Record<string, RowState>; version?: number }>(visitTestId!)!;

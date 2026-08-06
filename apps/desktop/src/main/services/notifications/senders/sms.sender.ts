@@ -1,6 +1,6 @@
 import { prisma } from "@main/db";
 import { decryptSecret } from "../../crypto.service";
-import { labDate } from "../../lab-date";
+import { labDate } from "@shared/lab-date";
 import { renderMessage } from "../render-template";
 import type { SendResult } from "../types";
 import { sendViaFast2Sms } from "./fast2sms";

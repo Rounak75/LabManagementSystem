@@ -3,7 +3,7 @@ import { prisma } from "@main/db";
 import { decryptSecret } from "../../crypto.service";
 import { buildReportData } from "../../report.service";
 import { renderReportPdf } from "../../pdf.service";
-import { labDate } from "../../lab-date";
+import { labDate } from "@shared/lab-date";
 import { renderMessage } from "../render-template";
 import type { SendResult } from "../types";
 import type { TemplateConfig } from "@shared/template-config";

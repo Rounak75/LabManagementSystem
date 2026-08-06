@@ -8,11 +8,12 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { OutsourcedRow } from "@shared/api";
+import { labDate } from "@shared/lab-date";
 
 function formatDate(d: string | Date | null): string {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleDateString();
+    return labDate(d);
   } catch {
     return String(d);
   }

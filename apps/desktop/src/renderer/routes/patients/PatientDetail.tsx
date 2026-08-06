@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { labDate, labDateTime } from "@shared/lab-date";
 
 type Patient = { id: string; patientId: string; name: string; age: number; sex: string; phone: string; address: string | null;
   referredBy: { name: string; clinic: string | null } | null; createdAt: string };
@@ -34,7 +35,7 @@ export default function PatientDetail() {
           <dl className="grid grid-cols-2 gap-y-1 text-sm">
             <dt className="text-slate-500">Address</dt><dd>{patient.address ?? "—"}</dd>
             <dt className="text-slate-500">Referred by</dt><dd>{patient.referredBy?.name ?? "Self"}{patient.referredBy?.clinic ? ` — ${patient.referredBy.clinic}` : ""}</dd>
-            <dt className="text-slate-500">Registered</dt><dd>{new Date(patient.createdAt).toLocaleDateString("en-IN")}</dd>
+            <dt className="text-slate-500">Registered</dt><dd>{labDate(patient.createdAt)}</dd>
           </dl>
         </Card>
 
@@ -47,7 +48,7 @@ export default function PatientDetail() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-mono text-xs text-slate-500">{v.visitId}</div>
-                      <div className="font-medium">{new Date(v.visitDate).toLocaleString("en-IN")}</div>
+                      <div className="font-medium">{labDateTime(v.visitDate)}</div>
                       <div className="text-xs text-slate-500">{v.visitTests.map(vt => vt.test.name).join(", ")}</div>
                     </div>
                     <div className="text-right text-xs">

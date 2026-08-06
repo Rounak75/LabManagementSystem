@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
+import { labDateTime } from "@shared/lab-date";
 
 const PAGE_SIZE = 50;
 
@@ -18,7 +19,7 @@ const PURPOSE_OPTIONS = ["ReportReady", "VisitBooked", "PaymentDue", "HomeVisitR
 function formatDate(val: string | null | undefined): string {
   if (!val) return "—";
   try {
-    return new Date(val).toLocaleString();
+    return labDateTime(val, { seconds: true });
   } catch {
     return val;
   }

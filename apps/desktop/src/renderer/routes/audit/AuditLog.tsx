@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { AuditListResult, UserRow } from "@shared/api";
+import { labDateTime } from "@shared/lab-date";
 
 const PAGE_SIZE = 50;
 
@@ -23,7 +24,7 @@ const ENTITY_TYPES = [
 
 function formatDateTime(d: string): string {
   try {
-    return new Date(d).toLocaleString();
+    return labDateTime(d, { seconds: true });
   } catch {
     return d;
   }

@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/stores/auth.store";
 import { UndoToast } from "@/components/UndoToast";
 import { VisitNotificationsLine } from "@/components/VisitNotificationsLine";
+import { labDateTime } from "@shared/lab-date";
 
 type Visit = {
   id: string; visitId: string; status: string; visitDate: string; type: string;
@@ -73,7 +74,7 @@ export default function VisitDetail() {
           <h1 className="text-2xl font-semibold">Visit {visit.visitId}</h1>
           <div className="text-sm text-slate-500">
             <Link className="underline" to={`/patients/${visit.patient.id}`}>{visit.patient.name}</Link>
-            {" · "}{visit.patient.age}/{visit.patient.sex} · {visit.type} · {new Date(visit.visitDate).toLocaleString("en-IN")}
+            {" · "}{visit.patient.age}/{visit.patient.sex} · {visit.type} · {labDateTime(visit.visitDate)}
           </div>
           {id && <VisitNotificationsLine visitId={id} />}
         </div>

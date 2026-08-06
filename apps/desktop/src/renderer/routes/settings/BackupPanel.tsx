@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { BackupLogRow } from "@shared/api";
+import { labDateTime } from "@shared/lab-date";
 
 function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n < 0) return "—";
@@ -23,7 +24,7 @@ function truncatePath(p: string, max = 48): string {
 function formatDate(d: string | Date): string {
   const dt = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(dt.getTime())) return String(d);
-  return dt.toLocaleString();
+  return labDateTime(dt);
 }
 
 function fileNameOf(p: string): string {

@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { Role } from "@lab/types";
+import { labDate } from "@shared/lab-date";
 
 type UserRow = {
   id: string;
@@ -41,7 +42,7 @@ function friendlyError(err: unknown): string {
 }
 
 function formatDate(d: string): string {
-  try { return new Date(d).toLocaleDateString(); } catch { return d; }
+  try { return labDate(d); } catch { return d; }
 }
 
 export default function UserManagement() {

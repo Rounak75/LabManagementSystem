@@ -6,6 +6,7 @@ import { call } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { labDate } from "@shared/lab-date";
 
 interface Closure { id: string; date: string; reason: string | null; }
 
@@ -63,7 +64,7 @@ export function LabClosuresTab() {
               {closures.map((c) => (
                 <li key={c.id} className="flex items-center justify-between py-2 text-sm">
                   <div>
-                    <span className="font-medium">{new Date(c.date).toLocaleDateString()}</span>
+                    <span className="font-medium">{labDate(c.date)}</span>
                     {c.reason ? <span className="ml-2 text-slate-600">— {c.reason}</span> : null}
                   </div>
                   <Button type="button" variant="ghost" onClick={() => remove.mutate(c.id)}>
