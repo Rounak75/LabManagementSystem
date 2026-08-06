@@ -31,9 +31,42 @@ function normalizeRestriction(v: unknown): CollectionTimeRestriction {
   throw new Error("INVALID_INPUT");
 }
 
+/**
+ * Refuses a second active test with a name already in use.
+ *
+ * Nothing enforced this before — not this handler, and not the schema, where
+ * `name` carries no unique constraint. The catalogue accumulated fourteen
+ * duplicated names that way (209 active tests, 193 distinct), and the patient
+ * booking form printed each one twice at two different prices, letting a patient
+ * pick either. `catalogue-reconciliation.service.ts` retires duplicates, but
+ * only a hardcoded list of legacy names that *differ* from their canonical
+ * twin — a same-name pair is invisible to it.
+ *
+ * Comparison is on lower(trim(name)) via raw SQL because Prisma's
+ * `mode: "insensitive"` is a no-op on SQLite: "Lipid Profile", "lipid profile"
+ * and "Lipid Profile " would otherwise all be distinct names to the database
+ * and identical names to a human reading the booking form.
+ *
+ * Scoped to active tests on purpose. A deactivated duplicate keeps its name so
+ * an old invoice still prints what it was billed as, and that retired name must
+ * not block the surviving test from being renamed onto it.
+ */
+async function assertNameFree(name: string, exceptId?: string): Promise<void> {
+  const clash = await prisma().$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Test"
+    WHERE lower(trim("name")) = lower(trim(${name}))
+      AND "isActive" = 1
+      AND "deletedAt" IS NULL
+      AND ("id" != ${exceptId ?? ""})
+    LIMIT 1
+  `;
+  if (clash.length > 0) throw new Error("DUPLICATE_TEST_NAME");
+}
+
 register("tests:create", async (input: { name: string; category: string; price: number; isOutsourced: boolean; collectionTimeRestriction?: string | null }) => {
   requireAdmin();
   if (!input.name?.trim() || input.price < 0) throw new Error("INVALID_INPUT");
+  await assertNameFree(input.name);
   const t = await prisma().test.create({
     data: {
       name: input.name, category: input.category, price: input.price,
@@ -48,6 +81,11 @@ register("tests:create", async (input: { name: string; category: string; price: 
 register("tests:update", async (input: { id: string; name: string; category: string; price: number; isOutsourced: boolean; isActive: boolean; collectionTimeRestriction?: string | null }) => {
   requireAdmin();
   const { id, collectionTimeRestriction, ...rest } = input;
+  // Renaming an existing test onto a name already in use is the same fault as
+  // creating one there, so it is refused the same way. Only checked while the
+  // test is staying active: deactivating a duplicate is precisely how the
+  // catalogue gets cleaned up, and that must never be blocked by its own name.
+  if (input.isActive) await assertNameFree(input.name, id);
   const t = await prisma().test.update({
     where: { id },
     data: { ...rest, collectionTimeRestriction: normalizeRestriction(collectionTimeRestriction) }
