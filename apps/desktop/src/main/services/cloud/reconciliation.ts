@@ -1,24 +1,13 @@
 import { logger } from "./logger";
 import { prisma } from "@main/db";
 import { enqueue } from "./outbox.service";
+import { sanitizeForCloud, toSnakePayload } from "./prisma-hooks";
 import { MODEL_TO_TABLE } from "./types";
 
 const MODELS: Array<keyof typeof MODEL_TO_TABLE> = [
   "Patient", "Visit", "VisitTest", "Result", "Invoice", "Payment",
   "Doctor", "Test", "Parameter", "LabSettings", "HomeVisit",
 ];
-
-function camelToSnake(s: string): string {
-  return s.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
-}
-
-function toSnakePayload(row: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(row)) {
-    out[camelToSnake(k)] = v instanceof Date ? v.toISOString() : v;
-  }
-  return out;
-}
 
 async function reconcileTable(modelName: keyof typeof MODEL_TO_TABLE): Promise<void> {
   const tableName = MODEL_TO_TABLE[modelName];
@@ -46,11 +35,17 @@ async function reconcileTable(modelName: keyof typeof MODEL_TO_TABLE): Promise<v
   let maxUpdated = since;
   for (const row of rows) {
     if (!knownSet.has(row.id)) {
+      // Sanitise exactly as the live hook and the backfill do. This path kept a
+      // private copy of toSnakePayload and skipped sanitizeForCloud entirely,
+      // so a row repaired here was pushed raw: Visit carried
+      // accessCodePlaintext, which defeats the point of hashing the access
+      // code, and LabSettings carried the encrypted service key, SMTP password
+      // and Razorpay secret, none of which the cloud has columns for.
       await enqueue({
         tableName,
         operation: "update",
         rowId: row.id,
-        payload: toSnakePayload(row),
+        payload: toSnakePayload(sanitizeForCloud(modelName, row)),
       });
     }
     if (row.updatedAt && row.updatedAt > maxUpdated) maxUpdated = row.updatedAt;
