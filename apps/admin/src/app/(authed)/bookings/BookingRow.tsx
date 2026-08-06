@@ -57,6 +57,7 @@ export function BookingRow({
         <ApproveDialog
           bookingId={b.id as string}
           bookingLabel={b.booking_id as string}
+          bookingPhone={b.patient_phone as string | undefined}
           phlebotomists={phlebotomists}
           onClose={() => setApproving(false)}
         />

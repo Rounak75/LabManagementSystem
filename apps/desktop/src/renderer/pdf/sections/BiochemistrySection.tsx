@@ -1,5 +1,5 @@
 import { View, Text } from "@react-pdf/renderer";
-import { BIOCHEM_NAMES, sectionStyles as s, type ReportTest } from "./common";
+import { BIOCHEM_NAMES, sectionStyles as s, abnormalFlag, type ReportTest } from "./common";
 
 export function BiochemistrySection({ tests }: { tests: ReportTest[] }) {
   const rows = tests.filter(t => BIOCHEM_NAMES.has(t.name));
@@ -20,6 +20,7 @@ export function BiochemistrySection({ tests }: { tests: ReportTest[] }) {
             </Text>
             <Text style={[s.cell2, p.isAbnormal ? s.abn : {}]}>
               {p.value || "—"}{p.unit ? ` ${p.unit}` : ""}
+              {p.isAbnormal && <Text style={s.abnFlag}>{`  ${abnormalFlag(p.value, p.range)}`}</Text>}
             </Text>
             <Text style={s.cell3}>{p.range || "—"}</Text>
           </View>

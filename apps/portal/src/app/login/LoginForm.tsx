@@ -6,10 +6,18 @@ import { ArrowLeft, ArrowRight, Lock, Phone, ShieldAlert } from "@portal/compone
 
 export function LoginForm({ nextUrl }: { nextUrl: string }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"code" | "password">("code");
+  // "first" covers everyone signing in for the first time, with whichever id the
+  // lab gave them. The lab prints no receipts, so a walk-in's access code does
+  // not reach them until the finished report at the end of the visit, and a
+  // patient who booked online has never been handed anything at all. Without
+  // this tab, neither could get in when it actually matters to them — while the
+  // report is being worked on and the bill is waiting.
+  const [mode, setMode] = useState<"first" | "password" | "code">("first");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  // One box for both LAB- and BKG- ids; the server tells them apart by prefix.
+  const [firstTimeId, setFirstTimeId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
@@ -46,6 +54,8 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
       const body =
         mode === "code"
           ? { phone, code, next: nextUrl, patientId, ...captcha }
+          : mode === "first"
+          ? { phone, firstTimeId, next: nextUrl, ...captcha }
           : { phone, password, next: nextUrl, patientId, ...captcha };
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -87,9 +97,13 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
       setError(
         data.error?.code === "no_patient_found"
           ? "We can't find a patient with this phone number. Please contact the lab."
+          : data.error?.code === "booking_not_ready"
+          ? data.error.message
           : data.error?.code === "invalid_code"
           ? mode === "code"
-            ? "That access code doesn't match. Please check your receipt."
+            ? "That access code doesn't match. Please check the code on your report."
+            : mode === "first"
+            ? "That ID doesn't match this phone number. Check it with the lab — and if you've already set a password, sign in with Password instead."
             : "Incorrect password."
           : "Sign-in failed. Please try again."
       );
@@ -190,17 +204,22 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         <div
           role="tablist"
           aria-label="Sign-in method"
-          className="grid grid-cols-2 gap-1 rounded-2xl bg-surface p-1"
+          className="grid grid-cols-3 gap-1 rounded-2xl bg-surface p-1"
         >
           <ModeTab
-            active={mode === "code"}
-            onClick={() => setMode("code")}
-            label="Access code"
+            active={mode === "first"}
+            onClick={() => setMode("first")}
+            label="First time"
           />
           <ModeTab
             active={mode === "password"}
             onClick={() => setMode("password")}
             label="Password"
+          />
+          <ModeTab
+            active={mode === "code"}
+            onClick={() => setMode("code")}
+            label="Access code"
           />
         </div>
 
@@ -234,8 +253,22 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
               placeholder="K7P2QX"
             />
           </Field>
+        ) : mode === "first" ? (
+          <Field
+            label="Your patient ID or booking ID"
+            hint="The lab gives you this when you register. Home collection? Use the booking ID from your confirmation email."
+          >
+            <input
+              type="text"
+              value={firstTimeId}
+              onChange={(e) => setFirstTimeId(e.target.value.toUpperCase())}
+              required
+              className={`${inputCls} text-center font-mono text-[17px] font-medium uppercase tracking-[0.12em]`}
+              placeholder="LAB-2026-00042"
+            />
+          </Field>
         ) : (
-          <Field label="Password" hint="Set after first sign-in via Access code">
+          <Field label="Password" hint="Set after your first sign-in">
             <input
               type="password"
               minLength={8}
@@ -277,14 +310,18 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
 
       <div className="mt-4">
         <Note>
-          <span className="font-semibold text-text">
-            Don’t have your receipt?
-          </span>{" "}
-          Call the lab at{" "}
+          <span className="font-semibold text-text">Signing in for the first time?</span>{" "}
+          Use the <span className="font-semibold text-text">patient ID</span> the lab gave you when
+          you registered — it looks like{" "}
+          <span className="font-mono text-[12px]">LAB-2026-00042</span>, and it&rsquo;s also printed
+          on your report. You&rsquo;ll choose a password straight after, and use that from then on.
+          <br />
+          <br />
+          Don&rsquo;t know your ID? Call the lab at{" "}
           <a className="font-medium text-brand hover:underline" href="tel:6202924306">
             6202924306
           </a>{" "}
-          — staff can read your code out after confirming your identity.
+          — staff can read it out after confirming who you are.
         </Note>
       </div>
     </form>
@@ -306,7 +343,10 @@ function ModeTab({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`tap rounded-xl py-2.5 text-[13.5px] font-semibold ${
+      // Sized for three tabs on the narrowest phone the lab's patients use.
+      // At the previous 13.5px "Access code" wrapped to two lines on a 360px
+      // screen and shunted the whole control taller than its neighbours.
+      className={`tap whitespace-nowrap rounded-xl px-1 py-2.5 text-[12px] font-semibold sm:text-[13.5px] ${
         active
           ? "bg-brand text-brand-fg shadow-card"
           : "text-muted hover:text-soft"

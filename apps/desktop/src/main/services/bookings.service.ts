@@ -196,6 +196,29 @@ async function writeConversion(opts: {
     const tests = testIds.length === 0
       ? []
       : await tx.test.findMany({ where: { id: { in: testIds } } });
+
+    // The booking names tests the *portal* chose from the *cloud* catalogue, and
+    // this machine's catalogue can be behind — reconciliation retires duplicates
+    // locally and the cloud only finds out when the catalogue is next pushed.
+    //
+    // The unchecked version priced the visit from the tests it found but built
+    // visitTests from every id the booking carried, so an id unknown here
+    // reached the foreign key and took the whole transaction down with it, with
+    // nothing to say which id was at fault. Refusing by name is the same
+    // refusal, arriving somewhere a human can read it.
+    //
+    // Converting the recognised subset instead would under-bill the patient and
+    // print a report missing the test they came for. Neither belongs in a step
+    // that runs unattended.
+    const found = new Set(tests.map((t) => t.id));
+    const unknown = testIds.filter((id) => !found.has(id));
+    if (unknown.length > 0) {
+      throw new Error(
+        `UNKNOWN_TESTS: this machine's catalogue has no test ${unknown.join(", ")} — ` +
+          `the booking cannot be priced until it does.`,
+      );
+    }
+
     const subtotal = tests.reduce((s, t) => s + Number(t.price), 0);
 
     const visit = await tx.visit.create({
@@ -277,6 +300,41 @@ export type ConvertResult =
  * same spirit as pull-verifications: the portal records the decision, the
  * desktop does the work, and both end in the same state.
  */
+/**
+ * Which local user to record as having created the patient and the visit.
+ *
+ * This was `booking.approvedByUserId ?? "system"`. No user has the id "system",
+ * so a booking whose approver had not reached this machine — or which carried no
+ * approver at all — failed the foreign key on `Patient.createdById`, rolled the
+ * whole conversion back, and was retried every tick for the life of the install.
+ *
+ * Losing a patient's booking over the question of which staff member approved it
+ * is the wrong trade; the same one was already settled this way for results in
+ * 309a97f. An admin is a truthful enough answer — a real person who is
+ * accountable for the lab — and the booking records the original approver
+ * regardless, so nothing about who decided is lost.
+ */
+async function resolveConversionStaffId(approvedByUserId: string | null): Promise<string> {
+  if (approvedByUserId) {
+    const approver = await prisma().user.findUnique({
+      where: { id: approvedByUserId },
+      select: { id: true },
+    });
+    if (approver) return approver.id;
+  }
+
+  const admin = await prisma().user.findFirst({
+    where: { role: "Admin", isActive: true },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (admin) return admin.id;
+
+  // A lab with no active admin cannot have approved anything. Named so the log
+  // says this rather than reporting a foreign key three calls deeper.
+  throw new Error("NO_ATTRIBUTABLE_USER: no active Admin to record as the creator");
+}
+
 export async function convertApprovedBooking(bookingId: string): Promise<ConvertResult> {
   const booking = await loadBooking(bookingId);
 
@@ -287,19 +345,82 @@ export async function convertApprovedBooking(bookingId: string): Promise<Convert
 
   // Households share a phone number. Which member a booking belongs to is a
   // judgement the staff make at the desktop's chooser; guessing here would file
-  // one person's results under another's record. Left for a human instead.
+  // one person's results under another's record. Left for a human instead —
+  // see resolveApprovedBooking, which is how that human answers it.
   if (candidates.length > 1) return { kind: "skipped", reason: "ambiguous_patient" };
 
   const result = await writeConversion({
     booking,
-    // The portal recorded who approved it; fall back only if that is missing.
-    staffUserId: booking.approvedByUserId ?? "system",
+    staffUserId: await resolveConversionStaffId(booking.approvedByUserId ?? null),
     assignedToUserId: booking.assignedToUserId ?? null,
     // The staff portal's Approve does not ask about the call, so there is no
     // outcome to record. Null here means "not asked", which is the truth, and
     // is deliberately distinct from "asked, nobody answered".
     phoneConfirmOutcome: null,
     targetPatientId: candidates[0]?.id ?? null,
+    requireStatus: "Approved",
+  });
+
+  return { kind: "converted", ...result };
+}
+
+export interface ResolveApprovedInput {
+  bookingId: string;
+  /** The signed-in user doing the resolving. */
+  staffUserId: string;
+  /** The chosen household member, or "__new__" for a fresh patient. */
+  chosenPatientId?: string | null;
+}
+
+export type ResolveApprovedResult =
+  | { kind: "converted"; visitId: string; patientId: string; accessCode: string }
+  | { kind: "chooser"; candidates: PatientChoice[] };
+
+/**
+ * Finishes a booking the portal approved that the sweep will not convert alone.
+ *
+ * The sweep refuses to guess which household member a shared phone belongs to,
+ * which is right — guessing files one person's results under another's name. But
+ * `approveBooking` refuses anything that is no longer `Pending`, so once the
+ * portal had written Approved there was nowhere left to answer the question. The
+ * booking read as approved to the patient and to staff, no patient record
+ * existed, and nothing in the system could put it right.
+ *
+ * This is the missing half: the same conversion, entered from the state the
+ * portal leaves behind rather than from `Pending`. It shares `writeConversion`
+ * with both other paths, so a booking finished here is indistinguishable from
+ * one approved at the desktop.
+ */
+export async function resolveApprovedBooking(
+  input: ResolveApprovedInput,
+): Promise<ResolveApprovedResult> {
+  const booking = await loadBooking(input.bookingId);
+
+  if (booking.status !== "Approved") throw new Error("INVALID_STATE");
+  if (booking.resultingVisitId) throw new Error("ALREADY_CONVERTED");
+
+  const candidates = await listPatientCandidatesByPhone(booking.patientPhone);
+  const wantsNew = input.chosenPatientId === "__new__";
+
+  let targetPatientId: string | null = null;
+  if (input.chosenPatientId && !wantsNew) {
+    // A patient id that is not on this phone is someone else's record.
+    if (!candidates.some((c) => c.id === input.chosenPatientId)) throw new Error("INVALID_INPUT");
+    targetPatientId = input.chosenPatientId;
+  } else if (!wantsNew) {
+    // Nothing chosen yet — hand back the candidates so the staff can pick.
+    return { kind: "chooser", candidates };
+  }
+
+  const result = await writeConversion({
+    booking,
+    staffUserId: input.staffUserId,
+    assignedToUserId: booking.assignedToUserId ?? null,
+    // The desktop asks about the confirmation call at approval, which already
+    // happened in the portal. Recording an outcome now would claim a call this
+    // screen never prompted anyone to make.
+    phoneConfirmOutcome: null,
+    targetPatientId,
     requireStatus: "Approved",
   });
 
@@ -319,6 +440,26 @@ export interface SweepStats {
    * where the rest of the booking triggers already are.
    */
   convertedItems: Array<{ bookingId: string; visitId: string }>;
+  /**
+   * Why each conversion failed.
+   *
+   * This used to be a bare `catch` that incremented a counter and dropped the
+   * error on the floor, and the puller logged only the counts. A booking
+   * approved on a phone whose conversion failed every tick therefore produced no
+   * error text anywhere in the system — the only symptom was a booking marked
+   * Approved with no patient behind it, and no way to find out why. Knowing that
+   * something failed is not the same as being able to fix it.
+   */
+  failures: Array<{ bookingId: string; error: string }>;
+  /**
+   * Bookings the sweep deliberately declined to convert, and why.
+   *
+   * `ambiguous_patient` in particular is a dead end rather than a wait: the
+   * desktop's own Approve button refuses anything that is no longer Pending, so
+   * nothing in the system can finish these. Naming them is what makes them
+   * findable by a human.
+   */
+  skippedItems: Array<{ bookingId: string; reason: ConversionSkip }>;
 }
 
 /**
@@ -331,7 +472,14 @@ export interface SweepStats {
  * retried every tick until it succeeds, and needs no cursor of its own.
  */
 export async function convertPendingApprovedBookings(): Promise<SweepStats> {
-  const stats: SweepStats = { converted: 0, skipped: 0, failed: 0, convertedItems: [] };
+  const stats: SweepStats = {
+    converted: 0,
+    skipped: 0,
+    failed: 0,
+    convertedItems: [],
+    failures: [],
+    skippedItems: [],
+  };
 
   const pending = await prisma().booking.findMany({
     where: { status: "Approved", resultingVisitId: null },
@@ -346,15 +494,59 @@ export async function convertPendingApprovedBookings(): Promise<SweepStats> {
       if (res.kind === "converted") {
         stats.converted += 1;
         stats.convertedItems.push({ bookingId: b.id, visitId: res.visitId });
-      } else stats.skipped += 1;
-    } catch {
+      } else {
+        stats.skipped += 1;
+        stats.skippedItems.push({ bookingId: b.id, reason: res.reason });
+      }
+    } catch (e) {
       // Left for the next sweep. Nothing partial survives — writeConversion is
-      // one transaction — so retrying is safe.
+      // one transaction — so retrying is safe. The reason is kept because
+      // retrying forever without one is what made this invisible.
       stats.failed += 1;
+      stats.failures.push({
+        bookingId: b.id,
+        error: e instanceof Error ? (e.stack ?? e.message) : String(e),
+      });
     }
   }
 
   return stats;
+}
+
+/** A booking the portal marked Approved that never became a Patient and Visit. */
+export interface UnconvertedApproval {
+  id: string;
+  bookingId: string;
+  patientName: string;
+  patientPhone: string;
+  approvedAt: Date | null;
+}
+
+/**
+ * Approvals that produced no visit — the read-only view of what the sweep keeps
+ * failing or declining to convert.
+ *
+ * Approving in the staff portal writes the status straight to the cloud, while
+ * the Patient and Visit are created later, on this machine, in a step that can
+ * fail on its own. Nothing rolls the status back when it does, so the booking
+ * reads "Approved" to the patient and to staff while no patient record exists.
+ *
+ * The Bookings screen defaults to the Pending filter, where such a booking never
+ * appears. Counting them separately is what lets the screen say so without the
+ * owner having to go looking under a filter he has no reason to select.
+ */
+export async function listUnconvertedApprovals(): Promise<UnconvertedApproval[]> {
+  return prisma().booking.findMany({
+    where: { status: "Approved", resultingVisitId: null },
+    orderBy: { approvedAt: "asc" },
+    select: {
+      id: true,
+      bookingId: true,
+      patientName: true,
+      patientPhone: true,
+      approvedAt: true,
+    },
+  });
 }
 
 export async function declineBooking(input: DeclineInput): Promise<void> {

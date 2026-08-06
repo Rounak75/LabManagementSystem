@@ -15,7 +15,16 @@ const s = StyleSheet.create({
   page:        { paddingTop: 32, paddingBottom: 40, paddingHorizontal: 32, fontSize: 9, fontFamily: "Helvetica" },
   patientBar:  { borderBottomWidth: 1, paddingBottom: 4, marginBottom: 8, flexDirection: "row",
                  justifyContent: "space-between", flexWrap: "wrap" },
-  patientItem: { fontSize: 9, marginRight: 12 }
+  patientItem: { fontSize: 9, marginRight: 12 },
+
+  // How a patient gets into the portal. The lab prints no receipts, so this
+  // strip on the report is the only written record of their patient id they
+  // ever receive — staff read it out at the counter, and this is the copy they
+  // take home. Set at the same 8pt as the letterhead address: it is secondary
+  // to the results, but a patient still has to be able to read it.
+  signIn:      { marginTop: 10, borderTopWidth: 0.5, borderColor: "#cbd5e1", paddingTop: 4 },
+  signInHead:  { fontSize: 8, fontWeight: 700, marginBottom: 2 },
+  signInBody:  { fontSize: 8, color: "#475569", lineHeight: 1.4 }
 });
 
 function formatDate(iso: string): string {
@@ -25,8 +34,9 @@ function formatDate(iso: string): string {
   return `${dd}-${mm}-${d.getFullYear()}`;
 }
 
-export function GolmuriStandardTemplate({ data }: { data: ReportData; config: TemplateConfig }) {
+export function GolmuriStandardTemplate({ data, config }: { data: ReportData; config: TemplateConfig }) {
   const tests = flattenTests(data.groups);
+  const portalUrl = data.lab.portalUrl?.trim();
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -46,7 +56,20 @@ export function GolmuriStandardTemplate({ data }: { data: ReportData; config: Te
         <CultureSensitivitySection tests={tests} />
         <SerologySection tests={tests} />
         <CommentsSection tests={tests} />
-        <Footer />
+
+        {portalUrl ? (
+          <View style={s.signIn}>
+            <Text style={s.signInHead}>VIEW THIS REPORT ONLINE</Text>
+            <Text style={s.signInBody}>
+              Go to {portalUrl} and sign in with your phone number{" "}
+              {data.patient.phone ? `(${data.patient.phone}) ` : ""}
+              and patient ID {data.patient.patientId}. You will be asked to choose a password the
+              first time — after that, sign in with the password.
+            </Text>
+          </View>
+        ) : null}
+
+        <Footer lab={data.lab} signatureLine={config.signatureLine} />
       </Page>
     </Document>
   );

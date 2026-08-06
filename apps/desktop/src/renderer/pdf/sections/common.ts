@@ -28,6 +28,8 @@ export const sectionStyles = StyleSheet.create({
   cell3:   { flex: 2, textAlign: "right" },
   header:  { fontWeight: 700 },
   abn:     { color: "#b91c1c", fontWeight: 700 },
+  /** The H / L marker beside an abnormal value, so the flag survives a black-and-white print. */
+  abnFlag: { color: "#b91c1c", fontWeight: 700 },
   subhead: { fontWeight: 700, marginTop: 4, marginBottom: 2, fontSize: 9 },
   pairRow: { flexDirection: "row", paddingVertical: 1 },
   pairLabel: { flex: 1, color: "#475569" },
@@ -48,6 +50,30 @@ export type ReportTest = {
   }[];
   outsourcedSentTo: string | null;
 };
+
+/**
+ * The marker printed next to an out-of-range result: H, L, or a neutral *.
+ *
+ * An abnormal value used to be distinguished by red text alone. The lab prints
+ * in black and white, so on the paper a patient is actually handed a dangerously
+ * high result looked exactly like a normal one. A letter survives any printer.
+ *
+ * Called only for results already judged abnormal, so anything it cannot place
+ * against a numeric range still gets a mark. Returning "" for those would mean
+ * a qualitative abnormal — "Positive" where "Negative" is normal — printed
+ * exactly like a normal one, which is the failure this exists to prevent.
+ */
+export function abnormalFlag(value: string, range: string): "H" | "L" | "*" {
+  const bounds = /(-?\d+(?:\.\d+)?)\s*[–—-]\s*(-?\d+(?:\.\d+)?)/.exec(range ?? "");
+  const n = Number(String(value ?? "").trim());
+  if (!bounds || !Number.isFinite(n)) return "*";
+
+  const min = Number(bounds[1]);
+  const max = Number(bounds[2]);
+  if (n > max) return "H";
+  if (n < min) return "L";
+  return "*";
+}
 
 export function safeJson<T>(s: string, fallback: T): T {
   try { return JSON.parse(s) as T; } catch { return fallback; }

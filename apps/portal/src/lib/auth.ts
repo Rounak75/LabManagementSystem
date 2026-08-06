@@ -29,7 +29,17 @@ export type LoginResult =
   | { kind: "needs_chooser"; patients: PatientSummary[] }
   | { kind: "invalid_code" }
   | { kind: "locked"; until: string }
-  | { kind: "success"; jwt: string; patientId: string };
+  | { kind: "booking_not_ready" }
+  | {
+      kind: "success";
+      jwt: string;
+      patientId: string;
+      /**
+       * True when the patient got in on a one-time credential and has to choose
+       * a password before doing anything else. Set by the booking-id path.
+       */
+      mustSetPassword?: boolean;
+    };
 
 async function lookupPatientsByPhone(phone: string): Promise<PatientSummary[]> {
   const sb = getServiceClient();
@@ -171,6 +181,113 @@ export async function tryPasswordLogin(
   await recordSuccess(patient.id);
   const jwt = await mintPatientJwt(patient.id);
   return { kind: "success", jwt, patientId: patient.id };
+}
+
+/**
+ * Signs in a patient who booked online, using the booking id and the phone the
+ * booking was made on.
+ *
+ * Why this exists: the other two ways in are a code printed on a receipt and a
+ * password set after using that code. A patient who books a home collection has
+ * neither — they have not been to the lab, so no receipt exists — and the whole
+ * online booking journey therefore dead-ended at the login screen. They could not
+ * see the visit they had just booked and paid for.
+ *
+ * Three deliberate limits, because a booking id is `BKG-YYYY-NNNNN` and anyone
+ * can count:
+ *
+ *  - It is never accepted alone. The phone number on the booking must match, so
+ *    this is exactly as strong as phone + access code, the bar already set.
+ *  - It stops working the moment a password exists. It is a way to get in the
+ *    first time, not a permanent second key; the caller is told to collect a
+ *    password immediately.
+ *  - The booking must have become a real patient. Until the desktop converts it
+ *    there is no record to show, and saying so beats "wrong code", which sends
+ *    the patient hunting for a mistake they did not make.
+ */
+export async function tryBookingIdLogin(phone: string, bookingId: string): Promise<LoginResult> {
+  const normalised = bookingId.trim().toUpperCase();
+  if (!normalised) return { kind: "invalid_code" };
+
+  const sb = getServiceClient();
+  const { data: booking } = await sb
+    .from("bookings")
+    .select("id, booking_id, patient_phone, status, resulting_patient_id")
+    .eq("booking_id", normalised)
+    .maybeSingle();
+
+  // One message for every "this is not a way in" case. Distinguishing them would
+  // confirm which booking ids exist to someone reading the sequence.
+  if (!booking) return { kind: "invalid_code" };
+  if (booking.patient_phone !== phone) return { kind: "invalid_code" };
+  if (booking.status !== "Approved" && booking.status !== "Completed") {
+    return { kind: "invalid_code" };
+  }
+
+  // Approved, but the desktop has not converted it into a Patient and Visit yet.
+  // A real state with its own message — see bookings.service.
+  if (!booking.resulting_patient_id) return { kind: "booking_not_ready" };
+
+  const patientId = String(booking.resulting_patient_id);
+  const account = await getAccount(patientId);
+
+  const until = lockedUntil(account);
+  if (until) return { kind: "locked", until };
+
+  // Spent. From here on the password is the way in.
+  if (account?.password_hash) return { kind: "invalid_code" };
+
+  await recordSuccess(patientId);
+  const jwt = await mintPatientJwt(patientId);
+  return { kind: "success", jwt, patientId, mustSetPassword: true };
+}
+
+/**
+ * Signs a walk-in patient in with the patient id they were given at the counter.
+ *
+ * The lab does not print receipts — that is a per-visit cost it will not carry —
+ * so the access code reaches the patient only on the finished report, printed at
+ * the very end of the visit. Until that moment they had no way into the portal
+ * at all: they could not watch their report's progress and could not pay to
+ * release it, which is most of what the portal is for. The patient id is the one
+ * credential staff can hand over out loud at registration, and it is on the
+ * report afterwards, so it works before and after.
+ *
+ * Same three limits as the booking id, for the same reason — `LAB-YYYY-NNNNN` is
+ * a sequence anyone can count through:
+ *
+ *  - Never accepted without the phone number on the record.
+ *  - Spent the moment a password exists; the caller sends them to choose one.
+ *  - Failures count towards the same lockout as every other path.
+ */
+export async function tryPatientIdLogin(phone: string, patientId: string): Promise<LoginResult> {
+  const normalised = patientId.trim().toUpperCase();
+  if (!normalised) return { kind: "invalid_code" };
+
+  const sb = getServiceClient();
+  const { data: patient } = await sb
+    .from("patients")
+    .select("id, patient_id, phone, deleted_at")
+    .eq("patient_id", normalised)
+    .maybeSingle();
+
+  // One message for every refusal. Distinguishing them would confirm which
+  // patient ids exist to someone reading the sequence.
+  if (!patient) return { kind: "invalid_code" };
+  if (patient.deleted_at) return { kind: "invalid_code" };
+  if (patient.phone !== phone) return { kind: "invalid_code" };
+
+  const id = String(patient.id);
+  const account = await getAccount(id);
+
+  const until = lockedUntil(account);
+  if (until) return { kind: "locked", until };
+
+  if (account?.password_hash) return { kind: "invalid_code" };
+
+  await recordSuccess(id);
+  const jwt = await mintPatientJwt(id);
+  return { kind: "success", jwt, patientId: id, mustSetPassword: true };
 }
 
 export async function trySetPassword(patientId: string, newPassword: string): Promise<void> {

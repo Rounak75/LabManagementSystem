@@ -51,6 +51,10 @@ export interface ReportData {
   lab: {
     name: string; address: string; phone: string; email: string | null;
     pathologistName: string | null; pathologistQuals: string | null; logo: string | null;
+    // Printed in the sign-in strip at the foot of the report. The lab prints no
+    // receipts, so this is the only written record of how to reach the portal
+    // that a patient ever takes home.
+    portalUrl: string | null;
   };
   patient: { id: string; patientId: string; name: string; age: number; sex: string; phone: string; address: string | null;
             referredByName: string };
@@ -114,7 +118,8 @@ export async function buildReportData(visitId: string): Promise<ReportData> {
   return {
     lab: {
       name: settings.labName, address: settings.labAddress, phone: settings.labPhone, email: settings.labEmail,
-      pathologistName: settings.pathologistName, pathologistQuals: settings.pathologistQuals, logo: settings.labLogo
+      pathologistName: settings.pathologistName, pathologistQuals: settings.pathologistQuals, logo: settings.labLogo,
+      portalUrl: settings.portalUrl ?? null
     },
     patient: {
       id: visit.patient.id, patientId: visit.patient.patientId,

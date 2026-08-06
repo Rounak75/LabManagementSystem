@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import { ApproveBookingModal } from "./ApproveBookingModal";
 import { DeclineBookingModal } from "./DeclineBookingModal";
+import { ResolveBookingModal } from "./ResolveBookingModal";
 
 interface BookingRow {
   id: string;
@@ -34,12 +35,23 @@ interface BookingRow {
 
 const STATUS_OPTIONS = ["Pending", "Approved", "Declined", "Cancelled", "Completed", "All"] as const;
 
+/** An approval that never became a patient. See bookings.service. */
+interface UnconvertedApproval {
+  id: string;
+  bookingId: string;
+  patientName: string;
+  patientPhone: string;
+  approvedAt: string | null;
+}
+
 export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("Pending");
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [unconverted, setUnconverted] = useState<UnconvertedApproval[]>([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<BookingRow | null>(null);
   const [declining, setDeclining] = useState<BookingRow | null>(null);
+  const [resolving, setResolving] = useState<UnconvertedApproval | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -48,6 +60,15 @@ export default function BookingsPage() {
       setBookings(rows);
     } finally {
       setLoading(false);
+    }
+    // Asked for separately from the list, and deliberately not filtered by the
+    // status dropdown: these are Approved, so the Pending view this screen
+    // opens on would never show them. A failure to load must not blank the
+    // page — the bookings themselves are the more important thing here.
+    try {
+      setUnconverted(await call<UnconvertedApproval[]>("bookings:listUnconverted", {}));
+    } catch {
+      /* leave the previous count in place */
     }
   }
 
@@ -77,6 +98,42 @@ export default function BookingsPage() {
           </Select>
         }
       />
+
+      {unconverted.length > 0 ? (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+          <div className="font-semibold text-amber-900">
+            {unconverted.length === 1
+              ? "1 approved booking has not become a patient"
+              : `${unconverted.length} approved bookings have not become patients`}
+          </div>
+          <p className="mt-1 text-sm text-amber-800">
+            These were approved, so the patient has been told their collection is confirmed — but
+            no patient record, visit or bill was created here. Call them to confirm, then register
+            the patient and create the visit by hand.
+          </p>
+          <ul className="mt-3 space-y-1 text-sm text-amber-900">
+            {unconverted.map((u) => (
+              <li key={u.id} className="flex items-center gap-2">
+                <span className="flex-1">
+                  <span className="font-mono">{u.bookingId}</span> · {u.patientName} ·{" "}
+                  <a href={`tel:${u.patientPhone}`} className="underline">
+                    {u.patientPhone}
+                  </a>
+                  {u.approvedAt ? (
+                    <span className="text-amber-700">
+                      {" "}
+                      · approved {new Date(u.approvedAt).toLocaleDateString("en-IN")}
+                    </span>
+                  ) : null}
+                </span>
+                <Button size="sm" onClick={() => setResolving(u)}>
+                  Finish
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <Card noPadding>
         {loading && bookings.length === 0 ? (
@@ -160,6 +217,15 @@ export default function BookingsPage() {
           booking={declining}
           onClose={(refresh) => {
             setDeclining(null);
+            if (refresh) reload();
+          }}
+        />
+      ) : null}
+      {resolving ? (
+        <ResolveBookingModal
+          booking={resolving}
+          onClose={(refresh) => {
+            setResolving(null);
             if (refresh) reload();
           }}
         />

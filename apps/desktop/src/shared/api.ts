@@ -71,7 +71,7 @@ export type Channel =
   | "patient:dissociatePhone"
   // Phase 3d Plan F — bookings inbox (admin)
   | "bookings:list" | "bookings:approve" | "bookings:decline" | "bookings:assign"
-  | "bookings:listPhlebotomists"
+  | "bookings:listPhlebotomists" | "bookings:listUnconverted" | "bookings:resolveApproved"
   // Phase 3d Plan H — lab closures (admin)
   | "closures:list" | "closures:upsert" | "closures:remove";
 

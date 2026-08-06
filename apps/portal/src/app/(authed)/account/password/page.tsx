@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Band,
   BandBar,
@@ -14,8 +14,23 @@ import {
 } from "@portal/components/ui";
 import { Check, Lock } from "@portal/components/icons";
 
+// useSearchParams needs a Suspense boundary above it, or the whole route opts
+// out of static rendering and the build warns.
 export default function PasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <PasswordForm />
+    </Suspense>
+  );
+}
+
+function PasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Sent here straight from a booking-id sign-in. That credential is guessable
+  // by counting and never expires, so this is the one screen that has to be
+  // finished before anything else — hence no way back to /account from here.
+  const firstTime = searchParams.get("first") === "1";
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,17 +46,27 @@ export default function PasswordPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: pw }),
     });
-    if (res.ok) { setDone(true); setTimeout(() => router.push("/account"), 1500); }
-    else setError("Could not set password. Please try again.");
+    if (res.ok) {
+      setDone(true);
+      setTimeout(() => router.push(firstTime ? "/dashboard" : "/account"), 1500);
+    } else setError("Could not set password. Please try again.");
   }
 
   return (
     <>
       <Band waves className="pb-14">
         <Container>
-          <BandBar back={{ href: "/account", label: "Back to account" }} title="Set a password" />
+          <BandBar
+            // No way back on a first-time set: the booking id that got them here
+            // is spent the moment a password exists, so leaving without setting
+            // one would strand them at a sign-in they can no longer pass.
+            back={firstTime ? undefined : { href: "/account", label: "Back to account" }}
+            title={firstTime ? "Choose a password" : "Set a password"}
+          />
           <p className="pb-3 text-center text-[13px] text-band/65">
-            Then you can sign in with either the password or your receipt code.
+            {firstTime
+              ? "Your booking ID got you in this once. Choose a password to sign in from now on."
+              : "Then you can sign in with either the password or your receipt code."}
           </p>
         </Container>
       </Band>
@@ -103,8 +128,9 @@ export default function PasswordPage() {
 
               <div className="mt-4">
                 <Note>
-                  Your access code keeps working after this. A password is just a
-                  second way in, useful if you misplace receipts.
+                  {firstTime
+                    ? "Your booking ID stops working once this is set — the password becomes your way in."
+                    : "Your access code keeps working after this. A password is just a second way in, useful if you misplace receipts."}
                 </Note>
               </div>
             </form>

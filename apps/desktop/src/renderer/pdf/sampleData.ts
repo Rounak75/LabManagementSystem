@@ -13,6 +13,9 @@ export const sampleData: ReportData = {
     pathologistName: "Dr. P. C. Du",
     pathologistQuals: "MD (Pathology)",
     logo: null,
+    // Present so the template editor's preview shows the sign-in strip the
+    // patient will actually receive, rather than silently omitting it.
+    portalUrl: "golmurijanchghar.vercel.app",
   },
   patient: {
     id: "sample-patient",

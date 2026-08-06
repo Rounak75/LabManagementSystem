@@ -34,11 +34,15 @@ export function LabReport({
         {showColumnHeaders && <ColumnHeaders />}
         {showContent && <TestSectionsTable groups={groups} calibration={calibration} />}
         {showFooter && <FooterBand />}
-        {showContent && accessCode && (
+        {/* Either credential is enough to sign in, so the strip is worth
+            printing when there is one of them — but not when there is neither,
+            which would leave an instruction the patient cannot follow. */}
+        {showContent && (accessCode || patient.patientIdDisplay) && (
           <AccessCodeFooter
             portalUrl={lab.portalUrl}
             patientPhone={patient.phone}
             accessCode={accessCode}
+            patientId={patient.patientIdDisplay}
           />
         )}
         {showAlignment && <AlignmentCrosshairs />}

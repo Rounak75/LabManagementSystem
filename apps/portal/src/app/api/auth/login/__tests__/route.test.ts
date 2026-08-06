@@ -107,3 +107,152 @@ describe("POST /api/auth/login — origin throttling", () => {
     expect((await res.json()).error.code).toBe("no_patient_found");
   });
 });
+
+/**
+ * The way in for a patient who booked online and has never held a receipt.
+ */
+describe("POST /api/auth/login — signing in with a booking id", () => {
+  const BOOKING = "BKG-2026-00007";
+
+  function withBooking(over: Record<string, unknown> = {}) {
+    stub = makeSupabaseStub(({ table }) => {
+      if (table.startsWith("rpc:")) return { data: 0 };
+      if (table === "bookings") {
+        return {
+          data: {
+            id: "b1",
+            booking_id: BOOKING,
+            patient_phone: "9876543210",
+            status: "Approved",
+            resulting_patient_id: "p1",
+            ...over,
+          },
+        };
+      }
+      if (table === "patient_accounts") return { data: { id: "acc1", patient_id: "p1" } };
+      return { data: null };
+    });
+  }
+
+  it("signs the patient in and sets the session cookie", async () => {
+    withBooking();
+
+    const res = await POST(req({ phone: "9876543210", firstTimeId: BOOKING }, FROM_ONE_ADDRESS));
+
+    expect(res.status).toBe(200);
+    expect(res.cookies.get("portal_session")?.value).toBeTruthy();
+  });
+
+  // The booking id is guessable by counting, so it buys one visit and no more.
+  // Landing anywhere else would leave that credential live indefinitely.
+  it("sends them straight to choosing a password", async () => {
+    withBooking();
+
+    const res = await POST(req({ phone: "9876543210", firstTimeId: BOOKING }, FROM_ONE_ADDRESS));
+
+    const body = await res.json();
+    expect(body.mustSetPassword).toBe(true);
+    expect(body.redirectTo).toBe("/account/password?first=1");
+  });
+
+  it("ignores a `next` that would skip choosing a password", async () => {
+    withBooking();
+
+    const res = await POST(
+      req({ phone: "9876543210", firstTimeId: BOOKING, next: "/dashboard" }, FROM_ONE_ADDRESS),
+    );
+
+    expect((await res.json()).redirectTo).toBe("/account/password?first=1");
+  });
+
+  // "Your booking is confirmed but the lab has not filed it yet" is a different
+  // thing from "wrong details", and telling a patient the latter sends them
+  // looking for a mistake they did not make.
+  it("explains when the booking has not become a visit yet", async () => {
+    withBooking({ resulting_patient_id: null });
+
+    const res = await POST(req({ phone: "9876543210", firstTimeId: BOOKING }, FROM_ONE_ADDRESS));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("booking_not_ready");
+  });
+
+  it("rejects a booking id on the wrong phone number", async () => {
+    withBooking({ patient_phone: "9111111111" });
+
+    const res = await POST(req({ phone: "9876543210", firstTimeId: BOOKING }, FROM_ONE_ADDRESS));
+
+    expect(res.status).toBe(401);
+  });
+});
+
+/**
+ * Patients get one field, not a tab they have to choose correctly. Whichever id
+ * the lab gave them — spoken at the counter, or emailed with a home-collection
+ * confirmation — goes in the same box, and the prefix decides what it is.
+ */
+describe("POST /api/auth/login — telling the two first-time ids apart", () => {
+  it("treats a LAB- id as a walk-in patient id", async () => {
+    stub = makeSupabaseStub(({ table }) => {
+      if (table.startsWith("rpc:")) return { data: 0 };
+      if (table === "patients") {
+        return { data: { id: "p1", patient_id: "LAB-2026-00042", phone: "9876543210" } };
+      }
+      if (table === "patient_accounts") return { data: { id: "acc1", patient_id: "p1" } };
+      return { data: null };
+    });
+
+    const res = await POST(
+      req({ phone: "9876543210", firstTimeId: "LAB-2026-00042" }, FROM_ONE_ADDRESS),
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).redirectTo).toBe("/account/password?first=1");
+    // Resolved against patients, not bookings.
+    expect(stub.calls.some((c) => c.table === "patients")).toBe(true);
+    expect(stub.calls.some((c) => c.table === "bookings")).toBe(false);
+  });
+
+  it("treats a BKG- id as a booking id", async () => {
+    stub = makeSupabaseStub(({ table }) => {
+      if (table.startsWith("rpc:")) return { data: 0 };
+      if (table === "bookings") {
+        return {
+          data: {
+            id: "b1",
+            booking_id: "BKG-2026-00007",
+            patient_phone: "9876543210",
+            status: "Approved",
+            resulting_patient_id: "p1",
+          },
+        };
+      }
+      if (table === "patient_accounts") return { data: { id: "acc1", patient_id: "p1" } };
+      return { data: null };
+    });
+
+    const res = await POST(
+      req({ phone: "9876543210", firstTimeId: "BKG-2026-00007" }, FROM_ONE_ADDRESS),
+    );
+
+    expect(res.status).toBe(200);
+    expect(stub.calls.some((c) => c.table === "bookings")).toBe(true);
+  });
+
+  it("is not upset by lower case or stray spaces", async () => {
+    stub = makeSupabaseStub(({ table }) => {
+      if (table.startsWith("rpc:")) return { data: 0 };
+      if (table === "patients") {
+        return { data: { id: "p1", patient_id: "LAB-2026-00042", phone: "9876543210" } };
+      }
+      if (table === "patient_accounts") return { data: { id: "acc1", patient_id: "p1" } };
+      return { data: null };
+    });
+
+    const res = await POST(
+      req({ phone: "9876543210", firstTimeId: "  lab-2026-00042  " }, FROM_ONE_ADDRESS),
+    );
+
+    expect(res.status).toBe(200);
+  });
+});

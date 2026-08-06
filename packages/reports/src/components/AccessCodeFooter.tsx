@@ -20,16 +20,29 @@ export function AccessCodeFooter({
   portalUrl,
   patientPhone,
   accessCode,
+  patientId,
 }: {
   portalUrl?: string;
   patientPhone?: string;
   accessCode?: string;
+  patientId?: string;
 }) {
-  if (!portalUrl || !accessCode || !patientPhone) return null;
+  // The patient id alone is enough to sign in for the first time, so this strip
+  // is worth printing even before an access code exists. Requiring the code as
+  // well — as it used to — meant the sign-in instructions were missing from
+  // exactly the reports of patients who had never signed in.
+  if (!portalUrl || !patientPhone || (!accessCode && !patientId)) return null;
   return (
     <View style={styles.container} fixed>
       <Text style={styles.row}>View your report online at {portalUrl}</Text>
-      <Text style={styles.important}>Phone: {patientPhone}   Access code: {accessCode}</Text>
+      <Text style={styles.important}>
+        Phone: {patientPhone}
+        {patientId ? `   Patient ID: ${patientId}` : ""}
+        {accessCode ? `   Access code: ${accessCode}` : ""}
+      </Text>
+      <Text style={styles.row}>
+        Signing in for the first time? Use your Patient ID, then choose a password.
+      </Text>
     </View>
   );
 }

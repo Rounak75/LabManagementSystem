@@ -1,5 +1,5 @@
 import { View, Text } from "@react-pdf/renderer";
-import { sectionStyles as s, type ReportTest } from "./common";
+import { sectionStyles as s, abnormalFlag, type ReportTest } from "./common";
 
 function renderTwoColumn(params: ReportTest["parameters"]) {
   const half = Math.ceil(params.length / 2);
@@ -20,6 +20,9 @@ function renderTwoColumn(params: ReportTest["parameters"]) {
                 <Text style={s.pairLabel}>{row.l.name}</Text>
                 <Text style={[s.pairValue, row.l.isAbnormal ? s.abn : {}]}>
                   {row.l.value || "—"}{row.l.unit ? ` ${row.l.unit}` : ""}
+                  {row.l.isAbnormal && (
+                    <Text style={s.abnFlag}>{`  ${abnormalFlag(row.l.value, row.l.range)}`}</Text>
+                  )}
                 </Text>
               </>
             )}
@@ -30,6 +33,9 @@ function renderTwoColumn(params: ReportTest["parameters"]) {
                 <Text style={s.pairLabel}>{row.r.name}</Text>
                 <Text style={[s.pairValue, row.r.isAbnormal ? s.abn : {}]}>
                   {row.r.value || "—"}{row.r.unit ? ` ${row.r.unit}` : ""}
+                  {row.r.isAbnormal && (
+                    <Text style={s.abnFlag}>{`  ${abnormalFlag(row.r.value, row.r.range)}`}</Text>
+                  )}
                 </Text>
               </>
             )}

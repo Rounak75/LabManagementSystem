@@ -143,15 +143,37 @@ export async function bookingApproved(bookingId: string): Promise<void> {
 
   const when = `${formatBookingDate(b.preferredDate)} (${b.preferredSlot})`;
   const subject = `Your home-visit booking is confirmed (${b.bookingId})`;
+
+  // The booking id is how this patient signs in the first time. They have never
+  // been to the lab, so no receipt — and therefore no access code — exists for
+  // them; without this the confirmation email told them their collection was
+  // booked and gave them no way to see it. Portal address comes from Settings
+  // and may not be filled in yet, so the sign-in paragraph is conditional
+  // rather than linking somewhere that does not resolve.
+  const s = await settings();
+  const portalUrl = s?.portalUrl?.trim();
+  const signInText = portalUrl
+    ? `\nTo see your visit and report online, go to ${portalUrl} and sign in with ` +
+      `your phone number and booking ID ${b.bookingId}. You will be asked to choose ` +
+      `a password — after that, the password is how you sign in.\n`
+    : "";
+  const signInHtml = portalUrl
+    ? `<p>To see your visit and report online, go to <a href="${portalUrl}">${portalUrl}</a> ` +
+      `and sign in with your phone number and booking ID <b>${b.bookingId}</b>. ` +
+      `You will be asked to choose a password — after that, the password is how you sign in.</p>`
+    : "";
+
   const text =
     `Dear ${b.patientName},\n\n` +
     `Your home sample collection is confirmed for ${when}.\n` +
-    `Our phlebotomist will visit at the scheduled time.\n\n` +
-    `If you need to reschedule, call ${LAB_PHONE}.\n\n` +
+    `Our phlebotomist will visit at the scheduled time.\n` +
+    signInText +
+    `\nIf you need to reschedule, call ${LAB_PHONE}.\n\n` +
     `— Golmuri Janch Ghar\n`;
   const html =
     `<p>Dear ${b.patientName},</p>` +
     `<p>Your home sample collection is confirmed for <b>${when}</b>. Our phlebotomist will visit at the scheduled time.</p>` +
+    signInHtml +
     `<p>If you need to reschedule, call <a href="tel:${LAB_PHONE}">${LAB_PHONE}</a>.</p>` +
     `<p>— Golmuri Janch Ghar</p>`;
   await sendBookingMail({ to: b.patientEmail, subject, text, html });

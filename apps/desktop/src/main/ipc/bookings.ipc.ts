@@ -11,8 +11,11 @@ import * as triggers from "@main/services/notifications/triggers";
 import {
   approveBooking,
   declineBooking,
+  listUnconvertedApprovals,
+  resolveApprovedBooking,
   type ApproveResult,
   type PhoneConfirmOutcome,
+  type ResolveApprovedResult,
 } from "@main/services/bookings.service";
 
 register("bookings:list", async ({ status }: { status?: string } = {}) => {
@@ -22,6 +25,43 @@ register("bookings:list", async ({ status }: { status?: string } = {}) => {
     orderBy: { createdAt: "desc" },
     take: 200,
   });
+});
+
+// Asked for on every visit to the Bookings screen, whatever status filter is
+// selected. A booking approved on a phone whose conversion failed is Approved,
+// so it never shows under the Pending filter the screen opens on — the one
+// place the owner would look.
+register("bookings:listUnconverted", async () => {
+  requireAdmin();
+  return listUnconvertedApprovals();
+});
+
+// Finishes an approval the portal made that the sweep will not complete on its
+// own — a shared phone it refuses to guess about. Without this the booking is
+// stuck for good: it is no longer Pending, so bookings:approve rejects it.
+register("bookings:resolveApproved", async ({
+  bookingId,
+  chosenPatientId,
+}: {
+  bookingId: string;
+  chosenPatientId?: string | null;
+}): Promise<ResolveApprovedResult> => {
+  const u = requireAdmin();
+  const result = await resolveApprovedBooking({
+    bookingId,
+    staffUserId: u.id,
+    chosenPatientId: chosenPatientId ?? null,
+  });
+
+  if (result.kind === "converted") {
+    await audit("BOOKING_RESOLVED", "Booking", bookingId);
+    // The patient was told their collection was confirmed when the portal
+    // approved it, but no visit existed to tell them about until now.
+    triggers.visitBooked(result.visitId).catch((e) =>
+      console.error("[notifications] visitBooked (booking resolve) failed", e),
+    );
+  }
+  return result;
 });
 
 register("bookings:approve", async ({

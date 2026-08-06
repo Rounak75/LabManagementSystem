@@ -42,12 +42,39 @@ export function Letterhead({ lab }: { lab: ReportData["lab"] }) {
   );
 }
 
-export function Footer() {
+/**
+ * The name the report is signed with.
+ *
+ * The template editor collects a `signatureLine` and the lab records a
+ * pathologist in Settings; the footer used neither and carried a hard-coded
+ * name instead, so changing the pathologist changed the letterhead and left
+ * every signature saying the previous one. An explicit template line wins,
+ * then Settings, then nothing at all — a blank the lab will notice is better
+ * than the wrong doctor's name under a diagnosis.
+ */
+export function signatureName(
+  lab: { pathologistName: string | null; pathologistQuals: string | null },
+  signatureLine?: string,
+): string {
+  const explicit = signatureLine?.trim();
+  if (explicit) return explicit;
+  if (!lab.pathologistName) return "";
+  const quals = lab.pathologistQuals?.trim();
+  return quals ? `${lab.pathologistName}, ${quals}` : lab.pathologistName;
+}
+
+export function Footer({
+  lab,
+  signatureLine,
+}: {
+  lab: ReportData["lab"];
+  signatureLine?: string;
+}) {
   return (
     <View style={s.footer} fixed>
       <Text>Lab Technician</Text>
       <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-      <Text>Dr. P. C. Dubey, M.D. (Patho)</Text>
+      <Text>{signatureName(lab, signatureLine)}</Text>
     </View>
   );
 }

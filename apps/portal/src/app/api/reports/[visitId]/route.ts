@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
   const { data: visit } = await sb
     .from("visits")
     .select(
-      "id, visit_id, visit_date, patient_id, report_release_override, patients(name, age, sex, phone), invoices(total, amount_paid), visit_tests(id, test_id, is_locked, tests(name, category), results(parameter_id, value, is_abnormal))",
+      "id, visit_id, visit_date, patient_id, report_release_override, patients(patient_id, name, age, sex, phone), invoices(total, amount_paid), visit_tests(id, test_id, is_locked, tests(name, category), results(parameter_id, value, is_abnormal))",
     )
     .eq("id", params.visitId)
     .maybeSingle();
@@ -99,6 +99,10 @@ export async function GET(req: NextRequest, { params: paramsPromise }: { params:
       visitIdDisplay: visit.visit_id,
       referringDoctor: "Self",
       phone: patient?.phone ?? "",
+      // How this patient signs in the first time. The lab prints no
+      // receipts, so without it their downloaded report is the one copy
+      // that never tells them how to get back in.
+      patientIdDisplay: patient?.patient_id ?? undefined,
     },
     lab: {
       name: settings?.lab_name ?? "Lab",

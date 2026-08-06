@@ -197,6 +197,18 @@ describe("LabReport access code footer", () => {
 
     expect(names).toContain("AccessCodeFooter");
   });
+
+  // The lab prints no receipts, so a patient's access code does not reach them
+  // until this very report. The patient id is what they were given at the
+  // counter and is enough to sign in the first time — a report carrying one but
+  // no code still has something worth telling them.
+  it("is printed for a patient who has only their patient id", () => {
+    const names = render({
+      patient: { ...props.patient, patientIdDisplay: "LAB-2026-00042" },
+    }).map((e) => (typeof e.type === "function" ? e.type.name : ""));
+
+    expect(names).toContain("AccessCodeFooter");
+  });
 });
 
 describe("LabReport calibration", () => {

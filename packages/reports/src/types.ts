@@ -18,6 +18,13 @@ export interface PatientInfo {
   visitIdDisplay: string; // e.g. "VIS-2026-00042"
   referringDoctor: string | null;
   phone?: string; // shown in the access-code footer (Plan B)
+  /**
+   * "LAB-2026-00042". The lab prints no receipts, so this is how a patient signs
+   * in the first time — staff read it out at the counter and it is on the report
+   * they take home. The desktop's own template has always shown it; the copy the
+   * patient downloads did not, which made it the one place it was missing.
+   */
+  patientIdDisplay?: string;
 }
 
 export interface ResultRow {

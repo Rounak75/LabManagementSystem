@@ -1,5 +1,5 @@
 import { View, Text } from "@react-pdf/renderer";
-import { sectionStyles as s, type ReportTest } from "./common";
+import { sectionStyles as s, abnormalFlag, type ReportTest } from "./common";
 
 const DIFFERENTIAL = new Set([
   "Neutrophils", "Lymphocytes", "Monocytes", "Eosinophils", "Basophils"
@@ -23,6 +23,7 @@ export function HematologySection({ tests }: { tests: ReportTest[] }) {
           <Text style={s.cell1}>{p.name}</Text>
           <Text style={[s.cell2, p.isAbnormal ? s.abn : {}]}>
             {p.value || "—"}{p.unit ? ` ${p.unit}` : ""}
+            {p.isAbnormal && <Text style={s.abnFlag}>{`  ${abnormalFlag(p.value, p.range)}`}</Text>}
           </Text>
           <Text style={s.cell3}>{p.range || "—"}</Text>
         </View>
@@ -35,6 +36,7 @@ export function HematologySection({ tests }: { tests: ReportTest[] }) {
               <Text style={s.cell1}>{p.name}</Text>
               <Text style={[s.cell2, p.isAbnormal ? s.abn : {}]}>
                 {p.value || "—"}{p.unit ? ` ${p.unit}` : ""}
+                {p.isAbnormal && <Text style={s.abnFlag}>{`  ${abnormalFlag(p.value, p.range)}`}</Text>}
               </Text>
               <Text style={s.cell3}>{p.range || "—"}</Text>
             </View>

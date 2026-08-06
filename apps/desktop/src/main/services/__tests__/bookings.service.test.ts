@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   bookingFindUnique: vi.fn(),
   bookingFindMany: vi.fn(),
   patientFindMany: vi.fn(),
+  userFindUnique: vi.fn(),
+  userFindFirst: vi.fn(),
   transaction: vi.fn(),
   txBookingFindUnique: vi.fn(),
   txPatientCreate: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock("@main/db", () => ({
   prisma: () => ({
     booking: { findUnique: mocks.bookingFindUnique, findMany: mocks.bookingFindMany },
     patient: { findMany: mocks.patientFindMany },
+    user: { findUnique: mocks.userFindUnique, findFirst: mocks.userFindFirst },
     $transaction: mocks.transaction,
   }),
 }));
@@ -42,6 +45,8 @@ import {
   approveBooking,
   convertApprovedBooking,
   convertPendingApprovedBookings,
+  listUnconvertedApprovals,
+  resolveApprovedBooking,
 } from "../bookings.service";
 
 const tx = {
@@ -93,6 +98,8 @@ beforeEach(() => {
   mocks.txHomeVisitCreate.mockResolvedValue({});
   mocks.txBookingUpdate.mockResolvedValue({});
   mocks.bookingFindMany.mockResolvedValue([]);
+  mocks.userFindUnique.mockResolvedValue({ id: "admin-1" });
+  mocks.userFindFirst.mockResolvedValue({ id: "admin-fallback" });
   mocks.transaction.mockImplementation(async (fn: (t: unknown) => Promise<unknown>) => fn(tx));
 });
 
@@ -368,5 +375,265 @@ describe("sweep results for the caller's notifications", () => {
     const swept = await convertPendingApprovedBookings();
 
     expect(swept.convertedItems).toEqual([]);
+  });
+});
+
+/**
+ * A booking approved in the staff portal is converted here, on a different
+ * machine, in a step that can fail on its own — and nothing rolls the approval
+ * back when it does. The patient has been told their collection is confirmed.
+ *
+ * The sweep counted those failures and discarded the error, and the puller
+ * logged only the counts. So a conversion that failed every tick for a week
+ * produced no error text anywhere, and the only visible symptom was a booking
+ * marked Approved with no patient behind it. Counting a failure is not the same
+ * as being able to find out what it was.
+ */
+describe("what the sweep reports when it cannot convert", () => {
+  it("records why a conversion failed, not just that it did", async () => {
+    mocks.bookingFindMany.mockResolvedValue([{ id: "b1" }]);
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txVisitCreate.mockRejectedValueOnce(
+      new Error("Foreign key constraint failed: visit_tests.test_id"),
+    );
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.failures).toEqual([
+      { bookingId: "b1", error: expect.stringContaining("visit_tests.test_id") },
+    ]);
+  });
+
+  // Which household member a booking belongs to is a judgement only staff can
+  // make, and the desktop's own Approve button refuses an already-Approved
+  // booking — so nothing in the system can finish these. Naming them is what
+  // makes them findable.
+  it("names the bookings that need a human", async () => {
+    mocks.bookingFindMany.mockResolvedValue([{ id: "b1" }]);
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.patientFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.skippedItems).toEqual([{ bookingId: "b1", reason: "ambiguous_patient" }]);
+  });
+
+  it("reports no failures when every conversion succeeds", async () => {
+    mocks.bookingFindMany.mockResolvedValue([{ id: "b1" }]);
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved());
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.failures).toEqual([]);
+    expect(swept.skippedItems).toEqual([]);
+  });
+});
+
+/**
+ * The owner's view of the same problem.
+ *
+ * A booking stuck this way reads as "Approved" everywhere the patient and the
+ * staff can see, so the only person who can notice it is the one looking for it
+ * — and the Bookings screen defaults to the Pending filter, where it does not
+ * appear at all. This is what the screen counts to say so out loud.
+ */
+/**
+ * The booking carries test ids the *portal* chose, from the *cloud* catalogue.
+ * The desktop's catalogue can be behind — reconciliation retires duplicates, and
+ * the cloud only learns about it when the catalogue is pushed. A booking naming
+ * a test this machine has never heard of used to reach `visitTests.create`
+ * anyway, where the foreign key refused it and took the whole transaction with
+ * it, silently, every tick.
+ */
+describe("a booking naming tests the local catalogue does not have", () => {
+  beforeEach(() => {
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved());
+    // The booking asks for t1 and t2; only t1 is known here.
+    mocks.txTestFindMany.mockResolvedValue([{ id: "t1", price: 300 }]);
+  });
+
+  it("refuses instead of failing on a foreign key deep inside the write", async () => {
+    await expect(convertApprovedBooking("b1")).rejects.toThrow(/UNKNOWN_TESTS/);
+  });
+
+  it("names the tests it could not find, so the catalogue can be put right", async () => {
+    await expect(convertApprovedBooking("b1")).rejects.toThrow(/t2/);
+  });
+
+  // Billing for only the tests that happen to be known would under-charge the
+  // patient and print a report missing the test they asked for. Neither is
+  // something to do quietly.
+  it("creates no visit at all rather than one missing a test", async () => {
+    await expect(convertApprovedBooking("b1")).rejects.toThrow();
+    expect(mocks.txVisitCreate).not.toHaveBeenCalled();
+  });
+
+  it("applies the same rule to the desktop's own Approve button", async () => {
+    mocks.bookingFindUnique.mockResolvedValue(booking());
+    mocks.txBookingFindUnique.mockResolvedValue(booking());
+    await expect(approveBooking(input)).rejects.toThrow(/UNKNOWN_TESTS/);
+  });
+});
+
+/**
+ * Who the conversion records as having created the patient and the visit.
+ *
+ * This was `booking.approvedByUserId ?? "system"`, and there is no user called
+ * "system" — so a booking whose approver did not reach this machine failed the
+ * foreign key on Patient.createdById and was retried for ever. Losing a
+ * patient's booking over the question of which staff member approved it is the
+ * wrong trade, the same one already settled for results in 309a97f.
+ */
+describe("who a portal approval is attributed to", () => {
+  beforeEach(() => {
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved());
+  });
+
+  it("uses the approver the portal recorded when this machine knows them", async () => {
+    mocks.userFindUnique.mockResolvedValue({ id: "admin-1" });
+
+    await convertApprovedBooking("b1");
+
+    expect(mocks.txPatientCreate.mock.calls[0]![0].data.createdById).toBe("admin-1");
+  });
+
+  it("falls back to an admin when the approver never synced here", async () => {
+    mocks.userFindUnique.mockResolvedValue(null);
+
+    await convertApprovedBooking("b1");
+
+    expect(mocks.txPatientCreate.mock.calls[0]![0].data.createdById).toBe("admin-fallback");
+    expect(mocks.txVisitCreate.mock.calls[0]![0].data.staffId).toBe("admin-fallback");
+  });
+
+  it("falls back to an admin when the portal recorded no approver at all", async () => {
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved({ approvedByUserId: null }));
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved({ approvedByUserId: null }));
+
+    await convertApprovedBooking("b1");
+
+    expect(mocks.txPatientCreate.mock.calls[0]![0].data.createdById).toBe("admin-fallback");
+  });
+
+  // Better a named refusal that reaches the log than a foreign key error from
+  // three calls deeper.
+  it("refuses with a clear reason when there is no user to attribute it to", async () => {
+    mocks.userFindUnique.mockResolvedValue(null);
+    mocks.userFindFirst.mockResolvedValue(null);
+
+    await expect(convertApprovedBooking("b1")).rejects.toThrow("NO_ATTRIBUTABLE_USER");
+  });
+});
+
+/**
+ * The shared-phone dead end.
+ *
+ * The sweep will not guess which household member a booking belongs to — right,
+ * because guessing files one person's results under another's name. But the
+ * desktop's Approve button refuses anything that is no longer Pending, so once
+ * the portal had marked it Approved there was no way to answer the question
+ * either. The booking sat there for good.
+ */
+describe("resolveApprovedBooking", () => {
+  beforeEach(() => {
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.txBookingFindUnique.mockResolvedValue(portalApproved());
+    mocks.patientFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
+  });
+
+  it("converts using the household member the staff picked", async () => {
+    const res = await resolveApprovedBooking({
+      bookingId: "b1",
+      staffUserId: "staff-1",
+      chosenPatientId: "p2",
+    });
+
+    expect(res).toMatchObject({ kind: "converted", patientId: "p2", visitId: "v-new" });
+    expect(mocks.txPatientCreate).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh patient when the staff say this is a new person", async () => {
+    const res = await resolveApprovedBooking({
+      bookingId: "b1",
+      staffUserId: "staff-1",
+      chosenPatientId: "__new__",
+    });
+
+    expect(res).toMatchObject({ kind: "converted", patientId: "p-new" });
+    expect(mocks.txPatientCreate).toHaveBeenCalledOnce();
+  });
+
+  it("offers the candidates when the staff have not chosen yet", async () => {
+    const res = await resolveApprovedBooking({ bookingId: "b1", staffUserId: "staff-1" });
+
+    expect(res.kind).toBe("chooser");
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  // Someone else's record is not a choice this booking can make.
+  it("rejects a patient who is not on this booking's phone", async () => {
+    await expect(
+      resolveApprovedBooking({ bookingId: "b1", staffUserId: "staff-1", chosenPatientId: "outsider" }),
+    ).rejects.toThrow("INVALID_INPUT");
+  });
+
+  it("refuses a booking that already produced a visit", async () => {
+    mocks.bookingFindUnique.mockResolvedValue(portalApproved({ resultingVisitId: "v-old" }));
+
+    await expect(
+      resolveApprovedBooking({ bookingId: "b1", staffUserId: "staff-1", chosenPatientId: "p1" }),
+    ).rejects.toThrow("ALREADY_CONVERTED");
+  });
+
+  it("refuses a booking that is not approved", async () => {
+    mocks.bookingFindUnique.mockResolvedValue(booking({ status: "Pending" }));
+
+    await expect(
+      resolveApprovedBooking({ bookingId: "b1", staffUserId: "staff-1", chosenPatientId: "p1" }),
+    ).rejects.toThrow("INVALID_STATE");
+  });
+});
+
+describe("listUnconvertedApprovals", () => {
+  it("finds approvals that never produced a visit", async () => {
+    await listUnconvertedApprovals();
+
+    expect(mocks.bookingFindMany.mock.calls[0]![0].where).toEqual({
+      status: "Approved",
+      resultingVisitId: null,
+    });
+  });
+
+  // Oldest first: the one that has been broken longest is the one the patient
+  // has been waiting on, and it is the one worth showing at the top.
+  it("puts the longest-stuck booking first", async () => {
+    await listUnconvertedApprovals();
+    expect(mocks.bookingFindMany.mock.calls[0]![0].orderBy).toEqual({ approvedAt: "asc" });
+  });
+
+  it("returns what the screen needs to identify each one", async () => {
+    mocks.bookingFindMany.mockResolvedValue([
+      {
+        id: "b1",
+        bookingId: "BKG-2026-00007",
+        patientName: "Sujata Mahato",
+        patientPhone: "9876543210",
+        approvedAt: new Date("2026-08-01T10:00:00Z"),
+      },
+    ]);
+
+    expect(await listUnconvertedApprovals()).toEqual([
+      {
+        id: "b1",
+        bookingId: "BKG-2026-00007",
+        patientName: "Sujata Mahato",
+        patientPhone: "9876543210",
+        approvedAt: new Date("2026-08-01T10:00:00Z"),
+      },
+    ]);
   });
 });
