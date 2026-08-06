@@ -371,7 +371,7 @@ Once you've confirmed you've saved it, click **I have saved my recovery code**.
 Most fields are pre-filled with Golmuri Janch Ghar's information. Confirm:
 
 - Lab name, address, phone, hours.
-- Pathologist name, qualifications, registration number (this prints on the report footer).
+- Pathologist name, qualifications, registration number. These print at the top of every report **and under the signature line at the bottom** — the report reads them from here rather than having them built in, so if the signing pathologist ever changes, you change it once in **Settings → Lab Info** and every report printed afterwards follows.
 
 Click **Finish setup**. The wizard is done forever — you'll see the normal sign-in screen from now on.
 
@@ -674,7 +674,10 @@ That is the anti-guessing check. It appears after repeated failed sign-ins from 
 - **Migration** — a change to the database's structure (adding a new field, etc.). `pnpm db:migrate` applies any pending migrations.
 - **Prisma** — the tool the app uses to talk to the SQLite database. You don't interact with it directly.
 - **Electron** — the technology that wraps the app in a Windows window. The "Lab Management" window you see is Electron.
-- **Recovery code** — the 16-character code shown once at first boot. Lets you reset a forgotten Admin password.
+- **Recovery code** — the 16-character code shown once at first boot. Lets you reset a forgotten Admin password. Nothing to do with the patient's access code below.
+- **Patient ID** — the lab's number for a patient, like `LAB-2026-00042`. Never changes. Doubles as a first-time portal login.
+- **Booking ID** — the number for one home-visit request, like `BKG-2026-00017`, emailed when the booking is made. Also a first-time portal login, for someone who has never been to the lab.
+- **Access code** — the 6-character code printed on a patient's report, like `K9XF-2A`. Lets that patient into the portal, and only for that one visit.
 - **Template** — the look and feel of a printed report (logo, fonts, layout). The patient data is real; only the styling is from the template.
 - **Backup** — a saved copy of the database file. The app makes one every day at 2 AM.
 - **Audit log** — a record of who did what (who locked which test, who edited which patient). Admins can view it in Settings.
@@ -690,22 +693,52 @@ Patients can look up their own reports, pay invoices, and ask for a home sample 
 
 ### How patients log in
 
-Each receipt now prints a **6-character access code** at the bottom (like `K9XF-2A`). Patients open the portal URL on their phone, type their **phone number + access code**, and they're in. The code only works for that one visit; the next receipt has a new code.
+The sign-in page has **three tabs**. Every patient starts on the first one and ends up on the second; the third is the fallback.
 
-If a patient loses the receipt, you can show them the code from the desktop app: open the visit detail page → the access code is shown at the top.
+**1. First time** — phone number + **the ID the lab gave them**. One box takes either kind of ID, and the portal works out which it is:
+
+- `LAB-2026-00042` — the patient ID. Read it out to a walk-in at the counter.
+- `BKG-2026-00017` — the booking ID, emailed to anyone who booked a home visit online.
+
+This tab exists because of a timing problem worth understanding: **the lab prints nothing at the start of a visit.** The access code is on the *finished report*, which the patient doesn't get until the end. Someone who booked online has never been handed anything at all. So for the whole stretch that matters most to them — while the test is being run and the bill is waiting — the ID is their only way in.
+
+Once they're in this way, the portal **makes them set a password** before it will show them anything. That's deliberate: a patient ID is short and someone could count through them, so it buys exactly one trip to the password screen and nothing else.
+
+**2. Password** — phone number + the password they set. This is the normal way in from then on.
+
+**3. Access code** — phone number + the **6-character code** printed on their report (like `K9XF-2A`). Still works, and still tied to that one visit; the next report carries a new code. Useful for a patient who has forgotten their password.
+
+A couple of things you may be asked about:
+
+- **Shared phone numbers.** When one number belongs to several family members, the portal asks *which patient* after the phone number checks out. It is not an error.
+- **"Your booking is confirmed, but the lab has not opened your visit yet."** The booking is genuine — staff simply haven't approved it into a visit. Approve the booking and the patient gets in.
+- **Too many wrong tries** locks that one account for a while, and repeated failures from the same internet connection bring up a maths question (see [Troubleshooting](#a-patient-says-the-portal-is-asking-them-a-maths-question)).
+
+If a patient loses the report, you can read them either credential from the desktop app: open the visit detail page → the access code is at the top, and the patient ID is on their profile.
 
 ### What patients see
+
+**Without signing in** — anyone who opens the link, including someone deciding whether to come in:
+
+- **The test list** (`/tests`) — every test the lab offers, searchable and grouped by category, marked with whether it needs fasting. No prices; those are quoted at the lab.
+- **Lab info** (`/info`) — address, phone, today's opening hours, and whether the lab is open right now. It reads the real settings, so a holiday you add under **Settings → Closures** shows here the same day.
+- **Book a home visit** (`/book`) — the request form.
+
+**After signing in:**
 
 - **Their reports** — view in the browser or download as a PDF.
 - **Their invoices** — pay outstanding amounts by UPI (scan the QR code → opens GPay / PhonePe / Paytm with the amount pre-filled).
 - **"Already paid?"** button — they click it after paying. You'll see a **yellow dot** next to that invoice on the desktop, meaning "patient says they paid — check your UPI app to confirm and mark received."
+- **"This isn't me"** — under **Account**, for someone who signs in and finds a stranger's reports, which means a wrong phone number is on that patient's record. See below for what to do about it.
 
 ### What the lab does daily
 
-Most of the portal is hands-off. The two new things to watch in the desktop app:
+Most of the portal is hands-off. The things to watch in the desktop app:
 
 - **`/bookings` page** — when a patient asks for a home visit through the portal, the request lands here as a "Pending" booking. Click **Approve & Assign** (pick a phlebotomist) to convert it to a real Patient + Visit + HomeVisit. Or **Decline** with a reason — the patient gets an email.
+- **Ring the number before you approve.** The approve box now asks you to record what the call found — *"spoke to the patient"* or *"couldn't reach them, approving anyway"*. This is not paperwork. Nothing on the portal proves the number a patient typed is really theirs, and approving the booking writes that number onto a real patient record, **where it becomes their portal login**. One wrong digit locks the real patient out of their own reports and hands the account to whoever owns the number that was typed. You were already making this call; the app now remembers the answer, so an unreachable number is a decision someone made rather than a silence.
 - **Yellow-dot invoices** — patients who clicked "Already paid?" show a yellow dot. Open the invoice, confirm payment in your UPI app, click **Mark UPI received**.
+- **"Portal dispute filed" email** — this is the wrong-number case actually happening. The lab email gets the patient's name, ID, and the number on file. Ring to check, then in the desktop app open that patient and use **Dissociate phone** (Admin only) to unlink it. Their reports stay; only the phone comes off.
 
 ### Settings that affect the portal
 
@@ -740,6 +773,7 @@ packages/
 | `pnpm db:migrate` / `pnpm db:seed` | Set up / seed the local SQLite database |
 | `pnpm desktop` | Run the desktop app in dev |
 | `pnpm dev:admin` | Run the staff portal in dev (port 3002) |
+| `pnpm -F @lab/portal dev` | Run the patient portal in dev (port 3001) |
 | `pnpm -r test` | Run all tests across every app and package |
 | `pnpm -r typecheck` | Type-check the whole workspace |
 | `pnpm --filter @lab/desktop package:win` | Build the Windows installer `.exe` |
@@ -752,7 +786,9 @@ packages/
 - `docs/deployment/backup-and-restore.md` — the nightly encrypted cloud backup, and how to restore either copy
 - `docs/deployment/key-rotation.md` — what to do when a key leaks, in the order to do it
 
-The desktop app needs no special action on deploy day — once **Settings → Cloud sync** is enabled and pointed at the same Supabase project, the 10-second outbox worker pushes everything the portals read.
+The desktop app needs no special action on deploy day — once **Settings → Cloud sync** is enabled and pointed at the same Supabase project, the outbox worker pushes everything the portals read.
+
+**The sync tick is adaptive, not a fixed interval.** It runs every **5 seconds** while there is work to do, then backs off by doubling: up to **60 seconds** when the outbox is empty, and up to **5 minutes** when the cloud is unreachable. Any new write resets it to 5 seconds. Backing off when idle is what keeps a machine that is left on all day inside the free tier; it also means a stopwatch test of "how long until this appears in the portal" gives a different answer depending on how busy the lab has been.
 
 ---
 
