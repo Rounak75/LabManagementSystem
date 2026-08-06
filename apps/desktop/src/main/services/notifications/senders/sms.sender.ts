@@ -1,5 +1,6 @@
 import { prisma } from "@main/db";
 import { decryptSecret } from "../../crypto.service";
+import { labDate } from "../../lab-date";
 import { renderMessage } from "../render-template";
 import type { SendResult } from "../types";
 import { sendViaFast2Sms } from "./fast2sms";
@@ -86,10 +87,4 @@ export async function send(row: {
   });
 }
 
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+const formatDate = labDate;

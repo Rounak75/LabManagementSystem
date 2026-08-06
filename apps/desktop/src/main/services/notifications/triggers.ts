@@ -1,14 +1,13 @@
 import { prisma } from "@main/db";
 import { createLinkForInvoice } from "@main/services/payments/link.service";
+import { labDate } from "@main/services/lab-date";
 import * as queue from "./queue";
 import { sendBookingMail } from "./booking-mail";
 import type { EnqueueRow } from "./types";
 
 const LAB_PHONE = "6202924306";
 
-function formatBookingDate(d: Date): string {
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
+const formatBookingDate = labDate;
 
 const UNDO_WINDOW_MS = 60_000;
 

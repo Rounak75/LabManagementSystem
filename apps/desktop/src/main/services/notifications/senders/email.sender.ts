@@ -3,6 +3,7 @@ import { prisma } from "@main/db";
 import { decryptSecret } from "../../crypto.service";
 import { buildReportData } from "../../report.service";
 import { renderReportPdf } from "../../pdf.service";
+import { labDate } from "../../lab-date";
 import { renderMessage } from "../render-template";
 import type { SendResult } from "../types";
 import type { TemplateConfig } from "@shared/template-config";
@@ -82,11 +83,7 @@ export async function send(row: {
 
   const ctx = {
     patientName: visit.patient.name,
-    visitDate: visit.visitDate.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }),
+    visitDate: labDate(visit.visitDate),
     amount: visit.invoice ? Number(visit.invoice.total) : 0,
     patientId: visit.patient.patientId,
     visitId: visit.id,
