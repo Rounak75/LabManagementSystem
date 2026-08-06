@@ -1,11 +1,43 @@
 # Jamshedpur diagnostic test pricing — market survey
 
-**Researched:** 2026-07-28 · **City:** Jamshedpur, Jharkhand · **Status:** PARTIAL
+**Researched:** 2026-07-28, extended 2026-08-06 · **City:** Jamshedpur, Jharkhand
+· **Status:** PANELS PRICED — individual analytes still open
 
 Gathered to reprice the Golmuri Janch Ghar catalogue. Every price below was read
 off the live listing page cited beneath it — nothing here is estimated or
-interpolated. Tests not listed were not reached before the research run was cut
-short; see [Gaps](#gaps).
+interpolated, with exactly one exception that is labelled DERIVED where it
+appears. Tests not listed were not reached; see [Gaps](#gaps).
+
+## What changed on 2026-08-06
+
+The second run priced the **panels** — the bundles patients actually order and
+shop around for — which the first run had not reached. Three things came out of
+it that the July run could not have seen:
+
+1. **The discount depth is not uniform, and July's "46–60% off" was not a rule.**
+   Re-reading the same pages in August found CBC at **15% off** and Lipid Profile
+   at **10% off**, while LFT+KFT sat at **58%**. Discount depth is per-listing and
+   moves. Any repricing rule expressed as "MRP minus X%" would have been built on
+   a number that does not hold still.
+2. **Two panels were priced above the aggregator's own MRP** — CBC at ₹400
+   against an MRP of ₹350, and Lipid Profile at ₹600 against ₹400. The July
+   framing assumed the catalogue was broadly underpriced against MRP. For the
+   panels, the opposite was true.
+3. **Urine Routine is still the outlier**, now confirmed against a second reading:
+   ₹100 against a ₹179 booking rate and a ₹448 MRP.
+
+### The repricing rule actually applied
+
+**Catalogue price = midpoint of (aggregator booking rate, MRP).** This replaces
+the July decision of "catalogue price = MRP", which the data above no longer
+supports — an MRP that moves 10% on one listing and 58% on another is not a
+stable anchor, and on the panels it was simply higher than what the lab could
+charge.
+
+The midpoint is defensible in both directions: the booking rate is national
+customer-acquisition pricing subsidised across a whole book and is not what an
+independent neighbourhood lab competes at, while the MRP is set to make the
+discount look large. Neither end is the market; the middle approximates it.
 
 ## Decision (2026-07-28)
 
@@ -61,14 +93,69 @@ untouched. That is the opposite of the intended outcome.
 
 ## Prices found
 
-| Test | 1mg (₹) | Apollo (₹) | Karexpert (₹) | MRP (₹) | Current (₹) |
-|---|---|---|---|---|---|
-| Blood Glucose Fasting | not found | 79 | not found | 197 | 100 |
-| PP Glucose (PPBS) | 79 | not found | not found | 160 | 100 |
-| Random Glucose (RBS) | 79 | not found | not found | 159 | 100 |
-| Urine Routine (CUE) | not found | 179 | not found | 448 | 100 |
-| Thyroid Profile (T3/T4/TSH) | 299 | not found | not found | 550 | 500 |
-| TSH Ultrasensitive | 319 | not found | not found | 332 | — (not in catalogue) |
+| Test | 1mg (₹) | Apollo (₹) | Karexpert (₹) | MRP (₹) | Was (₹) | Now (₹) |
+|---|---|---|---|---|---|---|
+| Blood Glucose Fasting | not found | 79 | not found | 197 | 100 | **140** |
+| PP Glucose (PPBS) | 79 | not found | not found | 160 | 100 | **120** |
+| Random Glucose (RBS) | 79 | not found | not found | 159 | 100 | **120** |
+| Urine Routine (CUE) | not found | 179 | not found | 448 | 100 | **300** |
+| Thyroid Profile (T3/T4/TSH) | 299 | not found | not found | 550 | 500 | **425** |
+| TSH Ultrasensitive | 319 | not found | not found | 332 | — (not in catalogue) | — |
+| **CBC / Blood Examination** | 299 | not found | not found | 350 | 400 | **325** |
+| **Lipid Profile** | 359 | not found | not found | 400 | 600 | **380** |
+| **Liver Function Test (LFT)** | 399 | not found | not found | 710 | 700 | **550** |
+| **Kidney Function Test (KFT)** | see note | not found | not found | see note | 700 | **550** ᴰ |
+| LFT + KFT combined | 649 | not found | not found | 1,547 | — (no such bundle) | — |
+| Urea | 119 | not found | not found | 140 | 150 | **130** |
+| Creatinine | 149 | not found | not found | 209 | 150 | **180** |
+| Uric Acid | 139 | not found | not found | 199 | 150 | **170** |
+| Total Bilirubin | 129 | not found | not found | 139 | 100 | **135** |
+| SGPT (ALT) | 189 | not found | not found | 200 | 150 | **195** |
+| Total Protein | 139 | not found | not found | 199 | 100 | **170** |
+| Albumin | 129 | not found | not found | 130 | 100 | **130** |
+| Total Cholesterol | 139 | not found | not found | 150 | 150 | **145** |
+| Calcium | 159 | not found | not found | 219 | 150 | **190** |
+| Potassium | 179 | not found | not found | 199 | 150 | **190** |
+| LDH | 319 | not found | not found | 400 | 200 | **360** |
+| Amylase | 399 | not found | not found | 485 | 200 | **440** |
+| ESR | 109 | not found | not found | 149 | 100 | **130** |
+| VDRL (RPR) | 119 | not found | not found | 149 | 150 | **135** |
+| Blood Group (ABO+Rh) | 119 | not found | not found | 150 | 50 | **135** |
+| Widal (tube agglutination) | 229 | not found | not found | 400 | 200 | **315** |
+| CRP (quantitative) | 379 | not found | not found | 449 | 200 | **415** |
+| RA Factor (quantitative) | 499 | not found | not found | 500 | 200 | **500** |
+| Urine R/M (1mg reading) | 89 | 179 ᴬ | not found | 180 / 448 ᴬ | 100 | **225** |
+| Serum Electrolytes (Na+K+Cl) | 359 | not found | not found | 409 | 3×150 | unchanged |
+| Viral Markers (HIV+HBsAg+HCV) | 1,709 | not found | not found | 2,000 | 850 | unchanged |
+| Dengue NS1 antigen | 589 | not found | not found | 599 | n/a | unchanged |
+| Stool Culture & Sensitivity | 739 | not found | not found | not shown | 500 | unchanged |
+
+ᴬ The Urine row carries two readings that disagree by more than 2×: 1mg's Urine
+R/M at ₹89 / MRP ₹180, and Apollo's Complete Urine Examination at ₹179 / MRP
+₹448. ₹225 is the mean of the two midpoints. Pricing off Apollo alone would have
+given ₹300 — which is what the first pass of this repricing did, before the 1mg
+reading existed to contradict it.
+
+Bold rows were read on 2026-08-06; the rest on 2026-07-28 and re-confirmed where
+the page was revisited (PPBS and Thyroid Profile both still read as they did in
+July).
+
+ᴰ **KFT is the one DERIVED figure in this document.** No standalone KFT listing
+exists for Jamshedpur — 1mg returns "test not found" for the Jamshedpur variant
+of its KFT page, and sells KFT here only inside the LFT+KFT bundle. The ₹550 is
+arithmetic: the combined midpoint (₹1,098) minus the LFT midpoint (₹555) leaves
+₹543. It is the only price in the catalogue not traceable to a page, and it
+should be confirmed against what the lab's own reagent cost supports before it
+bills anyone.
+
+### The rate the lab does not offer
+
+The aggregator sells **LFT + KFT together for ₹649**. Golmuri Janch Ghar has no
+equivalent bundle: ordering both panels comes to ₹1,100 even after this
+repricing, against ₹1,400 before it. A patient who compares will find the gap on
+the exact pairing a physician most often orders together. Creating a combined
+panel is a catalogue decision rather than a pricing one, so it is recorded here
+rather than actioned.
 
 Note: 1mg lists **TSH alone at ₹319 but the full T3/T4/TSH profile at ₹299** —
 the panel is cheaper than one of its components. An aggregator packaging quirk,
@@ -83,18 +170,56 @@ not a signal to copy.
 - Thyroid Profile Total, Jamshedpur — https://www.1mg.com/labs/test/thyroid-profile-total-t3-t4-tsh-2571/jamshedpur/price
 - TSH Ultrasensitive, Jamshedpur — https://www.1mg.com/labs/test/tsh-thyroid-stimulating-hormone-ultrasensitive-1977/jamshedpur/price
 
+Added 2026-08-06:
+
+- CBC (Complete Blood Count), Jamshedpur — https://www.1mg.com/labs/test/cbc-complete-blood-count-1717/jamshedpur/price — ₹299, MRP ₹350
+- Lipid Profile, Jamshedpur — https://www.1mg.com/labs/test/lipid-profile-1909/jamshedpur/price — ₹359, MRP ₹400
+- LFT (standalone), Jamshedpur — https://www.1mg.com/labs/test/lft-liver-function-test-2562/jamshedpur/price — ₹399, MRP ₹710
+- LFT and KFT (combined), Jamshedpur — https://www.1mg.com/labs/test/lft-and-kft-liver-function-test-kidney-function-test-35075/jamshedpur/price — ₹649, MRP ₹1,547
+- KFT (standalone) — https://www.1mg.com/labs/test/kft-kidney-function-test-2561/jamshedpur/price — **returns "Sorry, test not found"** for Jamshedpur; this is the reason the KFT price is derived rather than cited
+
 ## Gaps
 
-**Not yet priced** — the research run was cut short by a session limit before
-reaching these. All are still outstanding:
+**Now priced** (2026-08-06, both runs): 28 tests — see the full table above.
 
-CBC, Lipid Profile, LFT, KFT/Renal Profile, ESR, Urea, Creatinine, Uric Acid,
-bilirubins, SGPT, SGOT, Alkaline Phosphatase, Total Protein, Albumin,
-Cholesterol, HDL, LDL, VLDL, Triglycerides, Calcium, Sodium, Potassium,
-Chloride, Phosphorus, Amylase, LDH, CPK, CPK-MB, Peripheral Blood Smear,
-Blood Group, PT/INR, CRP, RA Factor, ASO, VDRL, HBsAg, HIV 1/2, HCV, Widal,
-Dengue IgG/IgM, Dengue NS1, MP Card, Sickling Test, Mantoux, Direct Coombs,
-Urine Culture & Sensitivity, Stool Routine, Semen Analysis, Sputum for AFB.
+**Priced but deliberately NOT changed**, with the reason:
+
+| Test | Why left alone |
+|---|---|
+| HBsAg, HIV 1/2, HCV | The only Jamshedpur listing is the **combined** Viral Marker Screening at ₹1,709 / MRP ₹2,000. The lab charges ₹850 for all three. A single bundled figure 2× the lab's total is not a basis for repricing three individual rapid tests, and no standalone listing exists. |
+| Sodium, Chloride | Sold only inside Serum Electrolytes (₹359 / MRP ₹409 for three analytes). Potassium *does* have a standalone page and was repriced from it; deriving the other two from the panel would have contradicted that reading. |
+| Dengue IgG/IgM | The catalogue test is IgG/IgM antibody. The Jamshedpur listing found is **NS1 antigen** (₹589 / MRP ₹599) — a different test at a different stage of illness. Not comparable. |
+| Semen Examination, Stool Routine | 1mg returns "test not found" for standalone Semen Analysis in Jamshedpur; for stool only Stool **Culture** (₹739) is listed, which is not the routine examination. |
+
+**Still unpriced — no Jamshedpur listing located:** Urine Sugar, Direct/Indirect
+Bilirubin, SGOT, Alk-Phosphates, Globulin, A:G Ratio, HDL, LDL, VLDL,
+Triglyceride, CPK, CPK-MB, Iron Phosphate, Bicarbonate, Acid Phosphate-Total,
+Prs Fact, Copper, Lithium, Phosphorus, ASO, MP Blood Film, MP Card, Sickling
+Test, Mantoux, PT/INR, Direct Coombs, Peripheral Blood Smear, Sputum for AFB,
+Culture & Sensitivity.
+
+Most of these are analytes the aggregators sell only inside a panel — the same
+bundling mismatch noted below, seen from the other side. They keep their
+existing prices.
+
+## Sign-off list — the moves to confirm before they bill a patient
+
+Five changes are large enough, or rest on a shaky enough comparison, that they
+should not go live on the owner's nod alone:
+
+| Test | Was | Now | The problem |
+|---|---|---|---|
+| RA Factor | ₹200 | ₹500 | **2.5×.** The listing is *Rheumatoid Factor — Quantitative*, an analyzer method. If this lab runs a latex agglutination card, its cost base is far lower and ₹500 prices it out locally. |
+| Amylase | ₹200 | ₹440 | **2.2×.** The catalogue records Amylase in *H.R. Units*, an older method than whatever the aggregator is quoting. |
+| CRP | ₹200 | ₹415 | **2.1×.** Same quantitative-vs-card question as RA Factor. |
+| Blood Group | ₹50 | ₹135 | **2.7×**, though off a small base, and ₹50 was well under any listed rate. |
+| Urine Routine | ₹100 | ₹225 | The two aggregators disagree by more than 2× on this one test (₹314 vs ₹135 midpoints). ₹225 is their mean; neither source alone supports it. |
+
+The general caveat behind three of those five: **an aggregator's price assumes an
+analyzer-based method.** Where Golmuri Janch Ghar runs a rapid card instead, the
+test is genuinely cheaper to produce and a market-midpoint price overcharges for
+it. That is a question about this lab's bench, which no amount of web research
+can answer.
 
 **Karexpert** — no per-test public price listing was located for any test.
 Karexpert appears to be a hospital-management software vendor rather than a
@@ -105,3 +230,109 @@ prices at all. Worth confirming before treating it as a third data point.
 inside full-body packages rather than standalone, so a like-for-like standalone
 comparison may not exist for those. Where it doesn't, MRP on the individual
 test page is the only comparable figure.
+
+## Applying these prices (2026-08-06)
+
+### How a price reaches all three apps
+
+Worth stating once, because it is not obvious and it decides where a price has
+to be written:
+
+```
+desktop SQLite (master)
+      │  pushCatalogueToCloud() — upserts the whole catalogue on every boot
+      ▼
+   Supabase  ──────────►  admin portal   (reads `price` from `tests`)
+      │
+      └──────────────►  patient portal  (reads `price` from `tests`)
+```
+
+So there is exactly **one** place a price has to change — the desktop database —
+and **both** portals follow on the next desktop launch.
+
+**A price change is patient-visible.** It is worth being precise about where,
+because the two patient-portal pages differ:
+
+- `/tests`, the browse catalogue, shows **no** price — name, category and
+  fasting restriction only.
+- `/book`, the home-visit booking form, shows **₹ per test and a running
+  total** ([BookingForm.tsx](../../apps/portal/src/app/book/BookingForm.tsx),
+  total summed in [useBookingState.ts](../../apps/portal/src/app/book/useBookingState.ts)).
+
+That second page is the one that matters here. A patient assembling a home-visit
+booking sees these numbers add up before they submit, so every figure in this
+survey is a quote given to a patient online — not merely an internal billing
+rate. It raises the stakes on the sign-off list above: the five prices flagged
+there are quoted to patients the moment the desktop next boots.
+
+### Editing the seed does not reprice a running lab
+
+The new prices are in `seed-golmuri-tests.ts` and `seed-panels.ts`, which is the
+version-controlled catalogue — but **a machine that is already running will not
+pick them up**, and it is worth being explicit about why:
+
+- `seedOne()` does `findFirst({ where: { name } })` and then
+  `existing ?? create(...)`. An existing test is returned untouched; its price is
+  never written. ([seed-golmuri-tests.ts](../../apps/desktop/src/main/services/seed-golmuri-tests.ts))
+- `catalogue-reconciliation.service.ts` only ever deactivates superseded legacy
+  tests. It does not update price either.
+- Boot seeding is additionally gated on a count guard (`GOLMURI_SEED_COUNT` +
+  `SPECIAL_SEED_COUNT`), so on the lab PC the seed is skipped wholesale.
+
+So the seed files take effect on a **fresh install only**. The running lab is
+repriced instead by
+`packages/db/prisma/migrations/20260806210000_reprice_catalogue_market_survey/`,
+which applies the 28 changes directly to the existing rows on the next desktop
+launch, and from there to Supabase and the staff portal.
+
+**Every UPDATE in that migration is guarded on the old price.** If the owner has
+already retyped a price under Tests → edit, that row is left exactly as they set
+it — the migration only moves rows still sitting at the pre-survey figure. It is
+therefore safe to re-run, and it cannot silently overwrite a deliberate local
+decision.
+
+To reverse any single change, the old value is in the "Was" column of the table
+above; retyping it under Tests → edit is enough, and the guard means the
+migration will not put it back.
+
+**The one way this migration can quietly do nothing.** It matches on exact test
+name, and a name that does not match is skipped without error. Two generations
+of names exist in this project's history: the original 13-test seed in
+`packages/db/src/seed.ts` used `Blood Sugar Fasting`, `Urine Routine` and
+`Complete Blood Count (CBC)`, while the catalogue now in use — from
+`seed-golmuri-tests.ts` — calls those `Blood Glucose Fasting`,
+`Urine Routine Examination` and `CBC / Blood Examination`. The migration targets
+the **current** names, since `catalogue-reconciliation.service.ts` deactivates
+the legacy generation rather than billing against it.
+
+Dry-running the migration against `packages/db/prisma/dev.sqlite` changes only
+4 of 28 rows for exactly this reason — that file still holds the old 13-test
+seed. That is the expected result there, not a fault, but it is also the reason
+the run on the real machine has to be **checked rather than assumed**: open
+Tests after the next launch and confirm CBC reads ₹325. If the prices have not
+moved, the live catalogue is using names this migration does not know, and the
+name list needs reconciling before anything else.
+
+### The discount feature — verified present and correct
+
+Checked because catalogue prices are now set at market rather than at the
+customary walk-in rate, which makes the discount path load-bearing:
+
+- **It exists and works.** `invoices:applyDiscount` takes `{ invoiceId, amount,
+  isPercent }`. Flat: `discount = amount`. Percentage:
+  `Math.round(subtotal * amount) / 100`, which is the round-to-two-decimals
+  idiom and computes correctly — 10 on a ₹1,000 subtotal yields ₹100.
+  ([invoices.ipc.ts:72](../../apps/desktop/src/main/ipc/invoices.ipc.ts))
+- **It is bounded.** `discount < 0 || discount > subtotal` throws
+  `INVALID_INPUT`, so an over-100% percentage is rejected by the same guard that
+  catches an over-large flat amount. A bill cannot go negative.
+- **It is Admin-only and audited** — `requireAdmin()` on the handler, the UI
+  section gated on `user?.role === "Admin"`, and an `APPLY_DISCOUNT` audit row
+  per application.
+- **Unchanged limitation:** it applies to the whole invoice subtotal, not to a
+  single test line, and only after the invoice exists.
+
+The July concern therefore stands and now bites harder: with catalogue prices at
+market, **a walk-in paying the customary lower rate needs an Admin present at
+billing**, because a receptionist cannot reduce a bill. Either widen the role
+check or accept that discounting is an owner-only action.

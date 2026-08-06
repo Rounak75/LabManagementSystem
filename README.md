@@ -720,9 +720,9 @@ If a patient loses the report, you can read them either credential from the desk
 
 **Without signing in** — anyone who opens the link, including someone deciding whether to come in:
 
-- **The test list** (`/tests`) — every test the lab offers, searchable and grouped by category, marked with whether it needs fasting. No prices; those are quoted at the lab.
+- **The test list** (`/tests`) — every test the lab offers, searchable and grouped by category, marked with whether it needs fasting. This page shows no prices — it is for finding out what the lab does, not what it charges.
+- **Book a home visit** (`/book`) — this one **does** show the price of each test and adds up a running total as the patient picks them. Worth knowing when you change a price in **Tests → edit**: the new figure is quoted to patients online from the next time the desktop app starts, not just on the bill you hand over at the counter.
 - **Lab info** (`/info`) — address, phone, today's opening hours, and whether the lab is open right now. It reads the real settings, so a holiday you add under **Settings → Closures** shows here the same day.
-- **Book a home visit** (`/book`) — the request form.
 
 **After signing in:**
 

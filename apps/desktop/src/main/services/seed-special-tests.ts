@@ -8,16 +8,19 @@ const qual = (opts: string[], normal?: string): Pick<Param, "resultType" | "qual
 });
 
 const SEROLOGY_AND_OTHER: Seed[] = [
-  { name: "VDRL", category: "Blood", price: 150, parameters: [
+  // market: aggregator 119 / MRP 149 - a cut
+  { name: "VDRL", category: "Blood", price: 135, parameters: [
     { name: "Result", unit: "", ...qual(["Reactive","Non-reactive","Kahn"], "Non-reactive") },
     { name: "Titer",  unit: "", resultType: "Qualitative",
       qualitativeOptions: JSON.stringify(["—","1:1","1:2","1:4","1:8","1:16","1:32","1:64"]) }
   ]},
-  { name: "Blood Group", category: "Blood", price: 50, parameters: [
+  // market: aggregator 119 / MRP 150 - large move, see sign-off list
+  { name: "Blood Group", category: "Blood", price: 135, parameters: [
     { name: "ABO",          unit: "", ...qual(["A","B","AB","O"]) },
     { name: "Rh (Anti-D)",  unit: "", ...qual(["Positive","Negative"]) }
   ]},
-  { name: "RA Factor", category: "Blood", price: 200, parameters: [
+  // market: aggregator 499 / MRP 500 - largest move; method mismatch, see sign-off
+  { name: "RA Factor", category: "Blood", price: 500, parameters: [
     { name: "Result", unit: "",       ...qual(["Positive","Negative"], "Negative") },
     { name: "Titer",  unit: "IU/ml",  resultType: "Numeric" }
   ]},
@@ -42,7 +45,8 @@ const SEROLOGY_AND_OTHER: Seed[] = [
     { name: "PT",  unit: "sec", resultType: "Numeric", refRangeMaleMin: 11,  refRangeMaleMax: 13.5, refRangeFemaleMin: 11,  refRangeFemaleMax: 13.5 },
     { name: "INR", unit: "",    resultType: "Numeric", refRangeMaleMin: 0.9, refRangeMaleMax: 1.2,  refRangeFemaleMin: 0.9, refRangeFemaleMax: 1.2 }
   ]},
-  { name: "CRP", category: "Blood", price: 200, parameters: [
+  // market: aggregator 379 / MRP 449 - large move; method mismatch, see sign-off
+  { name: "CRP", category: "Blood", price: 415, parameters: [
     { name: "Value", unit: "mg/L", resultType: "Numeric", refRangeMaleMin: 0, refRangeMaleMax: 6, refRangeFemaleMin: 0, refRangeFemaleMax: 6 }
   ]},
   { name: "Direct Coombs Test", category: "Blood", price: 250, parameters: [{ name: "Result", unit: "", ...qual(["Positive","Negative"], "Negative") }] },
@@ -65,7 +69,8 @@ const SEROLOGY_AND_OTHER: Seed[] = [
 ];
 
 const SPECIAL_TESTS: Seed[] = [
-  { name: "Widal Test", category: "Blood", price: 200, parameters: [
+  // market: aggregator 229 / MRP 400
+  { name: "Widal Test", category: "Blood", price: 315, parameters: [
     { name: "Titer Grid", unit: "", resultType: "TiterGrid",
       qualitativeOptions: JSON.stringify({ antigens: ["O","H","AH","BH"], dilutions: ["1:20","1:40","1:80","1:160","1:320"] }) },
     { name: "Opinion", unit: "", resultType: "Qualitative",
