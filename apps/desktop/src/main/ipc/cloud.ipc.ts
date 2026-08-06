@@ -5,6 +5,7 @@ import { decryptSecret } from "@main/services/crypto.service";
 import { createSupabaseClient } from "@main/services/cloud/supabase-client";
 import { runBackfillOnce } from "@main/services/cloud/backfill.service";
 import { runSyncTick, getLastTickHealth } from "@main/services/cloud/sync-worker";
+import { syncEngine } from "@main/services/cloud/sync-engine";
 
 register("cloud:getStatus", async () => {
   requireSession();
@@ -110,48 +111,25 @@ register("cloud:runBackfillNow", async () => {
   return { ok: true, skipped: r.skipped };
 });
 
-import { pullPaymentEvents } from "@main/services/cloud/payment-events";
-import { pullBookings } from "@main/services/cloud/pull-bookings";
-import { pullDisputes } from "@main/services/cloud/pull-disputes";
-import { pullPatients } from "@main/services/cloud/pull-patients";
-import { pullVisits } from "@main/services/cloud/pull-visits";
-import { pullResults } from "@main/services/cloud/pull-results";
-import { pullPayments } from "@main/services/cloud/pull-payments";
-import { pullVerifications } from "@main/services/cloud/pull-verifications";
-import { pullPrintJobs } from "@main/services/cloud/pull-print-jobs";
-import { syncEngine } from "@main/services/cloud/sync-engine";
-
-// ... existing code ...
-
 register("cloud:checkNow", async () => {
   requireSession();
-  
-  // Create structured logging similar to the sync worker
-  let stats = { pushed: 0, pulled: 0, errors: [] as string[] };
-  const safeRun = async (name: string, fn: () => Promise<void>) => {
-    try {
-      await fn();
-      stats.pulled++;
-    } catch (e) {
-      stats.errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
-      console.error(`[cloud] manual ${name} failed`, e);
-    }
-  };
 
-  try { await runSyncTick(); stats.pushed++; } catch (e) { stats.errors.push(`sync: ${e}`); }
-  
   const client = await syncEngine.loadClient();
   if (!client) return { ok: false, error: "Cloud sync not configured" };
 
-  await safeRun("pull-payment-events", () => pullPaymentEvents(client));
-  await safeRun("pull-bookings", () => pullBookings(client));
-  await safeRun("pull-disputes", () => pullDisputes(client));
-  await safeRun("pull-patients", () => pullPatients(client));
-  await safeRun("pull-visits", () => pullVisits(client));
-  await safeRun("pull-results", () => pullResults(client));
-  await safeRun("pull-payments", () => pullPayments(client));
-  await safeRun("pull-verifications", () => pullVerifications(client));
-  await safeRun("pull-print-jobs", () => pullPrintJobs(client));
-  
-  return { ok: true, stats };
+  // runSyncTick pushes the outbox and then runs every registered pull handler
+  // in dependency order, via syncEngine.runPulls.
+  //
+  // This handler used to call it and then run its own hand-sorted list of the
+  // same nine handlers, so pressing "check now" ran two complete pull passes.
+  // The second pass found nothing — the cursors had already moved — but still
+  // cost a cloud round-trip per handler, and the list had to be re-sorted by
+  // hand whenever a dependency changed. It also missed the heartbeat handler,
+  // so a manual check told the portal nothing about the desktop being awake.
+  const tick = await runSyncTick();
+
+  return {
+    ok: tick.errors.length === 0,
+    stats: { pushed: tick.pushed, pulled: tick.pulled, errors: tick.errors },
+  };
 });

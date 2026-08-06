@@ -140,10 +140,51 @@ describe("cloud.ipc", () => {
     expect(mocks.runBackfillOnce).toHaveBeenCalled();
   });
 
-  it("cloud:checkNow runs one sync tick + payment pull", async () => {
+  // runSyncTick already runs every registered pull handler in dependency order.
+  // This handler used to follow it with its own hand-sorted list of the same
+  // nine, so one manual check ran two full pull passes.
+  it("cloud:checkNow runs one sync tick and reports its stats", async () => {
+    mocks.runSyncTick.mockResolvedValue({
+      pushed: 2, pulled: 9, failed: 0, errors: [], unreachable: false,
+    });
+    const handler = mocks.registered.get("cloud:checkNow")!;
+    const r = (await handler({})) as {
+      ok: boolean;
+      stats: { pushed: number; pulled: number; errors: string[] };
+    };
+
+    expect(mocks.runSyncTick).toHaveBeenCalledTimes(1);
+    expect(r.ok).toBe(true);
+    expect(r.stats).toEqual({ pushed: 2, pulled: 9, errors: [] });
+  });
+
+  it("cloud:checkNow does not run a second pull pass of its own", async () => {
+    mocks.runSyncTick.mockResolvedValue({
+      pushed: 0, pulled: 9, failed: 0, errors: [], unreachable: false,
+    });
     const handler = mocks.registered.get("cloud:checkNow")!;
     await handler({});
-    expect(mocks.runSyncTick).toHaveBeenCalled();
-    expect(mocks.pullPaymentEvents).toHaveBeenCalled();
+    expect(mocks.pullPaymentEvents).not.toHaveBeenCalled();
+  });
+
+  it("cloud:checkNow surfaces tick errors instead of reporting ok", async () => {
+    mocks.runSyncTick.mockResolvedValue({
+      pushed: 0, pulled: 8, failed: 1, errors: ["results: constraint exploded"], unreachable: false,
+    });
+    const handler = mocks.registered.get("cloud:checkNow")!;
+    const r = (await handler({})) as { ok: boolean; stats: { errors: string[] } };
+
+    expect(r.ok).toBe(false);
+    expect(r.stats.errors).toEqual(["results: constraint exploded"]);
+  });
+
+  it("cloud:checkNow reports when cloud sync is not configured", async () => {
+    mocks.labSettingsFindUnique.mockResolvedValue({ cloudSyncEnabled: false });
+    const handler = mocks.registered.get("cloud:checkNow")!;
+    const r = (await handler({})) as { ok: boolean; error: string };
+
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe("Cloud sync not configured");
+    expect(mocks.runSyncTick).not.toHaveBeenCalled();
   });
 });
