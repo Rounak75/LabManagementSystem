@@ -66,12 +66,9 @@ export async function upsertResults(input: ResultUpsertInput) {
       patientSex: vt.visit.patient.sex as any,
       patientAge: vt.visit.patient.age,
       childAgeBoundary: childAge,
-      refRangeMaleMin:    param.refRangeMaleMin    !== null ? Number(param.refRangeMaleMin)    : null,
-      refRangeMaleMax:    param.refRangeMaleMax    !== null ? Number(param.refRangeMaleMax)    : null,
-      refRangeFemaleMin:  param.refRangeFemaleMin  !== null ? Number(param.refRangeFemaleMin)  : null,
-      refRangeFemaleMax:  param.refRangeFemaleMax  !== null ? Number(param.refRangeFemaleMax)  : null,
-      refRangeChildMin:   param.refRangeChildMin   !== null ? Number(param.refRangeChildMin)   : null,
-      refRangeChildMax:   param.refRangeChildMax   !== null ? Number(param.refRangeChildMax)   : null,
+      refRangeMaleMin:    param.refRangeMaleMin,    refRangeMaleMax:   param.refRangeMaleMax,
+      refRangeFemaleMin:  param.refRangeFemaleMin,  refRangeFemaleMax: param.refRangeFemaleMax,
+      refRangeChildMin:   param.refRangeChildMin,   refRangeChildMax:  param.refRangeChildMax,
       qualitativeOptions: param.qualitativeOptions, normalQualitative: param.normalQualitative
     }, v.abnormalOverride);
     await prisma().testResult.upsert({

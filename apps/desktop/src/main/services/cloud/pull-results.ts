@@ -41,6 +41,13 @@ export async function pullResults(client: CloudClient): Promise<void> {
   // Which of the page's authors this machine actually has. Loaded per page for
   // the same reason as the others: one query instead of one per row.
   let knownUserIds = new Set<string>();
+  // The age below which a paediatric reference range applies. This was hardcoded
+  // to 18 while the desktop's own result-entry path (results.ipc) read
+  // labSettings.childAgeBoundary, default 12 — so the same value, for the same
+  // patient, was flagged against the child range if it arrived from the staff
+  // portal and the adult range if a staff member typed it here. Whichever the
+  // lab has configured is the one that decides.
+  let childAgeBoundary = 12;
 
   await runPull<RawResultRow>(client, {
     source: SOURCE,
@@ -56,6 +63,21 @@ export async function pullResults(client: CloudClient): Promise<void> {
       const userIds = Array.from(
         new Set(rows.map((r) => r.entered_by_user_id).filter((id): id is string => !!id)),
       );
+
+      // Guarded separately from the caches below. Folded into the same try, a
+      // settings read that failed would leave every cache empty, and a result
+      // whose author or visit test could not then be resolved is thrown out
+      // rather than merely flagged with a stale boundary.
+      try {
+        const settings = await prisma().labSettings.findUnique({
+          where: { id: "singleton" },
+          select: { childAgeBoundary: true },
+        });
+        childAgeBoundary = settings?.childAgeBoundary ?? 12;
+      } catch (e) {
+        childAgeBoundary = 12;
+        logger.error("cloud", "[pull-results] could not read childAgeBoundary — using 12", e);
+      }
 
       try {
         const params = await prisma().testParameter.findMany({ where: { id: { in: paramIds } } });
@@ -148,13 +170,13 @@ export async function pullResults(client: CloudClient): Promise<void> {
               value: r.value,
               patientSex: visitTest.visit.patient.sex as Sex,
               patientAge: visitTest.visit.patient.age,
-              childAgeBoundary: 18,
-              refRangeMaleMin: param.refRangeMaleMin ? Number(param.refRangeMaleMin) : null,
-              refRangeMaleMax: param.refRangeMaleMax ? Number(param.refRangeMaleMax) : null,
-              refRangeFemaleMin: param.refRangeFemaleMin ? Number(param.refRangeFemaleMin) : null,
-              refRangeFemaleMax: param.refRangeFemaleMax ? Number(param.refRangeFemaleMax) : null,
-              refRangeChildMin: param.refRangeChildMin ? Number(param.refRangeChildMin) : null,
-              refRangeChildMax: param.refRangeChildMax ? Number(param.refRangeChildMax) : null,
+              childAgeBoundary,
+              refRangeMaleMin: param.refRangeMaleMin,
+              refRangeMaleMax: param.refRangeMaleMax,
+              refRangeFemaleMin: param.refRangeFemaleMin,
+              refRangeFemaleMax: param.refRangeFemaleMax,
+              refRangeChildMin: param.refRangeChildMin,
+              refRangeChildMax: param.refRangeChildMax,
               qualitativeOptions: param.qualitativeOptions,
               normalQualitative: param.normalQualitative,
             },

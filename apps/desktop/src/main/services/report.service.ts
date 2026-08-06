@@ -1,6 +1,7 @@
 import { prisma } from "@main/db";
 import fs from "node:fs";
 import path from "node:path";
+import { resolveRefRange } from "./ref-range";
 
 /**
  * Convert a stored logo reference into a base64 `data:` URI.
@@ -79,8 +80,6 @@ export async function buildReportData(visitId: string): Promise<ReportData> {
   if (!visit) throw new Error("NOT_FOUND");
   const settings = (await prisma().labSettings.findUnique({ where: { id: "singleton" } }))!;
 
-  const isChild = visit.patient.age < settings.childAgeBoundary;
-
   const grouped = new Map<string, ReportData["groups"][number]["tests"]>();
   for (const vt of visit.visitTests) {
     const cat = vt.test.category;
@@ -89,11 +88,14 @@ export async function buildReportData(visitId: string): Promise<ReportData> {
       const r = vt.results.find(rr => rr.parameterId === p.id);
       let range = "";
       if (p.resultType === "Numeric") {
-        let min: any = null, max: any = null;
-        if (isChild && p.refRangeChildMin && p.refRangeChildMax) { min = p.refRangeChildMin; max = p.refRangeChildMax; }
-        else if (visit.patient.sex === "Female") { min = p.refRangeFemaleMin; max = p.refRangeFemaleMax; }
-        else                                      { min = p.refRangeMaleMin;   max = p.refRangeMaleMax; }
-        if (min !== null && max !== null) range = `${Number(min)} – ${Number(max)}`;
+        // Same resolver the abnormal flag uses, so the range printed beside a
+        // result is the one the result was judged against.
+        const bounds = resolveRefRange(
+          p,
+          { age: visit.patient.age, sex: visit.patient.sex },
+          settings.childAgeBoundary,
+        );
+        if (bounds) range = `${bounds.min} – ${bounds.max}`;
       } else if (p.normalQualitative) {
         range = `Normal: ${p.normalQualitative}`;
       }

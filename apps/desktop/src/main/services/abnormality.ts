@@ -1,4 +1,5 @@
 import type { ResultType, Sex } from "@lab/types";
+import { resolveRefRange, type RefBound } from "./ref-range";
 
 export interface AbnormalityInput {
   resultType: ResultType;
@@ -6,9 +7,14 @@ export interface AbnormalityInput {
   patientSex: Sex;
   patientAge: number;
   childAgeBoundary: number;
-  refRangeMaleMin: number | null;   refRangeMaleMax: number | null;
-  refRangeFemaleMin: number | null; refRangeFemaleMax: number | null;
-  refRangeChildMin: number | null;  refRangeChildMax: number | null;
+  // RefBound rather than `number | null` so a caller can hand over a Prisma row
+  // directly. The columns are Decimal, and every caller was converting them by
+  // hand — with two different spellings, one of which would have read a bound of
+  // 0 as absent had the value ever arrived already converted. resolveRefRange
+  // does the conversion in one place instead.
+  refRangeMaleMin: RefBound;   refRangeMaleMax: RefBound;
+  refRangeFemaleMin: RefBound; refRangeFemaleMax: RefBound;
+  refRangeChildMin: RefBound;  refRangeChildMax: RefBound;
   qualitativeOptions: string | null;
   normalQualitative: string | null;
 }
@@ -25,20 +31,11 @@ export function isAbnormal(input: AbnormalityInput, override?: boolean | null): 
   const numeric = Number(input.value);
   if (Number.isNaN(numeric)) return false;
 
-  const isChild = input.patientAge < input.childAgeBoundary;
-  let min: number | null;
-  let max: number | null;
-  if (isChild) {
-    min = input.refRangeChildMin; max = input.refRangeChildMax;
-    if (min === null || max === null) {
-      if (input.patientSex === "Female") { min = input.refRangeFemaleMin; max = input.refRangeFemaleMax; }
-      else                               { min = input.refRangeMaleMin;   max = input.refRangeMaleMax; }
-    }
-  } else if (input.patientSex === "Female") {
-    min = input.refRangeFemaleMin; max = input.refRangeFemaleMax;
-  } else {
-    min = input.refRangeMaleMin;   max = input.refRangeMaleMax;
-  }
-  if (min === null || max === null) return false;
-  return numeric < min || numeric > max;
+  const range = resolveRefRange(
+    input,
+    { age: input.patientAge, sex: input.patientSex },
+    input.childAgeBoundary,
+  );
+  if (!range) return false;
+  return numeric < range.min || numeric > range.max;
 }

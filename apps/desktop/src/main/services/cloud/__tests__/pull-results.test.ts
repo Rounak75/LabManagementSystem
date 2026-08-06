@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
   testParameterFindMany: vi.fn(),
   visitTestFindMany: vi.fn(),
   userFindMany: vi.fn(),
-  isAbnormal: vi.fn(() => false),
+  labSettingsFindUnique: vi.fn(),
+  // Typed args so assertions can read what pull-results actually handed over —
+  // the reference-range bounds and the child-age boundary it resolved.
+  isAbnormal: vi.fn((_input: Record<string, unknown>, _override?: unknown) => false),
   auditTry: vi.fn(),
 }));
 
@@ -24,6 +27,7 @@ vi.mock("@main/db", () => ({
     testParameter: { findMany: mocks.testParameterFindMany },
     visitTest: { findMany: mocks.visitTestFindMany },
     user: { findMany: mocks.userFindMany },
+    labSettings: { findUnique: mocks.labSettingsFindUnique },
   }),
 }));
 vi.mock("@main/services/abnormality", () => ({ isAbnormal: mocks.isAbnormal }));
@@ -57,6 +61,7 @@ beforeEach(() => {
   mocks.testParameterFindMany.mockResolvedValue([]);
   mocks.visitTestFindMany.mockResolvedValue([]);
   mocks.userFindMany.mockResolvedValue([{ id: "u1" }]);
+  mocks.labSettingsFindUnique.mockResolvedValue({ childAgeBoundary: 12 });
   mocks.isAbnormal.mockReturnValue(false);
   mocks.auditTry.mockResolvedValue(undefined);
 });
@@ -119,6 +124,81 @@ describe("pullResults", () => {
 
     expect(mocks.isAbnormal).toHaveBeenCalledOnce();
     expect(mocks.testResultUpsert.mock.calls[0]![0].create.isAbnormal).toBe(true);
+  });
+
+  // The boundary was hardcoded to 18 here while results typed on the desktop
+  // used labSettings.childAgeBoundary, so the same value for the same patient
+  // was judged against a different range depending on where it was entered.
+  describe("which age counts as a child", () => {
+    const numericParam = {
+      id: "param1",
+      resultType: "Numeric",
+      refRangeMaleMin: 4,
+      refRangeMaleMax: 7,
+      refRangeFemaleMin: 4,
+      refRangeFemaleMax: 7,
+      refRangeChildMin: 1,
+      refRangeChildMax: 3,
+      qualitativeOptions: null,
+      normalQualitative: null,
+    };
+
+    beforeEach(() => {
+      mocks.testParameterFindMany.mockResolvedValue([numericParam]);
+      mocks.visitTestFindMany.mockResolvedValue([
+        { id: "vt1", isLocked: false, visit: { patient: { sex: "Male", age: 15 } } },
+      ]);
+    });
+
+    it("uses the boundary the lab has configured", async () => {
+      mocks.labSettingsFindUnique.mockResolvedValue({ childAgeBoundary: 12 });
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ id: "r-age" })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.isAbnormal.mock.calls[0]![0].childAgeBoundary).toBe(12);
+    });
+
+    it("follows the setting when the lab raises it", async () => {
+      mocks.labSettingsFindUnique.mockResolvedValue({ childAgeBoundary: 18 });
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ id: "r-age" })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.isAbnormal.mock.calls[0]![0].childAgeBoundary).toBe(18);
+    });
+
+    it("passes the parameter's ranges straight through, without converting", async () => {
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ id: "r-age" })]),
+      });
+
+      await pullResults(cloud);
+
+      const arg = mocks.isAbnormal.mock.calls[0]![0];
+      expect(arg.refRangeChildMin).toBe(1);
+      expect(arg.refRangeChildMax).toBe(3);
+      expect(arg.refRangeMaleMin).toBe(4);
+    });
+
+    // A settings read that failed used to be caught by the same handler as the
+    // caches below it, leaving every cache empty — which threw the result out
+    // rather than flagging it against a default boundary.
+    it("still applies the result when the settings read fails", async () => {
+      mocks.labSettingsFindUnique.mockRejectedValue(new Error("db locked"));
+      const cloud = makeFakeCloudClient({
+        pullSince: vi.fn().mockResolvedValue([resultRow({ id: "r-age" })]),
+      });
+
+      await pullResults(cloud);
+
+      expect(mocks.testResultUpsert).toHaveBeenCalledOnce();
+      expect(mocks.isAbnormal.mock.calls[0]![0].childAgeBoundary).toBe(12);
+    });
   });
 
   it("falls back to the cloud abnormal flag when the parameter is not local yet", async () => {
