@@ -127,4 +127,38 @@ describe("POST /api/visits/create", () => {
     rpcResult = { data: null, error: { code: "08006", message: "connection failure" } };
     expect((await POST(req(validBody))).status).toBe(500);
   });
+
+  // The cloud now has a unique index on visits.visit_id, so a code the desktop
+  // minted while offline is refused here instead of quietly becoming a second
+  // visit carrying the same VIS-YYYY-NNNNN. That is a race, not a server fault
+  // and not something the staff member typed wrong: the form reserves a fresh
+  // code on every submit, so pressing Create again resolves it.
+  it("409s with an actionable message when the visit code was already taken", async () => {
+    rpcResult = {
+      data: null,
+      error: {
+        code: "23505",
+        message:
+          'duplicate key value violates unique constraint "visits_visit_id_key"',
+      },
+    };
+
+    const res = await POST(req(validBody));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/again/i);
+  });
+
+  // A unique violation on something other than the visit code is not the race
+  // above and must not tell staff to retry — retrying would fail identically.
+  it("500s on a unique violation that is not the visit code", async () => {
+    rpcResult = {
+      data: null,
+      error: {
+        code: "23505",
+        message: 'duplicate key value violates unique constraint "invoices_visit_id_key"',
+      },
+    };
+    expect((await POST(req(validBody))).status).toBe(500);
+  });
 });

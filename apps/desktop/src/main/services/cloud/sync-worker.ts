@@ -2,6 +2,7 @@ import { dequeueBatch, markSent, scheduleRetry, pruneSent } from "./outbox.servi
 import { syncEngine } from "./sync-engine";
 import "./sync-registry";
 import { logger } from "./logger";
+import { pruneTickLog, shouldPruneTickLog } from "./tick-log";
 import { prisma } from "@main/db";
 
 /** Interval while data is moving. */
@@ -14,6 +15,8 @@ export const MAX_OFFLINE_TICK_MS = 300_000;
 let timer: NodeJS.Timeout | null = null;
 let running = false;
 let currentDelayMs = BASE_TICK_MS;
+/** When the telemetry retention sweep last ran. 0 = not yet this process. */
+let lastTickLogPruneAt = 0;
 
 export interface TickStats {
   /** Outbox rows successfully pushed. */
@@ -248,6 +251,24 @@ async function runFullTick(): Promise<TickHealth> {
     });
   } catch (logErr) {
     logger.error("sync-worker", "failed to record telemetry to SyncTickLog", logErr);
+  }
+
+  // Retire telemetry past its retention window. The stamp is taken before the
+  // await rather than after, so a sweep that keeps failing waits the full
+  // interval before trying again instead of retrying on every tick; and the
+  // whole thing is caught, because keeping the telemetry table tidy is the least
+  // important job this worker has and must never be what stops it syncing.
+  const nowMs = Date.now();
+  if (shouldPruneTickLog(lastTickLogPruneAt, nowMs)) {
+    lastTickLogPruneAt = nowMs;
+    try {
+      const removed = await pruneTickLog();
+      if (removed > 0) {
+        logger.info("sync-worker", `pruned ${removed} SyncTickLog rows past retention`);
+      }
+    } catch (pruneErr) {
+      logger.error("sync-worker", "failed to prune SyncTickLog", pruneErr);
+    }
   }
 
   return health;

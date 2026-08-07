@@ -56,6 +56,25 @@ export async function POST(req: Request) {
     if (error.code === "42501" || /not authorised/i.test(error.message)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
+
+    // `visits_visit_id_key` is the cloud's unique index on the human-facing
+    // VIS-YYYY-NNNNN. Two allocators mint those codes — this portal via
+    // reserve-visit-id, and the lab desktop from its own local high-water mark —
+    // and the desktop cannot see a reservation it has not synced yet. So a code
+    // can be taken between reserving it and using it.
+    //
+    // That is a race rather than a server fault, and it is recoverable: the form
+    // reserves a fresh code on every submit, so the same click again succeeds.
+    // Matching the constraint by name keeps this narrow — a unique violation on
+    // any other column is still a genuine 500, because retrying would fail the
+    // same way and telling staff otherwise would send them round a loop.
+    if (error.code === "23505" && /visits_visit_id_key/.test(error.message)) {
+      return NextResponse.json(
+        { error: "That visit number was just taken. Press Create again to get a new one." },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json({ error: error.message }, { status: isCallerError ? 400 : 500 });
   }
 
