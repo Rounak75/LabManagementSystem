@@ -82,10 +82,10 @@ model Visit {
   visitDate           DateTime
   status              String    @default("Open") // "Open" | "Completed" | "Cancelled"
   staffId             String
-  // Phase 3d: bcrypt of 6-char A-Z0-9 (excluding 0/O/1/I). Generated at visit creation; null for pre-3d visits.
-  accessCodeHash      String?
-  // Phase 3d Plan B: local-only plaintext for reprinting receipts. NEVER synced to cloud (stripped in prisma-hooks).
-  accessCodePlaintext String?
+  // `accessCodeHash` and `accessCodePlaintext` were here — a 6-char code printed
+  // on the report, good for 180 days against a full portal session with no
+  // password step. Retired in favour of the patient id, which the report already
+  // carried and which staff can read out without reissuing anything.
   // The portal withholds a verified report while the bill is unpaid. This is the
   // Admin's per-visit decision to hand it over anyway — for a regular on credit,
   // or a patient who paid in a way the system has not caught up with. Recorded

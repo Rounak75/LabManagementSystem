@@ -355,6 +355,21 @@ export function BookingForm({
         </div>
       )}
 
+      {/* Sits under the open test menu and over everything else. The menu is
+          tall enough to cover the whole of "Pick a time", and without this the
+          form behind it stayed at full contrast — two competing layers of
+          identical text with nothing to say which one was in front.
+
+          Deliberately outside `dropdownRef`, so a click here counts as a click
+          outside and the existing handler closes the menu. */}
+      {dropdownOpen && (
+        // `!mt-0` because the parent's `space-y-5` would otherwise put a top
+        // margin on this. On a fixed box with both top and bottom pinned that
+        // margin is not collapsed away — it shifts the whole scrim down and
+        // leaves an undimmed strip across the top of the screen.
+        <div className="scrim fixed inset-0 z-10 !mt-0" aria-hidden />
+      )}
+
       {cfg && !labStatus.open && (
         <Note tone="notice" icon={<Clock size={17} />}>
           <strong className="font-semibold text-text">
@@ -475,12 +490,12 @@ export function BookingForm({
             </button>
 
             {dropdownOpen && (
-              <div className="pop absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-line bg-elev shadow-lift">
+              <div className="pop popover absolute z-20 mt-2 w-full overflow-hidden rounded-2xl">
                 {/* Browsing by discipline, for anyone who arrived without a
                     name to type. Hidden once a search is under way — then the
                     query is the filter. */}
                 {!filter && categories.length > 0 && (
-                  <div className="rail flex gap-1.5 overflow-x-auto border-b border-line px-3 py-2.5">
+                  <div className="rail flex gap-1.5 overflow-x-auto border-b border-line-pop px-3 py-2.5">
                     <DropdownChip
                       active={browseCategory === null}
                       onClick={() => setBrowseCategory(null)}
@@ -503,13 +518,13 @@ export function BookingForm({
                       Nothing left to add here — try another search.
                     </p>
                   ) : (
-                    <ul className="divide-y divide-line">
+                    <ul className="divide-y divide-line-pop">
                       {unselected.map((t) => (
                         <li key={t.id}>
                           <button
                             type="button"
                             onClick={() => addTest(t.id)}
-                            className="tap flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-surface"
+                            className="tap flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-pop-hover"
                           >
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[14px] font-medium text-text">
@@ -846,7 +861,7 @@ function DropdownChip({
       className={`tap shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium ${
         active
           ? "bg-brand text-brand-fg"
-          : "bg-surface text-soft hover:text-brand"
+          : "bg-pop-hover text-soft hover:text-brand"
       }`}
     >
       {label}

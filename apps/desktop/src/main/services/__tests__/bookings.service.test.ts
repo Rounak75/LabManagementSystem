@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => ({
   txBookingUpdate: vi.fn(),
   nextPatientId: vi.fn(),
   nextVisitId: vi.fn(),
-  generateAndHash: vi.fn(),
 }));
 
 vi.mock("@main/db", () => ({
@@ -39,7 +38,6 @@ vi.mock("../id-generator", () => ({
   nextPatientId: mocks.nextPatientId,
   nextVisitId: mocks.nextVisitId,
 }));
-vi.mock("../access-code.service", () => ({ generateAndHash: mocks.generateAndHash }));
 
 import {
   approveBooking,
@@ -88,7 +86,6 @@ beforeEach(() => {
   mocks.patientFindMany.mockResolvedValue([]);
   mocks.nextPatientId.mockResolvedValue("LAB-2026-00042");
   mocks.nextVisitId.mockResolvedValue("VIS-2026-00042");
-  mocks.generateAndHash.mockResolvedValue({ plaintext: "K9XF2A", hash: "hashed" });
   mocks.txPatientCreate.mockResolvedValue({ id: "p-new" });
   mocks.txTestFindMany.mockResolvedValue([
     { id: "t1", price: 300 },
@@ -206,12 +203,17 @@ describe("approveBooking", () => {
     expect(data.visitId).toBe("VIS-2026-00042");
   });
 
-  it("gives the patient an access code for the portal", async () => {
+  // The access code was retired: the booking id the patient already holds is
+  // what signs them in, so approving no longer mints a second credential. The
+  // columns are still on Visit, which is why this asserts nothing writes to
+  // them rather than trusting that nothing does.
+  it("mints no access code — the booking id is the credential", async () => {
     const res = await approveBooking(input);
 
-    expect(res).toMatchObject({ accessCode: "K9XF2A" });
+    expect(res).not.toHaveProperty("accessCode");
     const data = mocks.txVisitCreate.mock.calls[0]![0].data;
-    expect(data.accessCodeHash).toBe("hashed");
+    expect(data.accessCodeHash).toBeUndefined();
+    expect(data.accessCodePlaintext).toBeUndefined();
   });
 
   it("records the phlebotomist on the home visit", async () => {

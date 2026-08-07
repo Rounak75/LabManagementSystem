@@ -1,8 +1,16 @@
 // Phase 3d Plan C — portal auth service. Two login paths:
-//   1) phone + access-code (from the printed receipt) — primary
-//   2) phone + password (after the patient opts in via /account/password)
+//   1) phone + a one-time id (booking id, or the patient id from the report)
+//      — spent the moment a password exists
+//   2) phone + password (chosen on first sign-in via /account/password)
 //
 // 5 failed attempts → 15-minute lockout. Failed counts reset on success.
+//
+// There was a third: phone + a 6-character access code printed on the report.
+// It was retired once the patient id took over as the first-time credential —
+// the report already carried both, and the code was the weaker half. It stayed
+// valid for 180 days against a *full* session with no password step, which made
+// it the longest-lived way in and the only one nobody was told about. The
+// columns it wrote to are still on Visit; nothing reads or writes them now.
 
 import bcrypt from "bcryptjs";
 import { getServiceClient } from "./supabase-server";
@@ -10,17 +18,6 @@ import { mintPatientJwt } from "./jwt";
 
 const MAX_FAILED = 5;
 const LOCKOUT_MINUTES = 15;
-
-/**
- * How long a printed access code keeps working.
- *
- * The code is a bearer credential on a slip of paper the lab cannot take back,
- * and login used to match it against *every* visit the patient had ever had, with
- * no expiry — so a receipt found in a drawer years later still opened the whole
- * record. Codes now only unlock the portal for this long after the visit they
- * were printed for; after that the patient sets a password or asks the lab.
- */
-export const ACCESS_CODE_VALID_DAYS = 180;
 
 export type PatientSummary = { id: string; name: string; age: number; sex: string };
 
@@ -115,55 +112,6 @@ function resolvePatient(
   if (patients.length > 1) return { kind: "choose" };
   const only = patients[0];
   return only ? { kind: "one", patient: only } : { kind: "unknown" };
-}
-
-export async function tryLogin(input: {
-  phone: string;
-  code: string;
-  patientId?: string;
-}): Promise<LoginResult> {
-  const patients = await lookupPatientsByPhone(input.phone);
-  if (patients.length === 0) return { kind: "no_patient" };
-
-  const resolved = resolvePatient(patients, input.patientId);
-  if (resolved.kind === "choose") return { kind: "needs_chooser", patients };
-  if (resolved.kind === "unknown") return { kind: "invalid_code" };
-  const candidate = resolved.patient;
-
-  const account = await getAccount(candidate.id);
-  const until = lockedUntil(account);
-  if (until) return { kind: "locked", until };
-
-  const sb = getServiceClient();
-  const { data: visits } = await sb
-    .from("visits")
-    .select("id, access_code_hash, visit_date")
-    .eq("patient_id", candidate.id)
-    .not("access_code_hash", "is", null);
-
-  const cutoff = Date.now() - ACCESS_CODE_VALID_DAYS * 24 * 60 * 60 * 1000;
-  const codeUpper = input.code.trim().toUpperCase();
-
-  let matched = false;
-  for (const v of visits ?? []) {
-    if (!v.access_code_hash) continue;
-    // Ignore codes printed on visits older than the validity window.
-    const visitAt = v.visit_date ? new Date(v.visit_date).getTime() : NaN;
-    if (!Number.isFinite(visitAt) || visitAt < cutoff) continue;
-    if (await bcrypt.compare(codeUpper, v.access_code_hash)) {
-      matched = true;
-      break;
-    }
-  }
-
-  if (!matched) {
-    await recordFailure(candidate.id);
-    return { kind: "invalid_code" };
-  }
-
-  await recordSuccess(candidate.id);
-  const jwt = await mintPatientJwt(candidate.id);
-  return { kind: "success", jwt, patientId: candidate.id };
 }
 
 export async function tryPasswordLogin(

@@ -354,8 +354,9 @@ export default async function Landing() {
 
         {/* ─── Sign-in hint ──────────────────────────────────────────── */}
         <Note>
-          Sign in with your phone number and the 6-character code printed at the
-          bottom of your receipt. No code to hand?{" "}
+          Sign in with your phone number and your patient ID — printed at the
+          bottom of your report, and given to you when you register. Don’t have
+          it to hand?{" "}
           <a href="tel:6202924306" className="font-medium text-brand hover:underline">
             Call the lab
           </a>{" "}

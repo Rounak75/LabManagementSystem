@@ -183,31 +183,24 @@ describe("LabReport layout modes", () => {
   });
 });
 
-describe("LabReport access code footer", () => {
-  it("is left off when no code was issued", () => {
-    const names = render().map((e) => (typeof e.type === "function" ? e.type.name : ""));
-
-    expect(names).not.toContain("AccessCodeFooter");
-  });
-
-  it("is printed when a code was issued", () => {
-    const names = render({ accessCode: "K7P2QX" }).map((e) =>
-      typeof e.type === "function" ? e.type.name : "",
-    );
-
-    expect(names).toContain("AccessCodeFooter");
-  });
-
-  // The lab prints no receipts, so a patient's access code does not reach them
-  // until this very report. The patient id is what they were given at the
-  // counter and is enough to sign in the first time — a report carrying one but
-  // no code still has something worth telling them.
-  it("is printed for a patient who has only their patient id", () => {
+describe("LabReport portal sign-in footer", () => {
+  // The strip carries the patient id and the instruction to use it. It used to
+  // print a 6-character access code beside that; the code was retired, and this
+  // is the report that has to keep working without it.
+  it("is printed for a patient who has a patient id", () => {
     const names = render({
       patient: { ...props.patient, patientIdDisplay: "LAB-2026-00042" },
     }).map((e) => (typeof e.type === "function" ? e.type.name : ""));
 
-    expect(names).toContain("AccessCodeFooter");
+    expect(names).toContain("PortalSignInFooter");
+  });
+
+  // Without an id the strip would tell the patient to sign in with something
+  // the page does not show them.
+  it("is left off when the patient has no id to print", () => {
+    const names = render().map((e) => (typeof e.type === "function" ? e.type.name : ""));
+
+    expect(names).not.toContain("PortalSignInFooter");
   });
 });
 

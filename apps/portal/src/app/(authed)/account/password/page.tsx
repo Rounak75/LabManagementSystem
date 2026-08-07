@@ -65,8 +65,8 @@ function PasswordForm() {
           />
           <p className="pb-3 text-center text-[13px] text-band/65">
             {firstTime
-              ? "Your booking ID got you in this once. Choose a password to sign in from now on."
-              : "Then you can sign in with either the password or your receipt code."}
+              ? "That ID got you in this once. Choose a password to sign in from now on."
+              : "Then the password is how you sign in from now on."}
           </p>
         </Container>
       </Band>
@@ -129,8 +129,8 @@ function PasswordForm() {
               <div className="mt-4">
                 <Note>
                   {firstTime
-                    ? "Your booking ID stops working once this is set — the password becomes your way in."
-                    : "Your access code keeps working after this. A password is just a second way in, useful if you misplace receipts."}
+                    ? "That ID stops working once this is set — the password becomes your way in."
+                    : "Once a password is set it becomes your only way in, so keep it somewhere you can find it."}
                 </Note>
               </div>
             </form>

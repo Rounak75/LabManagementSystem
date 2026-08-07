@@ -39,7 +39,6 @@ function visitRow(over: Record<string, unknown> = {}) {
     visit_date: "2026-05-20T08:00:00Z",
     status: "Open",
     staff_id: "u1",
-    access_code_hash: null,
     source: "admin",
     verified_by_user_id: null,
     verified_at: null,

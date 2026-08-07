@@ -21,8 +21,8 @@ export default async function LoginPage({ searchParams: searchParamsPromise }: {
               className="rise mt-3 text-[14px] leading-relaxed text-band/70"
               style={{ "--i": 2 } as React.CSSProperties}
             >
-              Sign in with the phone number you registered with and the
-              6-character code printed on your most recent receipt.
+              Sign in with the phone number you registered with and your patient
+              ID — or your password, once you have set one.
             </p>
           </div>
         </Container>

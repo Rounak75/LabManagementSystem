@@ -15,7 +15,6 @@
 
 import { prisma } from "@main/db";
 import { nextPatientId, nextVisitId } from "./id-generator";
-import { generateAndHash } from "./access-code.service";
 
 export interface PatientChoice {
   id: string;
@@ -52,7 +51,6 @@ export type ApproveResult =
       kind: "approved";
       visitId: string;
       patientId: string;
-      accessCode: string;
       createdNewPatient: boolean;
     }
   | { kind: "chooser"; candidates: PatientChoice[] };
@@ -119,7 +117,6 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
     kind: "approved",
     visitId: result.visitId,
     patientId: result.patientId,
-    accessCode: result.accessCode,
     createdNewPatient,
   };
 }
@@ -152,10 +149,9 @@ async function writeConversion(opts: {
   targetPatientId: string | null;
   expectedVersion?: number;
   requireStatus: "Pending" | "Approved";
-}): Promise<{ visitId: string; patientId: string; accessCode: string }> {
+}): Promise<{ visitId: string; patientId: string }> {
   const { booking, targetPatientId } = opts;
 
-  const { plaintext: accessCode, hash: accessCodeHash } = await generateAndHash();
   const visitDisplayId = await nextVisitId();
   const newPatientDisplayId = targetPatientId ? null : await nextPatientId();
   const testIds: string[] = safeParseTestIds(booking.testIds);
@@ -229,8 +225,6 @@ async function writeConversion(opts: {
         visitDate: booking.preferredDate,
         status: "Open",
         staffId: opts.staffUserId,
-        accessCodeHash,
-        accessCodePlaintext: accessCode,
         visitTests: { create: testIds.map((id) => ({ testId: id, status: "Pending" })) },
         invoice: { create: { subtotal, total: subtotal, paymentStatus: "Pending", amountPaid: 0 } },
       },
@@ -276,14 +270,14 @@ async function writeConversion(opts: {
     return { visitId: visit.id, patientId };
   });
 
-  return { ...result, accessCode };
+  return result;
 }
 
 /** Why a synced booking could not be turned into a visit without a human. */
 export type ConversionSkip = "not_approved" | "already_converted" | "ambiguous_patient";
 
 export type ConvertResult =
-  | { kind: "converted"; visitId: string; patientId: string; accessCode: string }
+  | { kind: "converted"; visitId: string; patientId: string }
   | { kind: "skipped"; reason: ConversionSkip };
 
 /**
@@ -373,7 +367,7 @@ export interface ResolveApprovedInput {
 }
 
 export type ResolveApprovedResult =
-  | { kind: "converted"; visitId: string; patientId: string; accessCode: string }
+  | { kind: "converted"; visitId: string; patientId: string }
   | { kind: "chooser"; candidates: PatientChoice[] };
 
 /**

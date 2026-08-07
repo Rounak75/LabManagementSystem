@@ -5,7 +5,6 @@ import { audit } from "@main/services/audit.service";
 import { audit as auditBestEffort } from "@main/services/audit-best-effort";
 import * as triggers from "@main/services/notifications/triggers";
 import type { VisitCreateInput } from "@shared/api";
-import { generateAndHash } from "@main/services/access-code.service";
 import { visitOrchestrator } from "@main/domain/visit-orchestrator";
 import "@main/domain/side-effects"; // Register domain event listeners
 
@@ -14,27 +13,10 @@ register("visits:create", async (input: VisitCreateInput) => {
   return await visitOrchestrator.createVisit({ ...input, staffId: u.id });
 });
 
-/**
- * Phase 3d Plan A — regenerate a visit's portal access code.
- * Admin-only; audited. Used when a patient loses their receipt.
- */
-register("visits:regenerateAccessCode", async ({ visitId }: { visitId: string }) => {
-  const u = requireAdmin();
-  const visit = await prisma().visit.findUnique({ where: { id: visitId } });
-  if (!visit) throw new Error("VISIT_NOT_FOUND");
-  const { plaintext, hash } = await generateAndHash();
-  await prisma().visit.update({
-    where: { id: visitId },
-    data: { accessCodeHash: hash, accessCodePlaintext: plaintext }
-  });
-  await auditBestEffort.try("RESULT_UNLOCKED", {
-    entityType: "Visit",
-    entityId: visitId,
-    userId: u.id,
-    details: `Admin user ${u.id} regenerated access code for visit`
-  });
-  return { accessCode: plaintext };
-});
+// `visits:regenerateAccessCode` lived here — admin-only, audited, for when a
+// patient lost their receipt. It went with the access code itself: a patient
+// who cannot find their id is now read their patient id over the phone, which
+// staff can already look up and which does not need reissuing.
 
 /**
  * Hand a verified report to the patient even though the bill is unpaid — or take

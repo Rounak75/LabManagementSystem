@@ -34,7 +34,7 @@ interface PatientChoice {
 }
 
 type ApproveResult =
-  | { kind: "approved"; visitId: string; patientId: string; accessCode: string; createdNewPatient: boolean }
+  | { kind: "approved"; visitId: string; patientId: string; createdNewPatient: boolean }
   | { kind: "chooser"; candidates: PatientChoice[] };
 
 export function ApproveBookingModal({
@@ -89,11 +89,15 @@ export function ApproveBookingModal({
         <p className="text-sm text-slate-600">
           {booking.patientName} · {booking.patientPhone}
         </p>
+        {/* Nothing to read out any more. This patient booked online, so the
+            booking id from their confirmation email is already their way in —
+            it is what the portal's "First time" tab takes, alongside the phone
+            number the booking was made on. */}
         <div className="mt-3 rounded-md border bg-slate-50 p-3">
-          <p className="text-xs uppercase tracking-wide text-slate-600">Patient access code</p>
-          <p className="mt-1 font-mono text-2xl tracking-widest">{approved.accessCode}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Print on the receipt or share with the patient — used to log into the portal.
+          <p className="text-xs uppercase tracking-wide text-slate-600">Portal sign-in</p>
+          <p className="mt-1 text-sm text-slate-700">
+            They sign in with their phone number and the booking ID from their
+            confirmation email, then choose a password.
           </p>
         </div>
         {approved.createdNewPatient && (

@@ -7,8 +7,11 @@
 [data-theme="light"] {
   --bg: 237 241 244;           /* cool paper canvas */
   --elev: 255 255 255;         /* card surface (popped) */
+  --elev-pop: 255 255 255;     /* floating menu — already the top of the ramp */
+  --pop-hover: 240 244 247;    /* row hover inside a floating menu */
   --surface: 244 247 249;      /* recessed strip / chip fill */
   --line: 226 233 237;         /* hairline */
+  --line-pop: 214 224 230;     /* hairline around a floating menu */
   --text: 18 38 47;            /* primary text */
   --soft: 74 98 109;           /* secondary text */
   --muted: 125 145 155;        /* tertiary text */
@@ -38,6 +41,13 @@
   --glass-drop: 16 40 50 / 0.22;
   --glass-sheen: 255 255 255 / 0.55;
 
+  /* Elevation. Tinted with the canvas hue — never a grey drop shadow.
+     These are tokens rather than fixed values in the Tailwind config because
+     a shadow only reads when it is darker than what it falls on, and the two
+     themes disagree about what "darker" means. See the night-mode pair. */
+  --shadow-card: 0 1px 2px rgb(16 40 50 / 0.04), 0 10px 26px -14px rgb(16 40 50 / 0.16);
+  --shadow-lift: 0 2px 6px rgb(16 40 50 / 0.05), 0 22px 44px -20px rgb(16 40 50 / 0.28);
+
   color-scheme: light;
 }
 
@@ -45,8 +55,17 @@
 [data-theme="dark"] {
   --bg: 10 19 23;
   --elev: 19 32 38;
+  /* A floating menu cannot rely on a shadow here — see --shadow-lift below.
+     It separates by being a *step lighter* than the card it covers, which is
+     how real depth reads on a dark canvas. */
+  --elev-pop: 30 47 55;
+  /* Hover has to go *lighter* than --elev-pop here. Reusing --surface, as the
+     cards do, would darken the row — on a raised panel that reads as the row
+     dropping away from the finger rather than lifting to meet it. */
+  --pop-hover: 42 62 71;
   --surface: 15 26 31;
   --line: 33 51 59;
+  --line-pop: 52 76 87;
   --text: 230 238 241;
   --soft: 169 190 199;
   --muted: 126 148 158;
@@ -79,6 +98,14 @@
   --glass-bevel: 255 255 255 / 0.07;
   --glass-drop: 0 0 0 / 0.6;
   --glass-sheen: 255 255 255 / 0.14;
+
+  /* Black, not slate — the same correction --shadow-band already carries.
+     The canvas here is rgb(10 19 23), which is *darker* than the slate the
+     day-mode shadows are tinted with, so those shadows fell as a faint halo
+     and every card and menu read as flat. A floating panel over a card of
+     near-identical fill then had no depth cue at all. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.36), 0 10px 26px -14px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 8px rgb(0 0 0 / 0.5), 0 24px 48px -18px rgb(0 0 0 / 0.92);
 
   color-scheme: dark;
 }
@@ -190,6 +217,30 @@
   .pop {
     transform-origin: top center;
     animation: pop-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* The surface a popover is *made of*, as opposed to `.pop`, which is how it
+     arrives. Split out because a floating panel styled `bg-elev border-line`
+     — the card recipe — is drawn in exactly the fill and hairline of the card
+     it covers, so the two merge into one slab and the page beneath appears to
+     bleed through it. A menu needs its own step on the elevation ramp. */
+  .popover {
+    background-color: rgb(var(--elev-pop));
+    border: 1px solid rgb(var(--line-pop));
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* Dims the page under an open popover. Weaker than the modal scrim: this
+     one only has to push the layout back so the menu reads as being in front
+     of it, not to stop the patient reading the form. Doubles as the click
+     target that closes the menu. */
+  .scrim {
+    background-color: rgb(var(--ink) / 0.32);
+    animation: fade-in 160ms ease;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   /* Paged lists. `--shift` carries the direction of travel so page 3 arrives

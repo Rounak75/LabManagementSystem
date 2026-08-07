@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 const MESSAGES: Record<string, string> = {
   bad_json: "The request was malformed.",
   invalid_phone: "Enter a valid 10-digit phone number.",
-  invalid_code: "That access code is incorrect.",
+  // Deliberately vague, and the same for a wrong id, a wrong password and a
+  // mismatched phone: naming which half was wrong would confirm to someone
+  // counting through ids that a given one exists.
+  invalid_code: "Those sign-in details are incorrect.",
   no_patient_found: "No patient found for that phone number.",
   account_locked: "Your account is temporarily locked. Please try again later.",
   unauthorized: "Please log in to continue.",

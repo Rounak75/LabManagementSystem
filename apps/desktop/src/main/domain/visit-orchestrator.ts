@@ -1,6 +1,5 @@
 import { prisma } from "@main/db";
 import { nextVisitId } from "@main/services/id-generator";
-import { generateAndHash } from "@main/services/access-code.service";
 import { domainEvents } from "./events";
 import type { VisitCreateInput } from "@shared/api";
 
@@ -16,7 +15,6 @@ export class VisitOrchestrator {
     const metaByTestId = new Map((input.tests ?? []).map(m => [m.testId, m]));
 
     const now = new Date();
-    const { plaintext: accessCode, hash: accessCodeHash } = await generateAndHash();
 
     const visit = await prisma().visit.create({
       data: {
@@ -26,8 +24,6 @@ export class VisitOrchestrator {
         visitDate: input.visitDate ? new Date(input.visitDate) : new Date(),
         status: "Open",
         staffId: input.staffId,
-        accessCodeHash,
-        accessCodePlaintext: accessCode,
         visitTests: {
           create: input.testIds.map(testId => {
             const t = testById.get(testId);
@@ -60,7 +56,7 @@ export class VisitOrchestrator {
       }
     }
 
-    return { ...visit, accessCode };
+    return visit;
   }
 }
 

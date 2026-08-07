@@ -56,5 +56,4 @@ export interface LabReportProps {
   groups: ResultGroup[];
   layout?: Layout; // default "FullPage"
   calibration?: Calibration; // default { 0, 0 }
-  accessCode?: string; // Plan B: when present, prints the access-code footer
 }

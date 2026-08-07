@@ -1,0 +1,23 @@
+-- Retire the portal access code (cloud side).
+--
+-- The 6-character code printed on the report is gone. The patient id it sat
+-- beside does the same job, is what staff read out over the phone, and does not
+-- need reissuing. The code was the weaker of the two: valid 180 days, opening a
+-- full portal session with no password step, and revocable only by waiting for
+-- it to expire.
+--
+-- The column added in 20260519000001_phase_3d_portal_tables.sql is dropped here.
+-- Nothing reads it any more: the portal's access-code login path is deleted, and
+-- the desktop no longer maps it when pulling visits.
+--
+-- ── Ordering ────────────────────────────────────────────────────────────────
+-- Safe to apply before the matching desktop build reaches the lab machine. The
+-- pull uses `select("*")` rather than naming columns, so an older desktop simply
+-- receives rows without this field and writes null into its own copy — it does
+-- not error. Applying it after the desktop update is equally fine; there is no
+-- window where the two disagree in a way that breaks sync.
+--
+-- Irreversible: the hashes are bcrypt and cannot be recovered once dropped.
+-- They are also worthless, since nothing accepts an access code any more.
+
+alter table visits drop column if exists access_code_hash;

@@ -5,7 +5,7 @@ import { ColumnHeaders } from "./components/ColumnHeaders";
 import { TestSectionsTable } from "./components/TestSectionsTable";
 import { FooterBand } from "./components/FooterBand";
 import { AlignmentCrosshairs } from "./components/AlignmentCrosshairs";
-import { AccessCodeFooter } from "./components/AccessCodeFooter";
+import { PortalSignInFooter } from "./components/PortalSignInFooter";
 import type { LabReportProps } from "./types";
 
 const styles = StyleSheet.create({
@@ -18,7 +18,6 @@ export function LabReport({
   groups,
   layout = "FullPage",
   calibration = { xOffsetMm: 0, yOffsetMm: 0 },
-  accessCode,
 }: LabReportProps) {
   const showHeader = layout === "FullPage";
   const showColumnHeaders = layout === "FullPage";
@@ -34,14 +33,12 @@ export function LabReport({
         {showColumnHeaders && <ColumnHeaders />}
         {showContent && <TestSectionsTable groups={groups} calibration={calibration} />}
         {showFooter && <FooterBand />}
-        {/* Either credential is enough to sign in, so the strip is worth
-            printing when there is one of them — but not when there is neither,
-            which would leave an instruction the patient cannot follow. */}
-        {showContent && (accessCode || patient.patientIdDisplay) && (
-          <AccessCodeFooter
+        {/* No patient id means no instruction the patient could follow, so the
+            strip is left off entirely rather than printed half-useful. */}
+        {showContent && patient.patientIdDisplay && (
+          <PortalSignInFooter
             portalUrl={lab.portalUrl}
             patientPhone={patient.phone}
-            accessCode={accessCode}
             patientId={patient.patientIdDisplay}
           />
         )}

@@ -32,7 +32,7 @@ interface PatientChoice {
 }
 
 type ResolveResult =
-  | { kind: "converted"; visitId: string; patientId: string; accessCode: string }
+  | { kind: "converted"; visitId: string; patientId: string }
   | { kind: "chooser"; candidates: PatientChoice[] };
 
 export function ResolveBookingModal({
@@ -92,11 +92,13 @@ export function ResolveBookingModal({
         <p className="mt-2 text-sm text-slate-700">
           The patient, visit and bill now exist. This booking is no longer waiting.
         </p>
+        {/* See ApproveBookingModal — the booking id they already hold is the
+            credential, so there is nothing to hand over here. */}
         <div className="mt-3 rounded-md border bg-slate-50 p-3">
-          <p className="text-xs uppercase tracking-wide text-slate-600">Patient access code</p>
-          <p className="mt-1 font-mono text-2xl tracking-widest">{done.accessCode}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Print on the receipt or read it out — this is how they sign in to the portal.
+          <p className="text-xs uppercase tracking-wide text-slate-600">Portal sign-in</p>
+          <p className="mt-1 text-sm text-slate-700">
+            They sign in with their phone number and the booking ID from their
+            confirmation email, then choose a password.
           </p>
         </div>
         <div className="mt-4 flex justify-end">

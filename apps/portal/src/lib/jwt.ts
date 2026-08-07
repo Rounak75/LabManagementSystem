@@ -6,7 +6,34 @@ import { SignJWT, jwtVerify } from "jose";
 
 const ALG = "HS256";
 const ISSUER = "supabase";
-const SESSION_TTL_SECS = 30 * 24 * 60 * 60; // 30 days
+
+/**
+ * How long a real session lasts — one opened with a password, or with a code
+ * the patient had to be handed.
+ *
+ * Kept short because nothing else can end a session. Logging out clears the
+ * cookie but not the token; changing the password does not invalidate tokens
+ * already minted, since `verifyPatientJwt` checks only signature, issuer and
+ * expiry. This number *is* the revocation policy, and the token is honoured by
+ * Supabase directly — whoever holds one reads that patient's results straight
+ * from the database, portal or no portal.
+ *
+ * Nothing renews mid-life, so this is also a hard cap on an active patient.
+ * Seven days covers the case that matters — waiting on results from a visit —
+ * and anyone returning months later was signing in again regardless.
+ */
+export const SESSION_TTL_SECS = 7 * 24 * 60 * 60;
+
+/**
+ * How long a half-session lasts: one opened with a booking id or a patient id.
+ *
+ * Both are `BKG-YYYY-NNNNN`-shaped and guessable by counting, which is why the
+ * middleware pins these sessions to the password page. They buy exactly one
+ * trip there, so they only have to outlive the walk from the login form to a
+ * chosen password — not a month of standing open, which is what they used to
+ * get by sharing the full session's lifetime.
+ */
+export const SETUP_TTL_SECS = 30 * 60;
 
 function getSecret(): Uint8Array {
   const s = process.env.SUPABASE_JWT_SECRET;
@@ -39,6 +66,7 @@ export async function mintPatientJwt(
   opts: { mustSetPassword?: boolean } = {},
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
+  const ttl = opts.mustSetPassword ? SETUP_TTL_SECS : SESSION_TTL_SECS;
   return await new SignJWT({
     patient_id: patientId,
     role: "anon",
@@ -49,7 +77,7 @@ export async function mintPatientJwt(
   })
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt(now)
-    .setExpirationTime(now + SESSION_TTL_SECS)
+    .setExpirationTime(now + ttl)
     .setIssuer(ISSUER)
     .sign(getSecret());
 }

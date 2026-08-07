@@ -18,7 +18,6 @@ interface RawVisitRow extends Record<string, unknown> {
   visit_date: string;
   status: string;
   staff_id: string;
-  access_code_hash: string | null;
   source: string;
   verified_by_user_id: string | null;
   verified_at: string | null;
@@ -100,7 +99,6 @@ export async function pullVisits(client: CloudClient): Promise<PullStats> {
         visitDate: new Date(r.visit_date),
         status: r.status,
         staffId: r.staff_id,
-        accessCodeHash: r.access_code_hash ?? null,
         // Kept in step so the desktop shows the same answer as the portal about
         // whether this patient can download an unpaid report, whichever screen
         // the Admin used to decide it.

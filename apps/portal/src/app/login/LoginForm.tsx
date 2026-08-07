@@ -9,23 +9,23 @@ import { clockTime } from "@portal/lib/format";
 export function LoginForm({ nextUrl }: { nextUrl: string }) {
   const router = useRouter();
   // "first" covers everyone signing in for the first time, with whichever id the
-  // lab gave them. The lab prints no receipts, so a walk-in's access code does
-  // not reach them until the finished report at the end of the visit, and a
-  // patient who booked online has never been handed anything at all. Without
-  // this tab, neither could get in when it actually matters to them — while the
-  // report is being worked on and the bill is waiting.
-  const [mode, setMode] = useState<"first" | "password" | "code">("first");
+  // lab gave them: `LAB-…` spoken at the counter and printed on the report, or
+  // `BKG-…` emailed with a home-collection confirmation. It is the only
+  // first-time route now — the access-code tab that used to sit beside it is
+  // gone, along with the credential behind it.
+  const [mode, setMode] = useState<"first" | "password">("first");
   const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   // One box for both LAB- and BKG- ids; the server tells them apart by prefix.
   const [firstTimeId, setFirstTimeId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
-  // Password-mode chooser is handled here rather than on /select-patient: that
-  // page round-trips through sessionStorage, and a password must not be written
-  // there. Keeping it in memory means the patient picks and we resubmit.
+  // The shared-phone chooser is handled inline, in memory. It used to have a
+  // second home on /select-patient for the access-code path, which round-tripped
+  // the credential through sessionStorage — never an option for a password, and
+  // now not needed by anything: the first-time ids each name one patient, so
+  // password login is the only path that can raise a chooser at all.
   const [choices, setChoices] = useState<{ id: string; name: string; age: number }[] | null>(null);
   // Only shown once the server says this origin has been failing repeatedly —
   // a patient signing in normally never sees it.
@@ -54,9 +54,7 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         ? { captchaToken, captchaAnswer: parseInt(captchaAnswer, 10) }
         : {};
       const body =
-        mode === "code"
-          ? { phone, code, next: nextUrl, patientId, ...captcha }
-          : mode === "first"
+        mode === "first"
           ? { phone, firstTimeId, next: nextUrl, ...captcha }
           : { phone, password, next: nextUrl, patientId, ...captcha };
       const res = await fetch("/api/auth/login", {
@@ -70,16 +68,9 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         return;
       }
       if (data.needsChooser) {
-        if (mode === "password") {
-          // Keep the password in memory and pick inline.
-          setChoices(data.patients);
-          return;
-        }
-        sessionStorage.setItem(
-          "login_chooser",
-          JSON.stringify({ phone, code, patients: data.patients })
-        );
-        router.push("/select-patient");
+        // Only password login can reach here — the first-time ids each resolve
+        // to exactly one patient. Keep the password in memory and pick inline.
+        setChoices(data.patients);
         return;
       }
       if (data.error?.code === "account_locked") {
@@ -102,9 +93,7 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
           : data.error?.code === "booking_not_ready"
           ? data.error.message
           : data.error?.code === "invalid_code"
-          ? mode === "code"
-            ? "That access code doesn't match. Please check the code on your report."
-            : mode === "first"
+          ? mode === "first"
             ? "That ID doesn't match this phone number. Check it with the lab — and if you've already set a password, sign in with Password instead."
             : "Incorrect password."
           : "Sign-in failed. Please try again."
@@ -202,7 +191,7 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
         <div
           role="tablist"
           aria-label="Sign-in method"
-          className="grid grid-cols-3 gap-1 rounded-2xl bg-surface p-1"
+          className="grid grid-cols-2 gap-1 rounded-2xl bg-surface p-1"
         >
           <ModeTab
             active={mode === "first"}
@@ -213,11 +202,6 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
             active={mode === "password"}
             onClick={() => setMode("password")}
             label="Password"
-          />
-          <ModeTab
-            active={mode === "code"}
-            onClick={() => setMode("code")}
-            label="Access code"
           />
         </div>
 
@@ -235,23 +219,7 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
           />
         </Field>
 
-        {mode === "code" ? (
-          <Field
-            label="Access code"
-            hint="6 characters · printed at the bottom of your receipt"
-          >
-            <input
-              type="text"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              required
-              autoComplete="one-time-code"
-              className={`${inputCls} text-center font-mono text-[20px] font-medium uppercase tracking-[0.4em]`}
-              placeholder="K7P2QX"
-            />
-          </Field>
-        ) : mode === "first" ? (
+        {mode === "first" ? (
           <Field
             label="Your patient ID or booking ID"
             hint="The lab gives you this when you register. Home collection? Use the booking ID from your confirmation email."

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  tryLogin,
   tryPasswordLogin,
   tryBookingIdLogin,
   tryPatientIdLogin,
@@ -21,7 +20,6 @@ export const runtime = "nodejs"; // bcrypt requires Node runtime
 export async function POST(req: NextRequest) {
   let body: {
     phone?: string;
-    code?: string;
     password?: string;
     /**
      * Whichever id the lab gave this patient: `LAB-…` spoken at the counter, or
@@ -73,17 +71,15 @@ export async function POST(req: NextRequest) {
 
   const result = firstTimeId
     ? firstTimeId.startsWith("BKG")
-      ? // Booked online: never been to the lab, so no report and no access code
-        // has ever been printed for them.
+      ? // Booked online: never been to the lab, so no report has been printed
+        // for them and the booking id is all they hold.
         await tryBookingIdLogin(phone, firstTimeId)
-      : // Walked in: the report carrying their access code is not printed until
+      : // Walked in: the report carrying their patient id is not printed until
         // the very end of the visit, so this is their only way in before then.
         await tryPatientIdLogin(phone, firstTimeId)
-    : body.password
-    ? // patientId matters here too: households share a phone number, and without
+    : // patientId matters here too: households share a phone number, and without
       // it the password path could only ever return the chooser.
-      await tryPasswordLogin(phone, String(body.password), body.patientId)
-    : await tryLogin({ phone, code: String(body.code ?? ""), patientId: body.patientId });
+      await tryPasswordLogin(phone, String(body.password ?? ""), body.patientId);
 
   // "needs_chooser" is not a failed attempt — the phone is right and the patient
   // has only been asked which household member they are.
@@ -114,8 +110,8 @@ export async function POST(req: NextRequest) {
   // Someone who mistyped twice and then got in should not still be challenged.
   if (ipKey) await clearFailuresForOrigin(ipKey);
 
-  // A booking id is `BKG-YYYY-NNNNN` — anyone can count through it, and unlike an
-  // access code it never expires. It buys exactly one trip to the password page;
+  // A booking id is `BKG-YYYY-NNNNN` — anyone can count through it, and it never
+  // expires on its own. It buys exactly one trip to the password page;
   // `next` is deliberately ignored, since honouring it would leave that
   // credential live for as long as the patient kept using it.
   //

@@ -118,17 +118,30 @@ describe("sanitizeForCloud keeps everything a cloud column can hold", () => {
 });
 
 describe("sanitizeForCloud keeps its existing guarantees", () => {
-  it("still strips the access-code plaintext", () => {
+  // This used to assert Visit.accessCodePlaintext was stripped. That column is
+  // gone with the credential, so the guarantee is pinned to the local-only
+  // secret that remains — a desktop-side recovery hash the cloud has no column
+  // for, and must never receive.
+  it("still strips a desktop-only secret before pushing a User", () => {
+    const safe = sanitizeForCloud("User", {
+      id: "u1",
+      username: "staff1",
+      recoveryCodeHash: "$2a$10$hash",
+    });
+
+    expect(safe).not.toHaveProperty("recoveryCodeHash");
+    expect(safe.username).toBe("staff1");
+  });
+
+  it("still strips relation arrays off a Visit", () => {
     const safe = sanitizeForCloud("Visit", {
       id: "v1",
-      accessCodeHash: "$2a$10$hash",
-      accessCodePlaintext: "ABC123",
+      visitId: "VIS-2026-00001",
       visitTests: [{ id: "vt1" }],
     });
 
-    expect(safe).not.toHaveProperty("accessCodePlaintext");
     expect(safe).not.toHaveProperty("visitTests");
-    expect(safe.accessCodeHash).toBe("$2a$10$hash");
+    expect(safe.visitId).toBe("VIS-2026-00001");
   });
 
   it("still remaps the diverging TestResult column names", () => {

@@ -63,10 +63,10 @@ async function reconcileTable(modelName: keyof typeof MODEL_TO_TABLE): Promise<v
     if (!knownSet.has(row.id)) {
       // Sanitise exactly as the live hook and the backfill do. This path kept a
       // private copy of toSnakePayload and skipped sanitizeForCloud entirely,
-      // so a row repaired here was pushed raw: Visit carried
-      // accessCodePlaintext, which defeats the point of hashing the access
-      // code, and LabSettings carried the encrypted service key, SMTP password
-      // and Razorpay secret, none of which the cloud has columns for.
+      // so a row repaired here was pushed raw: LabSettings carried the
+      // encrypted service key, SMTP password and Razorpay secret, none of which
+      // the cloud has columns for, and Visit carried a plaintext access code
+      // back when that column existed.
       await enqueue({
         tableName,
         operation: "update",

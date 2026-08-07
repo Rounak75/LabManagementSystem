@@ -22,7 +22,7 @@ export default function AccountPage() {
               href="/account/password"
               icon={<Lock size={18} />}
               title="Set or change password"
-              body="Sign in with a password instead of your receipt code."
+              body="Sign in with a password instead of your patient ID."
             />
             <Row
               href="/account/dispute"
@@ -39,7 +39,7 @@ export default function AccountPage() {
             Need a hand?
           </p>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
-            Staff can look up your records and read out your access code after
+            Staff can look up your records and read out your patient ID after
             confirming your identity.
           </p>
           <a

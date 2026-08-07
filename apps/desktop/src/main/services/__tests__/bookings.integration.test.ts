@@ -150,15 +150,10 @@ describe("converting an approved booking, against a real database", () => {
     expect(await db.invoice.count()).toBe(1);
   });
 
-  it("gives the visit an access code the patient can sign in with", async () => {
-    await approvedBooking();
-
-    await convertPendingApprovedBookings();
-
-    const visit = await db.visit.findFirst();
-    expect(visit!.accessCodeHash).toBeTruthy();
-    expect(visit!.accessCodePlaintext).toMatch(/^[A-Z0-9]{6}$/);
-  });
+  // The access-code columns this used to assert on are gone from Visit
+  // entirely — see retire-access-code.migration.test.ts, which drives the real
+  // migration runner over a database holding real rows and checks what
+  // survived the table rebuild.
 });
 
 describe("the failures that were previously silent", () => {

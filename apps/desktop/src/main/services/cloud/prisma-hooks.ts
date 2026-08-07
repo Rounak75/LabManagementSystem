@@ -46,7 +46,6 @@ const LAB_SETTINGS_CLOUD_FIELDS = new Set([
  * Strip local-only / secret fields before a row is pushed to the cloud.
  * Used by BOTH the live sync hook and the backfill so neither leaks secrets
  * or sends columns the cloud tables don't have.
- *  - Visit.accessCodePlaintext: defeats the bcrypt access-code hash if pushed.
  *  - User.recoveryCodeHash: desktop-side recovery only; cloud users has no such column.
  *  - LabSettings: allowlist to public columns only.
  *  - TestResult: two fields where the cloud column name diverges from a plain
@@ -90,7 +89,10 @@ export function sanitizeForCloud(model: string, row: Record<string, unknown>): R
   let safe: Record<string, unknown> = Object.fromEntries(
     Object.entries(row).filter(([, v]) => isCloudScalar(v)),
   );
-  if (model === "Visit") delete safe.accessCodePlaintext;
+  // Visit used to have `accessCodePlaintext` stripped here — a local-only
+  // column holding the access code in the clear, which would have defeated the
+  // bcrypt hash beside it had it ever been pushed. The credential is gone and
+  // so is the column, so there is nothing left to strip.
   if (model === "User") delete safe.recoveryCodeHash;
   if (model === "VisitTest") {
     delete safe.outsourcedSentTo;

@@ -80,13 +80,17 @@ describe("runReconciliation", () => {
   // Reconciliation assembled its own payload and skipped sanitizeForCloud, so a
   // row repaired here went to the cloud raw — unlike the same row pushed by the
   // live hook or the backfill.
-  it("strips the plaintext access code from a repaired Visit", async () => {
+  // The example used to be Visit.accessCodePlaintext, a local-only column that
+  // would have gone to the cloud in the clear. That column is gone with the
+  // access code, but the guarantee it was standing in for is not: what matters
+  // is that this path still routes through sanitizeForCloud rather than its own
+  // payload builder, so anything sanitize drops is dropped here too.
+  it("sanitises a repaired Visit instead of pushing the row raw", async () => {
     mocks.visitFindMany.mockResolvedValue([
       {
         id: "v-1",
         visitId: "LAB-2026-00001",
-        accessCodeHash: "$2b$10$hash",
-        accessCodePlaintext: "SECRET42",
+        visitTests: [{ id: "vt-1" }],
         updatedAt: new Date(1),
       },
     ]);
@@ -96,8 +100,8 @@ describe("runReconciliation", () => {
     const call = mocks.enqueue.mock.calls.find(([a]) => a.tableName === "visits");
     expect(call).toBeDefined();
     const payload = call![0].payload as Record<string, unknown>;
-    expect(payload).not.toHaveProperty("access_code_plaintext");
-    expect(payload.access_code_hash).toBe("$2b$10$hash");
+    expect(payload).not.toHaveProperty("visit_tests");
+    expect(payload).not.toHaveProperty("visitTests");
     expect(payload.visit_id).toBe("LAB-2026-00001");
   });
 

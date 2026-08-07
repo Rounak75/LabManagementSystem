@@ -13,9 +13,11 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
-        // Diffused and tinted with the canvas hue — never a grey drop shadow.
-        card: "0 1px 2px rgb(16 40 50 / 0.04), 0 10px 26px -14px rgb(16 40 50 / 0.16)",
-        lift: "0 2px 6px rgb(16 40 50 / 0.05), 0 22px 44px -20px rgb(16 40 50 / 0.28)",
+        // Theme-owned — the values live with the colour tokens in globals.css
+        // because a shadow has to be darker than the surface it falls on, and
+        // night mode's canvas is darker than day mode's shadow tint.
+        card: "var(--shadow-card)",
+        lift: "var(--shadow-lift)",
         // Black, not slate. Night mode's canvas is darker than the band, so a
         // slate-tinted shadow was *lighter* than what it fell on and rendered
         // as a halo under every header. Black is darker than both themes.
@@ -29,8 +31,11 @@ const config: Config = {
       colors: {
         bg: withAlpha("--bg"),
         elev: withAlpha("--elev"),
+        "elev-pop": withAlpha("--elev-pop"),
+        "pop-hover": withAlpha("--pop-hover"),
         surface: withAlpha("--surface"),
         line: withAlpha("--line"),
+        "line-pop": withAlpha("--line-pop"),
         text: withAlpha("--text"),
         muted: withAlpha("--muted"),
         soft: withAlpha("--soft"),
