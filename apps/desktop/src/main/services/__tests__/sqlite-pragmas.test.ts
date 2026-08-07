@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import * as os from "os";
 import * as fs from "fs";
 import { join } from "path";
+import { withSingleConnection } from "@lab/db";
 import { applySqlitePragmas } from "../sqlite-pragmas";
 
 // These run against a real SQLite file on purpose. The bug this module exists to
@@ -17,7 +18,12 @@ function freshDb(): { db: PrismaClient; dir: string } {
   const dir = fs.mkdtempSync(join(os.tmpdir(), "pragma-test-"));
   tmpDirs.push(dir);
   const file = join(dir, "test.sqlite");
-  const db = new PrismaClient({ datasources: { db: { url: `file:${file}` } } });
+  // `synchronous` is per-connection. Read back over a multi-connection pool it
+  // reports whatever the connection that answered was set to, not what
+  // applySqlitePragmas just did — so this pins the pool the way the app does.
+  const db = new PrismaClient({
+    datasources: { db: { url: withSingleConnection(`file:${file}`) } },
+  });
   return { db, dir };
 }
 

@@ -4,6 +4,7 @@
 // fake that would happily "verify" a text file.
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { withSingleConnection } from "@lab/db";
 import * as os from "os";
 import * as fs from "fs";
 import { join } from "path";
@@ -17,7 +18,12 @@ let query: (sql: string) => Promise<unknown>;
 beforeAll(async () => {
   tempDir = fs.mkdtempSync(join(os.tmpdir(), "lab-verify-test-"));
   const livePath = join(tempDir, "live.sqlite");
-  live = new PrismaClient({ datasources: { db: { url: `file:${livePath}` } } });
+  // ATTACH is per-connection, so this has to run on the same single connection
+  // the app now uses — otherwise the ATTACH and the reads that follow it can
+  // land on different pooled connections and a good backup looks unreadable.
+  live = new PrismaClient({
+    datasources: { db: { url: withSingleConnection(`file:${livePath}`) } },
+  });
   query = (sql: string) => live.$queryRawUnsafe(sql);
 
   // A minimal stand-in for the real schema: verifyBackup only needs a table it
@@ -42,12 +48,23 @@ async function writeRealBackup(): Promise<void> {
   await live.$executeRawUnsafe(`VACUUM INTO '${backupPath}'`);
 }
 
+/**
+ * `toMatchObject` reports only the keys it was asked to compare, so a rejection
+ * surfaces as `{ ok: false }` with `reason` — the one useful field — hidden.
+ * That is exactly what a CI failure on this file looked like, and diagnosing it
+ * needed a Linux container. Fail with the reason instead.
+ */
+function assertAccepted(result: Awaited<ReturnType<typeof verifyBackup>>): void {
+  if (!result.ok) throw new Error(`verifyBackup rejected a good backup: ${result.reason}`);
+}
+
 describe("verifyBackup", () => {
   it("accepts a backup that VACUUM INTO actually wrote", async () => {
     await writeRealBackup();
 
     const result = await verifyBackup(backupPath, { query });
 
+    assertAccepted(result);
     expect(result.ok).toBe(true);
   });
 
@@ -56,6 +73,7 @@ describe("verifyBackup", () => {
 
     const result = await verifyBackup(backupPath, { query });
 
+    assertAccepted(result);
     expect(result).toMatchObject({ ok: true, rows: 3 });
   });
 
