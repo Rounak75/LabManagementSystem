@@ -18,6 +18,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LinkPending } from "./LinkPending";
 
 export interface DockItem {
   href: string;
@@ -159,7 +160,9 @@ export function NavDock({
   }
 
   const linkCls = (item: DockItem) =>
-    `dock-item tap inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold sm:text-[13.5px] ${
+    // `relative overflow-hidden` is for the pending sweep — it clips to the
+    // pill rather than escaping into its neighbours' space in the dock.
+    `dock-item tap relative inline-flex items-center justify-center overflow-hidden rounded-full px-4 py-2.5 text-[13px] font-semibold sm:text-[13.5px] ${
       item.primary
         ? "bg-white text-brand-deep hover:bg-white/90"
         : "font-medium text-band/70 hover:bg-white/10 hover:text-band"
@@ -184,6 +187,8 @@ export function NavDock({
           <li key={item.href}>
             <Link href={item.href} className={linkCls(item)}>
               {item.label}
+              {/* White on the teal bar; teal on the white sign-in pill. */}
+              <LinkPending onBand={!item.primary} />
             </Link>
           </li>
         ))}
@@ -206,6 +211,7 @@ export function NavDock({
         {primary && (
           <Link href={primary.href} className={linkCls(primary)}>
             {primary.label}
+            <LinkPending />
           </Link>
         )}
       </div>
@@ -226,9 +232,10 @@ export function NavDock({
                 <Link
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="tap block rounded-xl px-4 py-3 text-[14.5px] font-medium text-band/85 hover:bg-white/10 hover:text-band"
+                  className="tap relative block overflow-hidden rounded-xl px-4 py-3 text-[14.5px] font-medium text-band/85 hover:bg-white/10 hover:text-band"
                 >
                   {item.label}
+                  <LinkPending onBand />
                 </Link>
               </li>
             ))}

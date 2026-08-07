@@ -66,6 +66,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       data-theme="light"
+      // `globals.css` sets `scroll-behavior: smooth`, which is right for an
+      // in-page anchor and wrong for a navigation — a route change scrolls to
+      // top, and animating that scroll is precisely the lag we removed
+      // elsewhere. Next currently suppresses it during route transitions on its
+      // own, but only warns that it will stop doing so in v16. This attribute
+      // is how Next wants to be told, and it keeps today's behaviour across
+      // that upgrade instead of the regression arriving with a version bump.
+      data-scroll-behavior="smooth"
       className={`${body.variable} ${heading.variable} ${mono.variable}`}
       suppressHydrationWarning
     >

@@ -12,10 +12,13 @@ import {
   BandCard,
   Card,
   Container,
+  IconChip,
   Note,
   SectionHead,
   Tag,
+  btnPrimary,
 } from "@portal/components/ui";
+import { LinkPending } from "@portal/components/LinkPending";
 import {
   ArrowRight,
   Calendar,
@@ -155,14 +158,29 @@ export default async function DashboardPage() {
               />
             </BandCard>
           ) : (
+            /* The one empty state on this screen. It used to be printed twice
+               — here, and again under a "Your visits" heading below — with the
+               action stranded in the second copy, so the first told you there
+               was nothing and offered no way out. The heading and its card are
+               dropped entirely when there are no visits; there is nothing to
+               head. */
             <BandCard className="rise mt-7">
-              <div className="rounded-[20px] bg-elev px-5 py-5 text-center">
-                <p className="text-[14px] font-medium text-text">
+              <div className="rounded-[20px] bg-elev px-5 py-6 text-center">
+                <IconChip size="lg">
+                  <HomeVisit size={24} />
+                </IconChip>
+                <p className="mt-3.5 text-[15px] font-semibold text-text">
                   No visits on record yet
                 </p>
-                <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
-                  Once you’ve given a sample, your reports appear here.
+                <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
+                  Once you’ve given a sample, your report and bill appear here.
+                  Book a home collection and a phlebotomist comes to you.
                 </p>
+                <Link href="/book" className={`${btnPrimary} relative mt-5 overflow-hidden`}>
+                  <HomeVisit size={16} />
+                  Book a home collection
+                  <LinkPending />
+                </Link>
               </div>
             </BandCard>
           )}
@@ -170,16 +188,35 @@ export default async function DashboardPage() {
       </Band>
 
       <Container className="space-y-8">
-        {/* ─── Quick actions ─────────────────────────────────────────── */}
-        <nav aria-label="Quick actions" className="-mt-6">
-          <ul className="grid grid-cols-4 gap-2">
+        {/* ─── Quick actions ─────────────────────────────────────────────
+            One opaque card that crosses the band's bottom edge, not four
+            translucent tiles sitting on it.
+
+            The tiles were `.glass`, which is see-through by construction, so
+            the band showed through their top half and the canvas through their
+            bottom half and a seam ran across every one of them — with the
+            band's pale wave decoration smearing behind the labels in exactly
+            that zone. Nothing shows through a solid fill, so the whole class of
+            problem goes away rather than being tuned around.
+
+            The overlap itself is kept on purpose: it is the same move the
+            landing page's search pill already makes, and it ties the band to
+            the page instead of stacking two rectangles. */}
+        <nav
+          aria-label="Quick actions"
+          className="rise -mt-9"
+          style={{ "--i": 2 } as React.CSSProperties}
+        >
+          <ul className="grid grid-cols-4 divide-x divide-line overflow-hidden rounded-3xl border border-line bg-elev shadow-card">
             {[
-              { href: "/invoices", label: "My bills", icon: <Wallet size={20} /> },
-              { href: "/book", label: "Book visit", icon: <HomeVisit size={20} /> },
-              { href: "/tests", label: "Test list", icon: <Calendar size={20} /> },
-              { href: "/account", label: "Account", icon: <User size={20} /> },
-            ].map((a, i) => (
-              <QuickAction key={a.href} {...a} index={i} />
+              { href: "/invoices", label: "My bills", icon: <Wallet size={19} /> },
+              { href: "/book", label: "Book visit", icon: <HomeVisit size={19} /> },
+              // "Tests", not "Test list" — the header calls it Tests, and one
+              // name per destination is how anyone learns their way around.
+              { href: "/tests", label: "Tests", icon: <Calendar size={19} /> },
+              { href: "/account", label: "Account", icon: <User size={19} /> },
+            ].map((a) => (
+              <QuickAction key={a.href} {...a} />
             ))}
           </ul>
         </nav>
@@ -216,21 +253,12 @@ export default async function DashboardPage() {
           </Link>
         )}
 
-        {/* ─── Visits ────────────────────────────────────────────────── */}
-        <section>
-          <SectionHead title="Your visits" />
-          {rows.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-[14px] text-muted">No visits on record yet.</p>
-              <Link
-                href="/book"
-                className="tap mt-4 inline-flex items-center gap-2 rounded-2xl bg-brand px-5 py-3 text-[14px] font-semibold text-brand-fg hover:bg-brand-hover"
-              >
-                <HomeVisit size={16} />
-                Book a home collection
-              </Link>
-            </Card>
-          ) : (
+        {/* ─── Visits ─────────────────────────────────────────────────────
+            Omitted entirely when there are none — the band card above is the
+            empty state, and it carries the action. */}
+        {rows.length > 0 && (
+          <section>
+            <SectionHead title="Your visits" />
             <ul className="space-y-2.5">
               {rows.map((v, i) => {
                 const due = v.invoice ? outstandingBalance(v.invoice) : 0;
@@ -291,8 +319,8 @@ export default async function DashboardPage() {
                 );
               })}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
       </Container>
     </>
   );
@@ -326,37 +354,45 @@ function LatestVisitBody({
 
   const box = "flex items-center gap-4 rounded-[20px] bg-elev px-5 py-4";
   return href ? (
-    <Link href={href} className={`tap ${box}`}>
+    <Link href={href} className={`tap relative overflow-hidden ${box}`}>
       {inner}
+      <LinkPending />
     </Link>
   ) : (
     <div className={box}>{inner}</div>
   );
 }
 
+/**
+ * One cell of the action tray.
+ *
+ * The cells carry no chrome of their own — the tray is the card, and hairline
+ * dividers separate them. Hover fills the cell rather than lifting it, because
+ * a cell that lifts out of a card it is flush inside reads as a rendering
+ * fault. The whole tray staggers in as one block, so cells take no `--i`.
+ */
 function QuickAction({
   href,
   label,
   icon,
-  index,
 }: {
   href: string;
   label: string;
   icon: React.ReactNode;
-  index: number;
 }) {
   return (
-    <li className="rise" style={{ "--i": index + 2 } as React.CSSProperties}>
+    <li>
       <Link
         href={href}
-        className="tap group glass sheen relative flex min-h-[86px] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl px-1 py-3.5"
+        className="tap group relative flex min-h-[88px] flex-col items-center justify-center gap-2.5 overflow-hidden px-1 py-4 hover:bg-surface"
       >
-        <span className="text-brand transition-transform duration-300 ease-out-fluid group-hover:-translate-y-0.5 group-hover:scale-110">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand transition-transform duration-300 ease-out-fluid group-hover:-translate-y-0.5 group-hover:scale-105">
           {icon}
         </span>
-        <span className="text-center text-[11px] font-medium leading-tight text-soft">
+        <span className="text-center text-[12px] font-medium leading-tight text-soft">
           {label}
         </span>
+        <LinkPending />
       </Link>
     </li>
   );

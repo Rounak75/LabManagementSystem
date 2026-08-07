@@ -16,6 +16,7 @@ import {
   btnOnBand,
 } from "@portal/components/ui";
 import { CategoryIcon } from "@portal/components/category-icon";
+import { LinkPending } from "@portal/components/LinkPending";
 import { pickPopular } from "@portal/components/popular-tests";
 import {
   ArrowRight,
@@ -221,13 +222,14 @@ export default async function Landing() {
         {/* ─── Catalogue search ──────────────────────────────────────── */}
         <Link
           href="/tests"
-          className="tap lift -mt-6 flex items-center gap-3 rounded-full border border-line bg-elev px-5 py-4 shadow-card hover:border-brand/40"
+          className="tap lift relative -mt-6 flex items-center gap-3 overflow-hidden rounded-full border border-line bg-elev px-5 py-4 shadow-card hover:border-brand/40"
         >
           <Search size={19} className="shrink-0 text-muted" />
           <span className="min-w-0 flex-1 truncate text-[14.5px] text-muted">
             Search {testCount ?? tests.length} tests — try “thyroid” or “CBC”
           </span>
           <ArrowRight size={16} className="shrink-0 text-brand" />
+          <LinkPending />
         </Link>
 
         {/* ─── Next closure ──────────────────────────────────────────── */}
@@ -286,6 +288,7 @@ export default async function Landing() {
                         {count} tests
                       </span>
                     </span>
+                    <LinkPending />
                   </Link>
                 </li>
               ))}
@@ -415,6 +418,7 @@ function QuickAction({
         <span className="text-center text-[10.5px] font-medium leading-tight text-soft sm:text-[11px]">
           {label}
         </span>
+        <LinkPending />
       </Link>
     </li>
   );
@@ -451,6 +455,7 @@ function ActionCard({
           className="transition-transform duration-200 ease-out-fluid group-hover:translate-x-0.5"
         />
       </span>
+      <LinkPending />
     </Link>
   );
 }

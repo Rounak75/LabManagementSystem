@@ -243,6 +243,89 @@
     to   { opacity: 1; }
   }
 
+  /* ─── Page transitions ───────────────────────────────────────────
+     `template.tsx` remounts its children on every navigation, so an
+     animation declared there replays on each page change — one file
+     covering the whole portal.
+
+     Opacity only. `.rise` already owns the travel on the elements
+     inside, and stacking a second translate on the container would
+     double it. This is also the reason it is cheap: one composited
+     layer, no layout, nothing that could delay the first tap on the
+     page that just arrived.                                        */
+  @keyframes page-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .page-in {
+    animation: page-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* ─── Skeletons ──────────────────────────────────────────────────
+     The shape of a page, drawn before its data arrives. Blocks take
+     the recessed `--surface` fill so a skeleton reads as an empty
+     version of the card it becomes, rather than as separate grey UI
+     bolted on in front of it.
+
+     The tell is a slow opacity pulse, not a sweeping shimmer. A sweep
+     needs either a per-block pseudo-element or an animated
+     background-position, and both repaint every frame for every block
+     on screen — a dozen at a time here. Opacity composites, and the
+     calmer pulse suits a lab portal better than a glinting one.
+
+     `--i` staggers the blocks on the same terms as `.rise`, so a
+     loading screen and a loaded one share a rhythm.                */
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+  }
+  .skeleton {
+    background-color: rgb(var(--surface));
+    animation: skeleton-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  /* On the teal band, `--surface` is invisible — the band is not the
+     canvas. White at low alpha is the one fill that reads in both
+     themes, the same reasoning as the wave layers. */
+  .skeleton-band {
+    background-color: rgb(255 255 255 / 0.14);
+  }
+
+  /* ─── Pending navigation ─────────────────────────────────────────
+     The gap between tapping a tile and the next page's skeleton
+     arriving is short, but it is not zero, and over mobile data it is
+     not always short. This is the tile saying it heard you.
+
+     Needs a positioned, clipped parent; every surface it is used on is
+     already `relative overflow-hidden`. Transform only, and only ever
+     one on screen at a time — you can tap one link.                */
+  @keyframes link-pending {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+  .link-pending {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(
+      100deg,
+      transparent 34%,
+      rgb(var(--brand) / 0.18) 50%,
+      transparent 66%
+    );
+    animation: link-pending 900ms cubic-bezier(0.23, 1, 0.32, 1) infinite;
+  }
+  /* Brand teal against the band is teal on teal. White, as everywhere
+     else that sits on that surface. */
+  .link-pending-band {
+    background-image: linear-gradient(
+      100deg,
+      transparent 34%,
+      rgb(255 255 255 / 0.22) 50%,
+      transparent 66%
+    );
+  }
+
   /* Paged lists. `--shift` carries the direction of travel so page 3 arrives
      from the right and page 1 from the left — the list feels like a strip
      being moved, not a panel being swapped. */
@@ -384,6 +467,31 @@ html {
   .rise {
     animation: none;
     opacity: 1;
+  }
+
+  /* The page transition is already opacity-only, so it survives here —
+     just shortened. Removing it entirely would put back the hard swap
+     this whole change set exists to remove, and a cross-fade is the
+     one transition reduced-motion guidance keeps rather than cuts. */
+  .page-in {
+    animation-duration: 120ms;
+  }
+
+  /* Skeletons stop breathing but stay legible as placeholders. */
+  .skeleton {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  /* A pending tap still has to report itself; it just holds still. */
+  .link-pending {
+    animation: none;
+    background-image: none;
+    background-color: rgb(var(--brand) / 0.12);
+  }
+  .link-pending-band {
+    background-image: none;
+    background-color: rgb(255 255 255 / 0.14);
   }
 
   @keyframes fade-only {
