@@ -334,8 +334,18 @@ export const btnSecondary =
 export const btnOnBand =
   "tap inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-brand-deep hover:bg-white/90";
 
+/**
+ * 16px is not a taste decision — it is the threshold. Safari on iOS zooms the
+ * whole page in when a field it is focusing computes to anything smaller, and
+ * it does not zoom back out afterwards: the patient is left pinching their way
+ * back to a legible layout, once per field. At the previous 15px that fired on
+ * every box in the portal, and the booking form has nine of them.
+ *
+ * Any new field must go through this recipe, or carry a size of its own that
+ * is >= 16px. `select` and `textarea` are covered by the same rule.
+ */
 export const inputCls =
-  "block w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-[15px] text-text placeholder:text-muted tap focus:border-brand focus:bg-elev focus:outline-none focus:ring-4 focus:ring-brand/10";
+  "block w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-[16px] text-text placeholder:text-muted tap focus:border-brand focus:bg-elev focus:outline-none focus:ring-4 focus:ring-brand/10";
 
 export const fieldLabel = "mb-2 block text-[13px] font-semibold text-soft";
 

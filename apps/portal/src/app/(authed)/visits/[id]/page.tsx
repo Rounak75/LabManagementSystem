@@ -192,18 +192,26 @@ export default async function VisitPage({ params: paramsPromise }: { params: Pro
                   )}
                 </div>
 
+                {/* The one table in the portal, and the thing patients open the
+                    portal to read. On a phone the card is ~328px wide and the
+                    result and unit columns cannot wrap, so every pixel the
+                    padding takes is a pixel a long parameter name has to wrap
+                    around: `px-5` at both ends left "Mean Corpuscular
+                    Haemoglobin Concentration" stacking four lines deep, or
+                    pushed the table into a sideways scroll. Full padding
+                    returns at `sm`, where there is room for it. */}
                 {released ? (
-                  <div className="overflow-x-auto">
+                  <div className="pane overflow-x-auto">
                     <table className="w-full text-[13.5px]">
                       <thead>
                         <tr className="border-b border-line text-left">
-                          <th className="px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted">
+                          <th className="px-3 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted sm:px-5">
                             Parameter
                           </th>
-                          <th className="px-3 py-2.5 text-right text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted">
+                          <th className="px-2 py-2.5 text-right text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted sm:px-3">
                             Result
                           </th>
-                          <th className="px-5 py-2.5 text-right text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted">
+                          <th className="px-3 py-2.5 text-right text-[11.5px] font-semibold uppercase tracking-[0.06em] text-muted sm:px-5">
                             Unit
                           </th>
                         </tr>
@@ -213,15 +221,15 @@ export default async function VisitPage({ params: paramsPromise }: { params: Pro
                           const r = rs.find((x) => x.parameter_id === p.id);
                           return (
                             <tr key={p.id}>
-                              <td className="px-5 py-3 text-text">{p.name}</td>
+                              <td className="px-3 py-3 text-text sm:px-5">{p.name}</td>
                               <td
-                                className={`whitespace-nowrap px-3 py-3 text-right font-mono num font-medium ${
+                                className={`whitespace-nowrap px-2 py-3 text-right font-mono num font-medium sm:px-3 ${
                                   r?.is_abnormal ? "text-alert" : "text-text"
                                 }`}
                               >
                                 {r?.value ?? "—"}
                               </td>
-                              <td className="whitespace-nowrap px-5 py-3 text-right text-[12px] text-muted">
+                              <td className="whitespace-nowrap px-3 py-3 text-right text-[12px] text-muted sm:px-5">
                                 {p.unit}
                               </td>
                             </tr>

@@ -256,13 +256,27 @@ export function BookingForm({
 
   // Escape backs out to the form rather than submitting — dismissing a dialog
   // must never be the thing that confirms it.
+  //
+  // The dialog is `fixed`, so on a phone a drag anywhere over it scrolled the
+  // form underneath instead: a patient who swiped while reading their number
+  // back dismissed the dialog to find themselves somewhere else in a form they
+  // had just finished filling in. Holding the body still for the moment the
+  // dialog is up is what stops that. The scroll offset is untouched — nothing
+  // here moves the page, so backing out lands exactly where they left.
+  // `scrollbar-gutter: stable` in `globals.css` covers the sideways lurch this
+  // would otherwise cause on a desktop.
   useEffect(() => {
     if (!confirmOpen) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") editPhone();
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const held = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = held;
+    };
   }, [confirmOpen]);
 
   async function confirmAndSubmit() {
@@ -328,7 +342,10 @@ export function BookingForm({
               </h2>
             </div>
 
-            <p className="mt-4 text-center font-mono num text-[26px] font-bold tracking-wider text-text">
+            {/* 600, not 700: the mono face is loaded at 400/500/600, and a
+                700 here was being faked by the browser — on the one number
+                this whole dialog exists to have read carefully. */}
+            <p className="mt-4 text-center font-mono num text-[26px] font-semibold tracking-wider text-text">
               {spacedPhone(phone)}
             </p>
 
@@ -384,11 +401,19 @@ export function BookingForm({
         {/* ─── 1. Patient details ─────────────────────────────────────── */}
         <Section step={1} title="Patient details" icon={<User size={18} />}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* `autoComplete` on every field below is doing real work here, not
+                box-ticking. This form asks a patient to type a name, a phone
+                number, an address and a PIN code on a phone keyboard, and the
+                browser already knows all four. Without these attributes it
+                cannot offer them, and the address in particular was being
+                typed out by hand every time. */}
             <Field label="Full name" required className="md:col-span-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                autoComplete="name"
+                autoCapitalize="words"
                 className={inputCls}
                 placeholder="Full name, as it should print on the report"
               />
@@ -408,6 +433,7 @@ export function BookingForm({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                 required
+                autoComplete="tel-national"
                 aria-invalid={phoneInvalid}
                 className={`${inputCls} font-mono num ${
                   phoneInvalid ? "border-rose-400 focus:border-rose-500" : ""
@@ -423,6 +449,15 @@ export function BookingForm({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                inputMode="email"
+                // A phone keyboard capitalises the first letter of a field by
+                // default and runs autocorrect over it, which is how an
+                // address arrives as "Ramesh@gmail.con" and the report copy
+                // never lands.
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className={inputCls}
                 placeholder="name@example.com — for a copy of the report"
               />
@@ -433,6 +468,8 @@ export function BookingForm({
                 onChange={(e) => setAddress(e.target.value)}
                 required
                 rows={2}
+                autoComplete="street-address"
+                autoCapitalize="words"
                 className={`${inputCls} resize-none`}
                 placeholder="House no., street, locality — and a landmark we can find"
               />
@@ -445,6 +482,7 @@ export function BookingForm({
                 onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
                 maxLength={6}
                 required
+                autoComplete="postal-code"
                 className={`${inputCls} font-mono num`}
                 placeholder="e.g. 831003"
               />
@@ -471,6 +509,20 @@ export function BookingForm({
                 if (!filter) setDropdownOpen((prev) => !prev);
                 else setDropdownOpen(true);
               }}
+              // This box filters a list; it is not one of the form's answers.
+              // But it sits inside the form, so the Enter key submitted the
+              // whole booking — and on a phone that key is labelled "Go" and
+              // is the obvious way to dismiss the keyboard after typing
+              // "thyroid". Patients were being thrown into validation errors
+              // by the act of finishing a search.
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="search"
               placeholder={`Search ${tests.length} tests — “thyroid”, “CBC”…`}
               aria-label="Search tests"
               className={`${inputCls} rounded-full pl-11 pr-12`}
@@ -479,7 +531,7 @@ export function BookingForm({
               type="button"
               onClick={() => setDropdownOpen((prev) => !prev)}
               aria-label="Toggle test list"
-              className="tap absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-brand"
+              className="tap hit absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-brand"
             >
               <ChevronDown
                 size={16}
@@ -512,7 +564,7 @@ export function BookingForm({
                   </div>
                 )}
 
-                <div className="max-h-64 overflow-y-auto">
+                <div className="pane max-h-64 overflow-y-auto">
                   {unselected.length === 0 ? (
                     <p className="px-5 py-6 text-center text-[13px] text-muted">
                       Nothing left to add here — try another search.
@@ -634,7 +686,12 @@ export function BookingForm({
                       onClick={() => toggleTest(t.id)}
                       title={`Remove ${t.name}`}
                       aria-label={`Remove ${t.name}`}
-                      className="tap inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-alert-soft hover:text-alert"
+                      // 28px drawn, 44px tappable. It expands into the row's
+                      // own padding — 16px to the card edge on the right, 12px
+                      // of gap to the price on the left — so it reaches nothing
+                      // else, and consecutive rows still leave 8px between
+                      // their hit boxes.
+                      className="tap hit inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-alert-soft hover:text-alert"
                     >
                       <Close size={14} />
                     </button>
@@ -810,6 +867,9 @@ export function BookingForm({
                 onChange={(e) => setCaptchaAnswer(e.target.value.replace(/[^\d-]/g, ""))}
                 required
                 disabled={!captchaToken}
+                // A one-time arithmetic answer is the last thing that should
+                // come out of the browser's saved-values list.
+                autoComplete="off"
                 className={`${inputCls} font-mono num`}
                 aria-label="Answer to the spam check"
                 placeholder="Type the number"
@@ -858,7 +918,11 @@ function DropdownChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`tap shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium ${
+      // `min-h-9` rather than more vertical padding: these sit in a rail the
+      // finger scrolls sideways, where a 27px-tall chip is both hard to hit and
+      // easy to drag instead of tap. The pill grows; the type and the padding
+      // that shapes it do not.
+      className={`tap inline-flex min-h-9 shrink-0 items-center rounded-full px-3 py-1.5 text-[12px] font-medium ${
         active
           ? "bg-brand text-brand-fg"
           : "bg-pop-hover text-soft hover:text-brand"

@@ -23,7 +23,7 @@ export function Footer() {
             </p>
             <a
               href="tel:6202924306"
-              className="tap mt-3 inline-flex items-center gap-2 rounded-full bg-surface px-3.5 py-2 font-mono num text-[13px] font-medium text-text hover:text-brand"
+              className="tap mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-3.5 py-2 font-mono num text-[13px] font-medium text-text hover:text-brand"
             >
               <Phone size={14} />
               +91 62029 24306
@@ -34,7 +34,11 @@ export function Footer() {
             <p className="mb-3 font-heading text-[13px] font-bold uppercase tracking-[0.08em] text-muted">
               Quick links
             </p>
-            <ul className="space-y-2.5 text-[13.5px]">
+            {/* The gap moved inside the links. Four bare text links 19px tall
+                with 10px between them is a column of near-misses on a phone;
+                giving each one a 44px row and closing the gap keeps the block
+                roughly where it was while tripling what a thumb can land on. */}
+            <ul className="text-[13.5px]">
               <li><FooterLink href="/login">Sign in to view reports</FooterLink></li>
               <li><FooterLink href="/info">Lab information</FooterLink></li>
               <li><FooterLink href="/tests">Test catalogue</FooterLink></li>
@@ -77,7 +81,10 @@ export function Footer() {
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="tap text-soft hover:text-brand">
+    <Link
+      href={href}
+      className="tap inline-flex min-h-11 items-center text-soft hover:text-brand"
+    >
       {children}
     </Link>
   );

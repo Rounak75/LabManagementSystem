@@ -229,6 +229,15 @@ export function LoginForm({ nextUrl }: { nextUrl: string }) {
               value={firstTimeId}
               onChange={(e) => setFirstTimeId(e.target.value.toUpperCase())}
               required
+              // The value is uppercased on the way in, but the phone keyboard
+              // does not know that: it opens in sentence case, autocorrects
+              // "LAB" and underlines the whole thing in red. Telling it what
+              // kind of string this is turns all three off and puts the
+              // keyboard straight into caps.
+              autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
               className={`${inputCls} text-center font-mono text-[17px] font-medium uppercase tracking-[0.12em]`}
               placeholder="LAB-2026-00042"
             />

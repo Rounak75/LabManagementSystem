@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "./icons";
+import { paintChrome, THEME_STORAGE_KEY as STORAGE_KEY } from "@portal/lib/theme";
 
 type Theme = "light" | "dark";
-const STORAGE_KEY = "gjg-theme";
 
 function readTheme(): Theme {
   if (typeof document === "undefined") return "light";
@@ -33,6 +33,11 @@ export function ThemeToggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.documentElement.dataset.theme = next;
+    // The band runs off the top of the screen into the browser's own chrome,
+    // so switching the page without switching that leaves a bright teal strip
+    // above a night-mode header — most obvious on a phone, where the address
+    // bar sits directly against the band.
+    paintChrome(next);
     // Writing this is what stops the OS overriding the choice later.
     try {
       localStorage.setItem(STORAGE_KEY, next);

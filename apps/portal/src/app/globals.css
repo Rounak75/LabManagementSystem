@@ -114,14 +114,27 @@
   html {
     transition: background-color 200ms ease, color 200ms ease;
     -webkit-tap-highlight-color: transparent;
+    /* Reserve the scrollbar's width up front. Without it, opening the booking
+       form's confirm dialog — which locks body scroll — removes the scrollbar
+       and shunts the whole page sideways underneath the dialog. A no-op on
+       phones, where scrollbars are overlaid and take no space. */
+    scrollbar-gutter: stable;
   }
   body {
     background-color: rgb(var(--bg));
     color: rgb(var(--text));
     font-family: var(--font-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
     transition: background-color 200ms ease, color 200ms ease;
+
+    /* `100vh` on a phone is the viewport with the browser's address bar
+       *hidden*, which is taller than what is actually on screen when the page
+       first loads. Every short page — the paid-confirmation, 404, the error
+       screens — therefore had ~60-100px of dead scroll under it and bounced
+       when nudged. `100dvh` is the height that is really visible. The `100vh`
+       line stays first as the fallback for anything too old to know `dvh`. */
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   h1, h2, h3, h4 {
@@ -174,9 +187,46 @@
       color 160ms cubic-bezier(0.23, 1, 0.32, 1),
       box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1),
       transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    /* A double-tap on a chip or a button — common when someone thinks the
+       first tap didn't register — otherwise selects its label and raises the
+       text-selection handles over the thing they were trying to press. */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* `inputCls` carries `.tap` for its focus transition, and text in a field is
+     precisely the text a patient does need to select. */
+  input.tap,
+  textarea.tap {
+    -webkit-user-select: text;
+    user-select: text;
   }
   .tap:active {
     transform: scale(0.975);
+  }
+
+  /* ─── Finger-sized hit area ──────────────────────────────────────
+     Grows what a finger can hit to 44px without growing what the eye
+     sees, for the few controls the design wants small: the ✕ that drops
+     a test from the booking list, the chevron on a search field, the
+     clear button in the catalogue.
+
+     Centred on the control, so it expands symmetrically into the padding
+     its parent already has rather than in one direction into a
+     neighbour. Every place it is used has at least 6px of clearance on
+     the sides that matter — check that before adding another. */
+  .hit {
+    position: relative;
+  }
+  .hit::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    transform: translate(-50%, -50%);
   }
 
   /* Live status dot. */
@@ -435,9 +485,24 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
     scroll-snap-type: x proximity;
+    /* A swipe that runs off the end of the rail is otherwise handed to the
+       browser, which reads a horizontal drag from near the edge as *back*.
+       The date rail is fourteen chips long and sits in the middle of the
+       booking form, so that gesture costs a patient the whole form. */
+    overscroll-behavior-x: contain;
   }
   .rail::-webkit-scrollbar { display: none; }
   .rail > * { scroll-snap-align: start; }
+
+  /* ─── Scroll panes ───────────────────────────────────────────────
+     Any list or table that scrolls *inside* the page: the test picker's
+     results, the parameter table on a report. Reaching the end of one
+     otherwise chains the scroll into the page behind it, so a patient
+     flicking through parameters ends up somewhere else entirely with no
+     sense of having navigated. */
+  .pane {
+    overscroll-behavior: contain;
+  }
 
   /* Cards that lead somewhere lift on hover — pointer devices only, since a
      touch tap fires :hover and would leave the card stuck raised. */

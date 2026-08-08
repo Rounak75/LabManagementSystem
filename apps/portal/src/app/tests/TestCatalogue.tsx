@@ -94,6 +94,14 @@ export function TestCatalogue({
         <input
           value={query}
           onChange={(e) => reset(() => setQuery(e.target.value))}
+          // Test names are not words a phone keyboard has opinions worth
+          // hearing about. Left alone it capitalises "cbc" and autocorrects
+          // "creatinine" into something that matches nothing.
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="search"
           placeholder={`Search ${tests.length} tests — “thyroid”, “CBC”…`}
           aria-label="Search tests"
           className={`${inputCls} rounded-full pl-11 pr-12 shadow-card`}
@@ -103,7 +111,7 @@ export function TestCatalogue({
             type="button"
             onClick={() => reset(() => setQuery(""))}
             aria-label="Clear search"
-            className="tap absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-brand"
+            className="tap hit absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-surface hover:text-brand"
           >
             <Close size={16} />
           </button>
