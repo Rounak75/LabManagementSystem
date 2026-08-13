@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getServiceClient } from "@portal/lib/supabase-server";
 import { verifyPuzzle } from "@portal/lib/captcha";
+import { enforceRateLimit } from "@portal/lib/rate-limit";
+import { mintBookingAccess, setBookingAccessCookie } from "@portal/lib/booking-access";
 import { INVALID_PHONE_MESSAGE, isValidMobile } from "@portal/lib/phone";
 import {
   slotHasPassed,
@@ -20,6 +22,23 @@ import {
 export const runtime = "nodejs";
 
 const SLOTS = new Set(["Morning", "Afternoon", "Evening"]);
+
+// Ceilings on what a booking may contain.
+//
+// Everything below arrives as a string or an array from an untrusted client and
+// went into the database at whatever size it turned up. The form cannot produce
+// anything near these numbers — the point is that the form is not the only thing
+// that can post here, and a name of ten megabytes is a row nobody can display,
+// a queue nobody can scroll, and a free-tier quota spent by one request.
+//
+// Set well above any real value: the longest address in Jamshedpur is not 500
+// characters, and the lab's catalogue is around a hundred tests, so a booking
+// naming 60 of them is already absurd.
+const MAX_NAME = 120;
+const MAX_ADDRESS = 500;
+const MAX_NOTES = 1000;
+const MAX_EMAIL = 254; // The longest address SMTP permits.
+const MAX_TESTS = 60;
 
 /**
  * Midnight of the lab's current day, as a UTC instant.
@@ -120,6 +139,15 @@ export async function POST(req: NextRequest) {
   );
   if (!captchaOk) return NextResponse.json({ error: "captcha_failed" }, { status: 400 });
 
+  // After the captcha, which is a local HMAC check and costs nothing, and before
+  // anything that touches the database.
+  //
+  // The captcha alone does not close this: a puzzle is valid for as long as its
+  // token lives, so one solved puzzle replays into as many bookings as the
+  // client cares to send. That is the case this counts.
+  const limited = await enforceRateLimit("bookings", req);
+  if (limited) return limited;
+
   const patientName = String(body.patientName ?? "").trim();
   const patientPhone = String(body.patientPhone ?? "").replace(/\D/g, "");
   const patientEmail = body.patientEmail ? String(body.patientEmail).trim() : null;
@@ -135,14 +163,38 @@ export async function POST(req: NextRequest) {
   if (!patientName) {
     return NextResponse.json({ error: "missing_name", message: "Please enter the patient's name." }, { status: 400 });
   }
+  if (patientName.length > MAX_NAME) {
+    return NextResponse.json(
+      { error: "name_too_long", message: "That name is too long. Please shorten it." },
+      { status: 400 },
+    );
+  }
   if (!isValidMobile(patientPhone)) {
     return NextResponse.json(
       { error: "bad_phone", message: INVALID_PHONE_MESSAGE },
       { status: 400 },
     );
   }
+  if (patientEmail && patientEmail.length > MAX_EMAIL) {
+    return NextResponse.json(
+      { error: "email_too_long", message: "That email address is too long." },
+      { status: 400 },
+    );
+  }
   if (!address) {
     return NextResponse.json({ error: "missing_address", message: "Please enter a collection address." }, { status: 400 });
+  }
+  if (address.length > MAX_ADDRESS) {
+    return NextResponse.json(
+      { error: "address_too_long", message: "That address is too long. Please shorten it." },
+      { status: 400 },
+    );
+  }
+  if (notes && notes.length > MAX_NOTES) {
+    return NextResponse.json(
+      { error: "notes_too_long", message: "That note is too long. Please shorten it." },
+      { status: 400 },
+    );
   }
   if (pincode.length !== 6) {
     return NextResponse.json(
@@ -152,6 +204,15 @@ export async function POST(req: NextRequest) {
   }
   if (testIds.length === 0) {
     return NextResponse.json({ error: "no_tests", message: "Please choose at least one test." }, { status: 400 });
+  }
+  // The catalogue is around a hundred tests, so this is not a limit any real
+  // booking meets. It is here because `testIds` is serialised into the row as
+  // JSON, and an array is the cheapest way to make one row arbitrarily large.
+  if (testIds.length > MAX_TESTS) {
+    return NextResponse.json(
+      { error: "too_many_tests", message: "That is more tests than one visit can cover. Please book fewer." },
+      { status: 400 },
+    );
   }
   if (!SLOTS.has(preferredSlot)) {
     return NextResponse.json({ error: "bad_slot" }, { status: 400 });
@@ -220,7 +281,11 @@ export async function POST(req: NextRequest) {
     .gt("created_at", fiveMinAgo)
     .limit(1);
   if (recent && recent.length > 0) {
-    return NextResponse.json({ bookingId: recent[0].booking_id, deduped: true });
+    // Unlocked on the way out, as below: this caller just proved the phone
+    // number by submitting it on a booking that matches it.
+    const deduped = NextResponse.json({ bookingId: recent[0].booking_id, deduped: true });
+    setBookingAccessCookie(deduped, await mintBookingAccess(recent[0].booking_id));
+    return deduped;
   }
 
   let bookingId: string;
@@ -265,7 +330,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ bookingId, id });
+  // The status page and the cancel route now ask for the phone number on the
+  // booking before they will show or change anything. Whoever just submitted
+  // this form typed that number into it, so asking them to type it again on the
+  // very next screen would be theatre. Minting the token here means the gate is
+  // only ever met by someone arriving later — from an email link, or on another
+  // device — which is exactly who it is for.
+  const res = NextResponse.json({ bookingId, id });
+  setBookingAccessCookie(res, await mintBookingAccess(bookingId));
+  return res;
 }
 
 /**

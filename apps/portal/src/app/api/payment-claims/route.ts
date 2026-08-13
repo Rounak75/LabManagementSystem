@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPatientJwt } from "@portal/lib/jwt";
 import { getServiceClient } from "@portal/lib/supabase-server";
+import { enforceRateLimit } from "@portal/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,12 @@ export async function POST(req: NextRequest) {
   let payload;
   try { payload = await verifyPatientJwt(cookie); }
   catch { return NextResponse.json({ error: "unauthorized" }, { status: 401 }); }
+
+  // Every claim is a row staff have to reconcile against the UPI app by hand.
+  // Nothing here dedupes on invoice, so without this one patient tapping "I have
+  // paid" repeatedly puts the same invoice in front of them repeatedly.
+  const limited = await enforceRateLimit("paymentClaims", req);
+  if (limited) return limited;
 
   const body = await req.json();
   const invoiceId = String(body.invoiceId ?? "");

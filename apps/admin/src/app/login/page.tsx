@@ -1,5 +1,17 @@
 import { LoginForm } from "./LoginForm";
 
+// A nonce is per-request, so a page rendered once at build time cannot carry
+// one. This page was the only prerendered route in the app that a human uses,
+// and under the CSP the middleware now sets, its script tags arrived with no
+// nonce against a policy that requires one — `'strict-dynamic'` makes browsers
+// ignore the `'self'` that would otherwise have covered them. The whole login
+// form was dead: server HTML painted, nothing hydrated, the button did nothing.
+//
+// Rendering it per request costs nothing worth counting. Three people sign in
+// here a handful of times a day, and every other page in the app is already
+// dynamic because it reads a cookie.
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">

@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { DM_Sans, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Header } from "@portal/components/Header";
 import { Footer } from "@portal/components/Footer";
@@ -99,7 +100,15 @@ const themeBootstrap = `
 }catch(e){ document.documentElement.dataset.theme = 'light'; }})();
 `.trim();
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Stamped on the request by the middleware, which is also what tells the
+  // browser to accept exactly this value. Without it the bootstrap below is an
+  // unsigned inline script and the CSP will — correctly — refuse to run it,
+  // which shows up as the page loading in light mode for a night-mode user
+  // rather than as an error. Absent only if the middleware did not run, in
+  // which case there is no CSP to satisfy either.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -116,7 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
       {/* Pages own their own horizontal rhythm: each opens with a full-bleed
           teal band and pulls its first card up into it, so `main` stays edge

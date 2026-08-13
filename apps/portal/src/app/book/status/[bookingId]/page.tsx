@@ -1,8 +1,18 @@
-// Phase 3d Plan F — public booking status page. Anyone who knows the booking
-// ID can view; rows older than 7 days are hidden per spec §7.7.
+// Phase 3d Plan F — booking status page. Rows older than 7 days are hidden per
+// spec §7.7.
+//
+// This page used to show a booking to anyone who knew its id. That id is
+// allocated in sequence, so counting through it read out the lab's home-visit
+// book: each patient's name, the day someone would be at their house, and
+// whether the visit was still pending. It now asks for the phone number on the
+// booking first — the same bar `tryBookingIdLogin` sets for the same id — which
+// costs the real patient one field, once an hour.
 
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getServiceClient } from "@portal/lib/supabase-server";
+import { BOOKING_ACCESS_COOKIE, verifyBookingAccess } from "@portal/lib/booking-access";
+import { BookingPhoneGate } from "./BookingPhoneGate";
 import { CancelBookingButton } from "./CancelBookingButton";
 import {
   Band,
@@ -49,6 +59,36 @@ function statusMessage(status: string, declineReason: string | null): string {
 
 export default async function StatusPage({ params: paramsPromise }: { params: Promise<{ bookingId: string }> }) {
   const params = await paramsPromise;
+
+  // Checked before the booking is looked up, and the gate is shown whether or
+  // not the id names anything. Reading the row first and 404-ing on a miss would
+  // leave the enumeration intact in a quieter form: the difference between "give
+  // me your number" and "no such booking" is itself the answer to "does this
+  // booking exist", which is what counting through the sequence was asking.
+  const unlocked = await verifyBookingAccess(
+    (await cookies()).get(BOOKING_ACCESS_COOKIE)?.value,
+    params.bookingId,
+  );
+  if (!unlocked) {
+    return (
+      <>
+        <Band waves className="pb-16">
+          <Container>
+            <BandBar back={{ href: "/", label: "Back to home" }} title="Booking status" />
+            <p className="pb-2 text-center font-mono num text-[13px] text-band/60">
+              {params.bookingId}
+            </p>
+          </Container>
+        </Band>
+        <Container>
+          <div className="mx-auto -mt-8 max-w-md">
+            <BookingPhoneGate bookingId={params.bookingId} />
+          </div>
+        </Container>
+      </>
+    );
+  }
+
   const sb = getServiceClient();
   const { data: row } = await sb
     .from("bookings")

@@ -14,13 +14,17 @@ register("auth:firstRunNeeded", async () => {
 });
 
 register("auth:firstRunComplete", async (payload: FirstRunInput) => {
-  console.log("[AUTH] firstRunComplete called with admin:", payload.admin?.username);
-  console.log("[AUTH] DATABASE_URL:", process.env.DATABASE_URL);
+  // Deliberately logs nothing about who is being created or where the database
+  // is. This block used to print the admin's chosen username and the full
+  // `DATABASE_URL` — which on a packaged install is the absolute path to the
+  // file holding every patient record the lab has. Both went to stdout, and on
+  // a packaged build stdout is the rotating `lab-errors.log` that the owner is
+  // asked to send to support when something breaks.
+  //
   // Use an interactive transaction so user + settings are created atomically.
   // If anything fails, the entire operation rolls back.
   const result = await prisma().$transaction(async (tx) => {
     const userCount = await tx.user.count();
-    console.log("[AUTH] user count in transaction:", userCount);
     if (userCount > 0) throw new Error("FORBIDDEN");
 
     const passwordHash = await hashPassword(payload.admin.password);

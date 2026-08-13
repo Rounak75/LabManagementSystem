@@ -86,4 +86,47 @@ describe("portal middleware", () => {
 
     expect(redirectedTo(res)).toBe("/login?next=%2Fdashboard");
   });
+
+  describe("content security policy", () => {
+    // The middleware is the only thing that can mint a per-request nonce, so a
+    // page it did not touch is a page with no CSP on it.
+    it("is set on a public page", async () => {
+      const res = await middleware(get("/book"));
+
+      expect(res.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    });
+
+    // /login takes a phone number and a password from someone not signed in.
+    // Protecting only the authed pages would leave exactly the wrong one bare.
+    it("is set on the login page", async () => {
+      const res = await middleware(get("/login"));
+
+      expect(res.headers.get("content-security-policy")).toContain("script-src");
+    });
+
+    it("is set on an authed page", async () => {
+      const token = await mintPatientJwt("p1");
+
+      const res = await middleware(get("/dashboard", token));
+
+      expect(res.headers.get("content-security-policy")).toContain("script-src");
+    });
+
+    // A redirect still renders in the browser, and the response that carries a
+    // patient to /login should not be the one gap in the policy.
+    it("survives the redirect to login", async () => {
+      const res = await middleware(get("/dashboard"));
+
+      expect(res.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    });
+
+    it("uses a fresh nonce per request", async () => {
+      const first = await middleware(get("/book"));
+      const second = await middleware(get("/book"));
+
+      expect(first.headers.get("content-security-policy")).not.toBe(
+        second.headers.get("content-security-policy"),
+      );
+    });
+  });
 });

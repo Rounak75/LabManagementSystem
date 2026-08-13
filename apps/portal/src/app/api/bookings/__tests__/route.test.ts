@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { NextRequest } from "next/server";
 import { makeSupabaseStub, type ResultSpec } from "@portal/test/supabase-stub";
 
@@ -9,6 +9,13 @@ let captchaOk = true;
 vi.mock("@portal/lib/captcha", () => ({ verifyPuzzle: async () => captchaOk }));
 
 import { POST } from "../route";
+
+// A successful booking now hands back a token unlocking the status page for it,
+// so that the patient who just typed their phone number into this form is not
+// asked for it again on the very next screen. Minting it needs the signing key.
+beforeAll(() => {
+  process.env.SUPABASE_JWT_SECRET = "test-secret-at-least-32-chars-long-aaaaaaa";
+});
 
 function req(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/bookings", {

@@ -41,6 +41,7 @@ import { seedGolmuriTests, GOLMURI_SEED_COUNT } from "@main/services/seed-golmur
 import { seedSpecialTests, SPECIAL_SEED_COUNT } from "@main/services/seed-special-tests";
 import { seedGolmuriTemplate } from "@main/services/seed-golmuri-template";
 import { logError } from "@main/services/logger";
+import { applyNavigationGuards, applyRendererCsp } from "@main/services/window-guards";
 import { initAutoUpdater } from "@main/services/updater";
 import { prisma } from "@main/db";
 
@@ -61,8 +62,28 @@ function createWindow() {
     // appearing and the first paint, and of any resize the compositor has not
     // caught up with. Matches the app background (Tailwind slate-50).
     backgroundColor: "#f8fafc",
-    webPreferences: { preload: join(__dirname, "../preload/index.js"), contextIsolation: true, nodeIntegration: false }
+    webPreferences: {
+      preload: join(__dirname, "../preload/index.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      // The renderer has no business reaching the filesystem or another origin
+      // over HTTP; everything it needs arrives through the preload bridge.
+      // Left at Electron's secure defaults explicitly, so a future edit to this
+      // block has to say out loud that it is turning one off.
+      sandbox: false, // preload needs Node to build the bridge
+      webSecurity: true,
+    }
   });
+
+  // Where the window may go, and what happens when something asks for a second
+  // one. See `window-guards` — the short version is that the renderer may not
+  // navigate off the app, and `window.open` would otherwise hand back a window
+  // built from Electron's defaults rather than the hardened options above.
+  applyNavigationGuards(mainWindow, process.env.ELECTRON_RENDERER_URL);
+  applyRendererCsp(mainWindow.webContents.session, {
+    dev: Boolean(process.env.ELECTRON_RENDERER_URL),
+  });
+
   mainWindow.once("ready-to-show", () => mainWindow?.show());
   // Belt and braces: if the renderer fails badly enough never to reach
   // ready-to-show, a window that is never shown leaves the owner with no app and
