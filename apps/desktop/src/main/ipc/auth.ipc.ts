@@ -6,6 +6,7 @@ import { prisma } from "@main/db";
 import type { FirstRunInput, LoginInput } from "@shared/api";
 import { audit } from "@main/services/audit.service";
 import type { Role } from "@lab/types";
+import { domainError } from "@shared/domain-error";
 
 register("auth:firstRunNeeded", async () => {
   const result = await isFirstRun();
@@ -25,7 +26,7 @@ register("auth:firstRunComplete", async (payload: FirstRunInput) => {
   // If anything fails, the entire operation rolls back.
   const result = await prisma().$transaction(async (tx) => {
     const userCount = await tx.user.count();
-    if (userCount > 0) throw new Error("FORBIDDEN");
+    if (userCount > 0) throw domainError("FORBIDDEN");
 
     const passwordHash = await hashPassword(payload.admin.password);
     const user = await tx.user.create({

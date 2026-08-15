@@ -11,18 +11,8 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState, EmptyIcons } from "@/components/ui/EmptyState";
 import type { Role } from "@lab/types";
+import type { UserRow } from "@shared/api";
 import { labDate } from "@shared/lab-date";
-
-type UserRow = {
-  id: string;
-  name: string;
-  username: string;
-  role: Role;
-  isActive: boolean;
-  canCollectSamples: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
 
 function friendlyError(err: unknown): string {
   const code = (err as any)?.code as string | undefined;
@@ -50,7 +40,7 @@ export default function UserManagement() {
   const { user: me } = useAuth();
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
-    queryFn: () => call<UserRow[]>("users:list")
+    queryFn: () => call("users:list")
   });
 
   const [adding, setAdding] = useState(false);

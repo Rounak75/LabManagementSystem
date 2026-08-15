@@ -1,5 +1,6 @@
 import { prisma } from "@main/db";
 import { validate, type TemplateConfig } from "@shared/template-config";
+import { domainError } from "@shared/domain-error";
 
 /**
  * Which template's styling a report is printed with.
@@ -24,9 +25,9 @@ export async function resolveTemplateConfig(templateId?: string): Promise<Templa
   if (!tpl) {
     tpl = await prisma().reportTemplate.findFirst({ where: { isDefault: true } });
   }
-  if (!tpl) throw new Error("NO_TEMPLATE");
+  if (!tpl) throw domainError("NO_TEMPLATE");
   const parsed = JSON.parse(tpl.config);
   const v = validate(parsed);
-  if (!v.ok) throw new Error("INVALID_TEMPLATE_CONFIG");
+  if (!v.ok) throw domainError("INVALID_TEMPLATE_CONFIG");
   return v.value;
 }

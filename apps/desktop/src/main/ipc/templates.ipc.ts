@@ -4,6 +4,7 @@ import { requireAdmin, requireSession } from "@main/session";
 import { audit } from "@main/services/audit.service";
 import { validate, type TemplateConfig } from "@shared/template-config";
 import { setDefaultAtomic } from "@main/services/template.service";
+import { domainError } from "@shared/domain-error";
 
 register("templates:list", async () => {
   // Read-only listing is needed by Reports preview (Staff-accessible) so
@@ -15,7 +16,7 @@ register("templates:list", async () => {
 register("templates:save", async (p: { id?: string; name: string; config: TemplateConfig }) => {
   requireAdmin();
   const v = validate(p.config);
-  if (!v.ok) throw new Error("INVALID_INPUT");
+  if (!v.ok) throw domainError("INVALID_INPUT");
   const configString = JSON.stringify(v.value);
   if (p.id) {
     const updated = await prisma().reportTemplate.update({
@@ -35,7 +36,7 @@ register("templates:save", async (p: { id?: string; name: string; config: Templa
 register("templates:setDefault", async (p: { id: string }) => {
   requireAdmin();
   const t = await prisma().reportTemplate.findUnique({ where: { id: p.id } });
-  if (!t) throw new Error("NOT_FOUND");
+  if (!t) throw domainError("NOT_FOUND");
   await setDefaultAtomic(p.id);
   await audit("TEMPLATE_DEFAULT_SET", "ReportTemplate", p.id);
   return { ok: true };
@@ -44,7 +45,7 @@ register("templates:setDefault", async (p: { id: string }) => {
 register("templates:duplicate", async (p: { id: string }) => {
   requireAdmin();
   const src = await prisma().reportTemplate.findUnique({ where: { id: p.id } });
-  if (!src) throw new Error("NOT_FOUND");
+  if (!src) throw domainError("NOT_FOUND");
   const copy = await prisma().reportTemplate.create({
     data: { name: `${src.name} (copy)`, isDefault: false, config: src.config },
   });
@@ -55,8 +56,8 @@ register("templates:duplicate", async (p: { id: string }) => {
 register("templates:delete", async (p: { id: string }) => {
   requireAdmin();
   const t = await prisma().reportTemplate.findUnique({ where: { id: p.id } });
-  if (!t) throw new Error("NOT_FOUND");
-  if (t.isDefault) throw new Error("TEMPLATE_IN_USE");
+  if (!t) throw domainError("NOT_FOUND");
+  if (t.isDefault) throw domainError("TEMPLATE_IN_USE");
   await prisma().reportTemplate.delete({ where: { id: p.id } });
   await audit("TEMPLATE_DELETED", "ReportTemplate", p.id);
   return { ok: true };

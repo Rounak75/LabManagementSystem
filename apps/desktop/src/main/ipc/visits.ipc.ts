@@ -7,6 +7,7 @@ import * as triggers from "@main/services/notifications/triggers";
 import type { VisitCreateInput } from "@shared/api";
 import { visitOrchestrator } from "@main/domain/visit-orchestrator";
 import "@main/domain/side-effects"; // Register domain event listeners
+import { domainError } from "@shared/domain-error";
 
 register("visits:create", async (input: VisitCreateInput) => {
   const u = requireSession();
@@ -47,7 +48,7 @@ export async function setReportReleaseOverride({
 }): Promise<{ released: boolean }> {
   const u = requireAdmin();
   const visit = await prisma().visit.findUnique({ where: { id: visitId } });
-  if (!visit) throw new Error("NOT_FOUND");
+  if (!visit) throw domainError("NOT_FOUND");
 
   await prisma().visit.update({
     where: { id: visitId },
@@ -87,7 +88,7 @@ register("visits:get", async ({ id }: { id: string }) => {
       invoice: true
     }
   });
-  if (!v) throw new Error("NOT_FOUND");
+  if (!v) throw domainError("NOT_FOUND");
   return v;
 });
 
@@ -110,7 +111,7 @@ register("visitTests:getOne", async ({ id }: { id: string }) => {
       visit: { include: { patient: true } }
     }
   });
-  if (!vt) throw new Error("NOT_FOUND");
+  if (!vt) throw domainError("NOT_FOUND");
 
   // Task 10: `wasPreviouslyVerified` lets ResultEntry show an "audit-on-edit"
   // banner after Admin unlocks a verified result. True when the most recent
@@ -200,14 +201,14 @@ export async function unlockVisitTest(
   input: { visitTestId: string; reason: string }
 ): Promise<{ isLocked: false }> {
   const session = requireSession();
-  if (session.role !== "Admin") throw new Error("FORBIDDEN");
-  if (input.reason.trim().length < 10) throw new Error("REASON_REQUIRED");
+  if (session.role !== "Admin") throw domainError("FORBIDDEN");
+  if (input.reason.trim().length < 10) throw domainError("REASON_REQUIRED");
 
   const vt = await prisma().visitTest.findUnique({
     where: { id: input.visitTestId },
     include: { visit: { include: { invoice: true } } }
   });
-  if (!vt) throw new Error("NOT_FOUND");
+  if (!vt) throw domainError("NOT_FOUND");
 
   const previouslyVerifiedAt = vt.verifiedAt;
   await prisma().visitTest.update({

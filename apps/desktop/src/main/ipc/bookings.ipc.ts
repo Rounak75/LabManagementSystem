@@ -17,6 +17,7 @@ import {
   type PhoneConfirmOutcome,
   type ResolveApprovedResult,
 } from "@main/services/bookings.service";
+import { domainError } from "@shared/domain-error";
 
 register("bookings:list", async ({ status }: { status?: string } = {}) => {
   requireAdmin();
@@ -82,7 +83,7 @@ register("bookings:approve", async ({
   // that can reach this channel, and a booking approved without the call
   // recorded is indistinguishable afterwards from one that was checked.
   if (phoneConfirmOutcome !== "Reached" && phoneConfirmOutcome !== "NoAnswer") {
-    throw new Error("PHONE_CONFIRM_REQUIRED");
+    throw domainError("PHONE_CONFIRM_REQUIRED");
   }
   const result = await approveBooking({
     bookingId,

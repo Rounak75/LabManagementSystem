@@ -7,13 +7,14 @@ import { requireAdmin, requireSession } from "@main/session";
 import { audit } from "@main/services/audit.service";
 import { migrateLogoToDataUri } from "@main/services/report.service";
 import { encryptSecret } from "@main/services/crypto.service";
+import { domainError } from "@shared/domain-error";
 
 // ─── settings:get ────────────────────────────────────────────────────────────
 
 export async function getSettings() {
   requireSession();
   const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
-  if (!s) throw new Error("NOT_FOUND");
+  if (!s) throw domainError("NOT_FOUND");
   // Never expose plaintext secrets to the renderer.
   // Return "***" as a sentinel meaning "a value is saved — leave blank to keep".
   return {
@@ -109,9 +110,9 @@ register("settings:update", updateSettings);
 register("settings:uploadLogo", async (p: { sourcePath: string }) => {
   requireAdmin();
   const ext = extname(p.sourcePath).toLowerCase();
-  if (![".png", ".jpg", ".jpeg"].includes(ext)) throw new Error("INVALID_INPUT");
+  if (![".png", ".jpg", ".jpeg"].includes(ext)) throw domainError("INVALID_INPUT");
   const stat = statSync(p.sourcePath);
-  if (stat.size > 256 * 1024) throw new Error("FILE_TOO_LARGE");
+  if (stat.size > 256 * 1024) throw domainError("FILE_TOO_LARGE");
 
   const dir = join(electronApp.getPath("userData"), "assets");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

@@ -12,6 +12,7 @@ import { useAuth } from "@/stores/auth.store";
 import { NotificationsFailedBadge } from "@/components/NotificationsFailedBadge";
 import { PaymentLinksCard } from "@/components/PaymentLinksCard";
 import { PaymentLinksFailedBadge } from "@/components/PaymentLinksFailedBadge";
+import { BackupStatusCard } from "@/components/BackupStatusCard";
 import {
   Users, TestTube, FileText, Clock,
   PlusCircle, Calendar, FlaskConical, FileBarChart,
@@ -72,7 +73,7 @@ export default function Dashboard() {
   const qc = useQueryClient();
   const { data, isLoading, isError, error, isFetching } = useQuery({
     queryKey: ["dashboard:stats"],
-    queryFn: () => call<DashboardStats>("dashboard:stats"),
+    queryFn: () => call("dashboard:stats"),
     refetchInterval: 60_000,
   });
 
@@ -114,6 +115,12 @@ export default function Dashboard() {
           Couldn't load dashboard. {(error as Error)?.message}
         </div>
       ) : null}
+
+      {/* Above the day's numbers on purpose: an unwritten off-machine backup is
+          the only thing on this page that cannot be put right later. Renders
+          nothing at all while backups are healthy — and carries its own margin
+          so that a healthy lab gets no empty gap here. */}
+      <BackupStatusCard />
 
       {/* Today's Operations */}
       <section className="mb-8">

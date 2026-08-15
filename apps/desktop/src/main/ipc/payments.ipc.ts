@@ -6,6 +6,7 @@ import { pollOne } from "@main/services/payments/poller";
 import { prisma } from "@main/db";
 import { decryptSecret } from "@main/services/crypto.service";
 import { createRazorpayClient } from "@main/services/payments/razorpay-client";
+import { domainError } from "@shared/domain-error";
 
 // ─── payments:createLink ──────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ register("payments:testConnection", async () => {
     !settings?.razorpayKeyId ||
     !settings?.razorpayKeySecret
   ) {
-    throw new Error("RAZORPAY_NOT_CONFIGURED");
+    throw domainError("RAZORPAY_NOT_CONFIGURED");
   }
 
   const keySecret = decryptSecret(settings.razorpayKeySecret);

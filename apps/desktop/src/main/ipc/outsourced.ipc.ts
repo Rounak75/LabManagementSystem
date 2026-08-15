@@ -2,6 +2,7 @@ import { register } from "@main/ipc";
 import { prisma } from "@main/db";
 import { requireSession } from "@main/session";
 import { audit } from "@main/services/audit.service";
+import { domainError } from "@shared/domain-error";
 
 register("outsourced:list", async () => {
   requireSession();
@@ -24,8 +25,8 @@ register("outsourced:list", async () => {
 register("outsourced:markReceived", async (p: { visitTestId: string }) => {
   requireSession();
   const vt = await prisma().visitTest.findUnique({ where: { id: p.visitTestId } });
-  if (!vt) throw new Error("NOT_FOUND");
-  if (vt.outsourcedStatus !== "Sent") throw new Error("INVALID_STATE");
+  if (!vt) throw domainError("NOT_FOUND");
+  if (vt.outsourcedStatus !== "Sent") throw domainError("INVALID_STATE");
   await prisma().visitTest.update({
     where: { id: p.visitTestId },
     data: { outsourcedStatus: "Received", outsourcedReceivedAt: new Date() },

@@ -54,7 +54,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   });
   const { data: appInfo } = useQuery({
     queryKey: ["appVersion"],
-    queryFn: () => call<{ version: string }>("app:getVersion"),
+    queryFn: () => call("app:getVersion"),
     staleTime: Infinity,
   });
   const isOpen = settings?.isOpenToday;

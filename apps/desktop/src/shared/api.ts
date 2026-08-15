@@ -44,8 +44,8 @@ export type Channel =
   // app utilities
   | "app:saveTextFile" | "app:pickDirectory" | "app:pickFile" | "app:logError"
   | "app:getVersion" | "updater:quitAndInstall" | "updater:checkNow" | "updater:download"
-  // backup
-  | "backup:runNow" | "backup:list" | "backup:restore"
+  // backup (admin only, except getHealth which any session can read)
+  | "backup:runNow" | "backup:list" | "backup:restore" | "backup:getHealth"
   // dashboard
   | "dashboard:stats"
   | "dashboard:paymentLinksStats"
@@ -178,14 +178,27 @@ export interface ResultUpsertInput {
 
 export interface DiscountInput { invoiceId: string; amount: number; isPercent: boolean; }
 
+/**
+ * A staff account as the renderer receives it.
+ *
+ * Dates are `string`, not `Date`: every reply is JSON round-tripped by
+ * `stripNonCloneable` on the way out of main, so a `Date` always arrives as an
+ * ISO string. The old `string | Date` hedge described neither side honestly and
+ * pushed the narrowing onto every call site.
+ *
+ * `canCollectSamples` was missing here for as long as the field has existed —
+ * the renderer kept its own copy of this type to get at it. Both copies are gone
+ * now; this is the one.
+ */
 export interface UserRow {
   id: string;
   name: string;
   username: string;
   role: Role;
   isActive: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  canCollectSamples: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserCreateInput {
@@ -237,6 +250,23 @@ export interface BackupLogRow {
 export interface BackupRestoreInput { backupLogId: string; }
 export interface BackupRestoreResult { ok: true; }
 
+/** How loudly the backup verdict should be shown. "ok" means show nothing. */
+export type BackupTone = "ok" | "warn" | "alarm";
+
+/**
+ * The dashboard's one-line verdict on backups, from `backup:getHealth`.
+ *
+ * Lives here rather than beside the logic in main so the renderer can name the
+ * shape without importing across the main/renderer boundary — the same reason
+ * `DashboardStats` is here and not in the service that builds it.
+ */
+export interface BackupHealth {
+  tone: BackupTone;
+  headline: string;
+  /** A second line, or null when the headline says everything. */
+  detail: string | null;
+}
+
 export interface UserResetPasswordInput { id: string; newPassword: string; }
 export interface UserSetActiveInput   { id: string; isActive: boolean; }
 export interface UserUpdateRoleInput  { id: string; role: Role; }
@@ -272,6 +302,84 @@ export type TemplateRow = {
 
 export type TemplateSaveInput = { id?: string; name: string; config: TemplateConfig };
 export type TemplateIdInput = { id: string };
+
+/**
+ * What each channel takes and returns — the one place the two sides agree.
+ *
+ * A channel listed here is checked at both ends: `register` in main will not
+ * accept a handler whose payload or return type disagrees, and `call` in the
+ * renderer resolves the return type from the channel name instead of taking the
+ * caller's word for it. Before this existed the same operation was declared
+ * three times — a name in `Channel`, a payload type inline on the handler, and a
+ * `call<T>` at each call site — and nothing compared them.
+ *
+ * Use `void` for a channel that takes no payload; `call` then rejects an
+ * argument rather than silently ignoring it.
+ *
+ * Migrating a channel is deliberately all-or-nothing. Adding an entry here makes
+ * the loose `call<T>` overload stop accepting that channel, so every call site
+ * has to move in the same change. A half-migrated channel would type-check while
+ * proving nothing, which is the state this is meant to end.
+ */
+export interface ChannelContract {
+  // auth + session
+  "auth:firstRunNeeded":   { input: void;                   output: boolean };
+  "auth:firstRunComplete": { input: FirstRunInput;          output: FirstRunCompleteResult };
+  "auth:login":            { input: LoginInput;             output: SessionUser };
+  "auth:logout":           { input: void;                   output: boolean };
+  "auth:currentUser":      { input: void;                   output: SessionUser | null };
+  "auth:recoverPassword":  { input: RecoverPasswordInput;   output: RecoverPasswordResult };
+
+  // backup
+  "backup:runNow":    { input: void;                 output: BackupLogRow };
+  "backup:list":      { input: void;                 output: BackupLogRow[] };
+  "backup:getHealth": { input: void;                 output: BackupHealth };
+  "backup:restore":   { input: BackupRestoreInput;   output: BackupRestoreResult };
+
+  // dashboard
+  "dashboard:stats":            { input: void; output: DashboardStats };
+  "dashboard:paymentLinksStats": { input: void; output: PaymentLinksStats };
+
+  // app utilities + updater
+  "app:saveTextFile":       { input: SaveTextFileInput; output: SaveTextFileResult };
+  "app:pickDirectory":      { input: void;              output: string | null };
+  "app:pickFile":           { input: PickFileInput;     output: string | null };
+  "app:logError":           { input: LogErrorInput;     output: { ok: true } };
+  "app:getVersion":         { input: void;              output: { version: string } };
+  "updater:quitAndInstall": { input: void;              output: { ok: true } };
+  "updater:checkNow":       { input: void;              output: { ok: true } };
+  "updater:download":       { input: void;              output: { ok: true } };
+
+  // users + audit (read paths; the users mutations still need service return types)
+  "users:list":             { input: void; output: UserRow[] };
+  "audit:distinctActions":  { input: void; output: string[] };
+}
+
+/**
+ * Compile-time proof that every key above is a real channel. If a contract entry
+ * is misspelled or names a channel that has been retired, `Exclude` stops being
+ * `never` and the default violates its own constraint. Emits nothing.
+ */
+export type _ContractKeysAreChannels<
+  T extends never = Exclude<keyof ChannelContract, Channel>,
+> = T;
+
+/** A channel whose input and output are pinned down by {@link ChannelContract}. */
+export type ContractedChannel = keyof ChannelContract & Channel;
+
+/** A channel not yet in the contract — still uses the loose `call<T>` form. */
+export type LooseChannel = Exclude<Channel, ContractedChannel>;
+
+export type ChannelInput<C extends ContractedChannel> = ChannelContract[C]["input"];
+export type ChannelOutput<C extends ContractedChannel> = ChannelContract[C]["output"];
+
+/**
+ * The payload arguments for a contracted channel: none at all when its input is
+ * `void`, exactly one otherwise. Wrapping both sides in a tuple keeps the
+ * conditional from distributing over a union input.
+ */
+export type ChannelArgs<C extends ContractedChannel> =
+  [ChannelInput<C>] extends [void] ? [] : [payload: ChannelInput<C>];
 
 export type Api = {
   invoke<T = unknown>(channel: Channel, payload?: unknown): Promise<IpcResult<T>>;

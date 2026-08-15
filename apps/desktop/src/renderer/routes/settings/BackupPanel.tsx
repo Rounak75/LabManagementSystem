@@ -43,7 +43,7 @@ export function BackupPanel() {
 
   const { data: backups } = useQuery<BackupLogRow[]>({
     queryKey: ["backups"],
-    queryFn: () => call<BackupLogRow[]>("backup:list"),
+    queryFn: () => call("backup:list"),
   });
 
   const [backupTime, setBackupTime] = useState<string>("02:00");
@@ -66,7 +66,7 @@ export function BackupPanel() {
   });
 
   const runNow = useMutation({
-    mutationFn: () => call<BackupLogRow>("backup:runNow"),
+    mutationFn: () => call("backup:runNow"),
     onMutate: () => setRunStatus({ kind: "running" }),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ["backups"] });
@@ -82,7 +82,7 @@ export function BackupPanel() {
   });
 
   const restore = useMutation({
-    mutationFn: (id: string) => call<{ ok: true }>("backup:restore", { backupLogId: id }),
+    mutationFn: (id: string) => call("backup:restore", { backupLogId: id }),
   });
 
   async function handleSaveSchedule() {
@@ -93,7 +93,7 @@ export function BackupPanel() {
   }
 
   async function handlePickFolder() {
-    const result = await call<string | null>("app:pickDirectory");
+    const result = await call("app:pickDirectory");
     if (result) {
       await saveSettings.mutateAsync({ backupPath: result });
     }

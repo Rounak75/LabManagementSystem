@@ -52,7 +52,7 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const need = await call<boolean>("auth:firstRunNeeded");
+      const need = await call("auth:firstRunNeeded");
       setFirstRun(need);
       if (!need) await bootstrap();
       else useAuth.setState({ loading: false });

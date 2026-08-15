@@ -1,12 +1,33 @@
 import { ipcMain } from "electron";
-import type { Channel } from "@shared/api";
+import type {
+  Channel,
+  ChannelInput,
+  ChannelOutput,
+  ContractedChannel,
+  LooseChannel,
+} from "@shared/api";
 import type { IpcResult } from "@lab/types";
 import { logError } from "@main/services/logger";
+import { isDomainCode, messageForCode } from "@shared/domain-error";
 
 type Handler = (payload: any) => Promise<unknown> | unknown;
 const handlers = new Map<Channel, Handler>();
 
-export function register(channel: Channel, handler: Handler) {
+/**
+ * Bind a handler to a channel.
+ *
+ * A channel in `ChannelContract` must satisfy it — the handler's payload and
+ * return type are both checked against the same entry the renderer reads. The
+ * loose overload deliberately excludes contracted channels so a mismatched
+ * handler cannot quietly fall through to it; that fallback would have made the
+ * contract decorative.
+ */
+export function register<C extends ContractedChannel>(
+  channel: C,
+  handler: (payload: ChannelInput<C>) => Promise<ChannelOutput<C>> | ChannelOutput<C>,
+): void;
+export function register(channel: LooseChannel, handler: Handler): void;
+export function register(channel: Channel, handler: Handler): void {
   handlers.set(channel, handler);
 }
 
@@ -18,15 +39,21 @@ export function attachIpc() {
         return { ok: true, data: stripNonCloneable(data) };
       } catch (err) {
         const e = err as Error;
-        const isKnownCode = typeof e?.message === "string" && /^[A-Z_]+$/.test(e.message);
-        if (isKnownCode) {
-          return { ok: false, error: { code: e.message, message: codeToMessage(e.message) } };
+        // Membership in the message table, not the shape of the string. The old
+        // test was /^[A-Z_]+$/, which let any screaming-snake string through as
+        // though it were a known code — a typo, or a `reason` that came from
+        // somewhere else — and `codeToMessage` then fell through to returning
+        // the code itself. The lab saw RAZORPAY_NOT_CONFIGURED on screen and
+        // nothing reached the log. An unrecognised code is now what it always
+        // was: an internal error, logged, reported in words.
+        if (isDomainCode(e?.message)) {
+          return { ok: false, error: { code: e.message, message: messageForCode(e.message) } };
         }
         // Unknown/internal error: log the real detail to disk, return a safe generic message.
         logError(`ipc:${channel}`, err);
         return {
           ok: false,
-          error: { code: "INTERNAL_ERROR", message: "Something went wrong on the lab computer. Please try again." },
+          error: { code: "INTERNAL_ERROR", message: messageForCode("INTERNAL_ERROR") },
         };
       }
     });
@@ -51,41 +78,4 @@ function stripNonCloneable(data: unknown): unknown {
     if (typeof value === "bigint") return value.toString();
     return value;
   }));
-}
-
-function codeToMessage(code: string): string {
-  switch (code) {
-    case "UNAUTHENTICATED": return "Please log in.";
-    case "FORBIDDEN":       return "You don't have permission for this action.";
-    case "NOT_FOUND":       return "Record not found.";
-    case "DUPLICATE_PHONE": return "A patient with that phone number already exists.";
-    case "INVALID_PHONE":   return "Invalid phone number — enter the 10-digit mobile number, starting with 6, 7, 8 or 9.";
-    case "DUPLICATE_USERNAME": return "Username is already taken.";
-    case "INVALID_INPUT":   return "Some fields are invalid.";
-    case "ADMIN_LOCKOUT_PROTECTED": return "You can't disable yourself while you're the only Admin.";
-    case "INVALID_RECOVERY_CODE": return "That recovery code is wrong.";
-    case "BACKUP_PATH_UNREACHABLE": return "Couldn't write to the secondary backup location.";
-    case "TEMPLATE_IN_USE": return "Can't delete a template that's set as default.";
-    case "USER_HAS_HISTORY": return "This user has activity in the audit log — disable them instead of deleting.";
-    case "FILE_TOO_LARGE":  return "File is too large (max 256 KB).";
-    case "INVALID_STATE":   return "That action isn't allowed in the current state.";
-    case "STALE_VERSION":   return "Someone else updated these results since you opened the page. Reload and try again.";
-    case "REASON_REQUIRED": return "A reason is required (at least 10 characters).";
-    case "PHONE_CONFIRM_REQUIRED": return "Record whether you reached the patient on the phone before approving.";
-    // INVOICE_PAID_BEFORE_UNLOCK is gone: unlocking no longer depends on the
-    // invoice, and the message told the owner to do something the app could not
-    // do. Kept mapped only so an older renderer still shows words, not a code.
-    case "INVOICE_PAID_BEFORE_UNLOCK": return "The invoice is paid — cancel it first before unlocking results.";
-    case "ALREADY_CANCELLED": return "This invoice has already been cancelled.";
-    case "PATIENT_HAS_VISITS": return "Cancel the patient's visits first, then delete the patient.";
-    case "VISIT_HAS_LOCKED_RESULTS": return "This visit has verified results — cannot cancel.";
-    case "VISIT_INVOICE_PAID": return "Invoice is paid — refund the invoice first.";
-    case "VISIT_DELETED":   return "This visit has been cancelled.";
-    case "PARAMETER_HAS_RESULTS": return "Parameter is used by existing results — deactivate instead of removing.";
-    case "EMPTY_PARAMETERS": return "Some parameters have no value.";
-    case "INVALID_PASSWORD": return "Password incorrect.";
-    case "SECRET_UNREADABLE": return "Stored secret can't be read (probably from an old app version). Please re-enter it and click Save.";
-    case "CLOUD_NOT_CONFIGURED": return "Cloud sync isn't fully configured yet. Fill in all three Supabase fields and click Save first.";
-    default: return code;
-  }
 }

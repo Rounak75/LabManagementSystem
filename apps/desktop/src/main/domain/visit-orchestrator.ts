@@ -2,10 +2,11 @@ import { prisma } from "@main/db";
 import { nextVisitId } from "@main/services/id-generator";
 import { domainEvents } from "./events";
 import type { VisitCreateInput } from "@shared/api";
+import { domainError } from "@shared/domain-error";
 
 export class VisitOrchestrator {
   async createVisit(input: VisitCreateInput & { staffId: string }) {
-    if (!input.patientId || !input.testIds?.length) throw new Error("INVALID_INPUT");
+    if (!input.patientId || !input.testIds?.length) throw domainError("INVALID_INPUT");
 
     const visitId = await nextVisitId();
     const tests = await prisma().test.findMany({ where: { id: { in: input.testIds } } });

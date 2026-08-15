@@ -49,12 +49,12 @@ export default function AuditLog() {
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
-    queryFn: () => call<UserRow[]>("users:list"),
+    queryFn: () => call("users:list"),
   });
 
   const { data: actions = [] } = useQuery({
     queryKey: ["audit", "distinctActions"],
-    queryFn: () => call<string[]>("audit:distinctActions"),
+    queryFn: () => call("audit:distinctActions"),
   });
 
   const queryPayload = useMemo(() => {

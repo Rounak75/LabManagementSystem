@@ -15,6 +15,7 @@
 
 import { prisma } from "@main/db";
 import { nextPatientId, nextVisitId } from "./id-generator";
+import { domainError } from "@shared/domain-error";
 
 export interface PatientChoice {
   id: string;
@@ -75,10 +76,10 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
   // transaction so we can short-circuit with a chooser response without
   // opening (and then rolling back) a write txn.
   const booking = await prisma().booking.findUnique({ where: { id: input.bookingId } });
-  if (!booking) throw new Error("NOT_FOUND");
-  if (booking.status !== "Pending") throw new Error("INVALID_STATE");
+  if (!booking) throw domainError("NOT_FOUND");
+  if (booking.status !== "Pending") throw domainError("INVALID_STATE");
   if (input.expectedVersion !== undefined && booking.version !== input.expectedVersion) {
-    throw new Error("STALE_VERSION");
+    throw domainError("STALE_VERSION");
   }
 
   const candidates = await listPatientCandidatesByPhone(booking.patientPhone);
@@ -91,7 +92,7 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
   if (input.chosenPatientId && input.chosenPatientId !== "__new__") {
     // Caller explicitly chose an existing patient. Validate they're still a candidate.
     const ok = candidates.some((c) => c.id === input.chosenPatientId);
-    if (!ok) throw new Error("INVALID_INPUT");
+    if (!ok) throw domainError("INVALID_INPUT");
     targetPatientId = input.chosenPatientId;
   } else if (candidates.length === 0 || wantsNew) {
     targetPatientId = null; // we'll create one inside the txn
@@ -125,7 +126,7 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
 type BookingRow = Awaited<ReturnType<typeof loadBooking>>;
 async function loadBooking(id: string) {
   const b = await prisma().booking.findUnique({ where: { id } });
-  if (!b) throw new Error("NOT_FOUND");
+  if (!b) throw domainError("NOT_FOUND");
   return b;
 }
 
@@ -160,13 +161,13 @@ async function writeConversion(opts: {
     // Re-check inside the txn to defend against a parallel approval/decline that
     // flipped the status between read and write.
     const fresh = await tx.booking.findUnique({ where: { id: booking.id } });
-    if (!fresh) throw new Error("NOT_FOUND");
-    if (fresh.status !== opts.requireStatus) throw new Error("INVALID_STATE");
+    if (!fresh) throw domainError("NOT_FOUND");
+    if (fresh.status !== opts.requireStatus) throw domainError("INVALID_STATE");
     // Converting a booking that already produced a visit would give one request
     // two visits, two invoices and two bills.
-    if (fresh.resultingVisitId) throw new Error("ALREADY_CONVERTED");
+    if (fresh.resultingVisitId) throw domainError("ALREADY_CONVERTED");
     if (opts.expectedVersion !== undefined && fresh.version !== opts.expectedVersion) {
-      throw new Error("STALE_VERSION");
+      throw domainError("STALE_VERSION");
     }
 
     let patientId: string;
@@ -390,8 +391,8 @@ export async function resolveApprovedBooking(
 ): Promise<ResolveApprovedResult> {
   const booking = await loadBooking(input.bookingId);
 
-  if (booking.status !== "Approved") throw new Error("INVALID_STATE");
-  if (booking.resultingVisitId) throw new Error("ALREADY_CONVERTED");
+  if (booking.status !== "Approved") throw domainError("INVALID_STATE");
+  if (booking.resultingVisitId) throw domainError("ALREADY_CONVERTED");
 
   const candidates = await listPatientCandidatesByPhone(booking.patientPhone);
   const wantsNew = input.chosenPatientId === "__new__";
@@ -399,7 +400,7 @@ export async function resolveApprovedBooking(
   let targetPatientId: string | null = null;
   if (input.chosenPatientId && !wantsNew) {
     // A patient id that is not on this phone is someone else's record.
-    if (!candidates.some((c) => c.id === input.chosenPatientId)) throw new Error("INVALID_INPUT");
+    if (!candidates.some((c) => c.id === input.chosenPatientId)) throw domainError("INVALID_INPUT");
     targetPatientId = input.chosenPatientId;
   } else if (!wantsNew) {
     // Nothing chosen yet — hand back the candidates so the staff can pick.
@@ -544,13 +545,13 @@ export async function listUnconvertedApprovals(): Promise<UnconvertedApproval[]>
 }
 
 export async function declineBooking(input: DeclineInput): Promise<void> {
-  if (!input.reason?.trim()) throw new Error("REASON_REQUIRED");
+  if (!input.reason?.trim()) throw domainError("REASON_REQUIRED");
   await prisma().$transaction(async (tx) => {
     const b = await tx.booking.findUnique({ where: { id: input.bookingId } });
-    if (!b) throw new Error("NOT_FOUND");
-    if (b.status !== "Pending") throw new Error("INVALID_STATE");
+    if (!b) throw domainError("NOT_FOUND");
+    if (b.status !== "Pending") throw domainError("INVALID_STATE");
     if (input.expectedVersion !== undefined && b.version !== input.expectedVersion) {
-      throw new Error("STALE_VERSION");
+      throw domainError("STALE_VERSION");
     }
     await tx.booking.update({
       where: { id: b.id },

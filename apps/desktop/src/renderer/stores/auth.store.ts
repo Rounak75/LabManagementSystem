@@ -14,15 +14,15 @@ export const useAuth = create<AuthState>((set) => ({
   user: null,
   loading: true,
   bootstrap: async () => {
-    const u = await call<SessionUser | null>("auth:currentUser");
+    const u = await call("auth:currentUser");
     set({ user: u ?? null, loading: false });
   },
   login: async (username, password) => {
-    const u = await call<SessionUser>("auth:login", { username, password });
+    const u = await call("auth:login", { username, password });
     set({ user: u });
   },
   logout: async () => {
-    await call<boolean>("auth:logout");
+    await call("auth:logout");
     set({ user: null });
   }
 }));

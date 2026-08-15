@@ -28,4 +28,29 @@ describe("attachIpc error masking", () => {
     expect(res.error.code).toBe("DUPLICATE_PHONE");
     expect(res.error.message).toContain("phone number already exists");
   });
+
+  /**
+   * The old gate was `/^[A-Z_]+$/`, so any screaming-snake string was treated as
+   * a domain code and `codeToMessage` fell through to returning the code itself.
+   * A typo, or a `reason` that came from somewhere else, put RAZORPAY_NOT_CONFIGURED
+   * on a screen and put nothing in the log. Membership in the message table now
+   * decides, so an unrecognised code is handled as what it is.
+   */
+  it("treats a screaming-snake string that is not a real code as an internal error", async () => {
+    const before = logged.length;
+    register("visits:create" as any, () => { throw new Error("STALE_VERSON"); });
+    attachIpc();
+    const res = await handlers.get("visits:create")!({}, {});
+    expect(res.error.code).toBe("INTERNAL_ERROR");
+    expect(res.error.message).not.toContain("STALE_VERSON");
+    expect(logged.length).toBeGreaterThan(before);
+  });
+
+  it("gives every code in the table real wording, never the code itself", async () => {
+    const { DOMAIN_MESSAGES } = await import("@shared/domain-error");
+    for (const [code, message] of Object.entries(DOMAIN_MESSAGES)) {
+      expect(message, code).not.toBe(code);
+      expect(message.trim().length, code).toBeGreaterThan(0);
+    }
+  });
 });

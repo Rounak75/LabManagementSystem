@@ -44,7 +44,7 @@ export default function FirstRunWizard() {
     let cancelled = false;
     (async () => {
       try {
-        const needed = await call<boolean>("auth:firstRunNeeded");
+        const needed = await call("auth:firstRunNeeded");
         if (!cancelled && !needed) {
           nav("/login", { replace: true });
         }
@@ -74,7 +74,7 @@ export default function FirstRunWizard() {
     const parsed = Schema.safeParse(v);
     if (!parsed.success) { setError(parsed.error.errors[0]?.message ?? "Invalid input"); submittingRef.current = false; return; }
     try {
-      const result = await call<FirstRunCompleteResult>("auth:firstRunComplete", {
+      const result = await call("auth:firstRunComplete", {
         admin: { name: v.adminName, username: v.adminUsername, password: v.adminPassword },
         settings: {
           labName: v.labName, labAddress: v.labAddress, labPhone: v.labPhone,
@@ -114,7 +114,7 @@ export default function FirstRunWizard() {
       `Keep this safe. It is the only way to reset the Admin password.\n` +
       `Generated: ${new Date().toISOString()}\n`;
     try {
-      const res = await call<SaveTextFileResult>("app:saveTextFile", {
+      const res = await call("app:saveTextFile", {
         filename: "lab-recovery-code.txt",
         contents
       });

@@ -5,6 +5,7 @@ import { audit } from "@main/services/audit.service";
 import * as triggers from "@main/services/notifications/triggers";
 import { recordUpiPayment } from "@main/services/payments/upi.service";
 import type { DiscountInput } from "@shared/api";
+import { domainError } from "@shared/domain-error";
 
 register("invoices:get", async ({ id }: { id: string }) => {
   requireSession();
@@ -12,7 +13,7 @@ register("invoices:get", async ({ id }: { id: string }) => {
     where: { id },
     include: { visit: { include: { patient: true, visitTests: { include: { test: true } } } } }
   });
-  if (!inv) throw new Error("NOT_FOUND");
+  if (!inv) throw domainError("NOT_FOUND");
   return inv;
 });
 
@@ -39,11 +40,11 @@ export async function cancelInvoice({
   reason: string;
 }): Promise<{ paymentStatus: string }> {
   const u = requireAdmin();
-  if (reason.trim().length < 10) throw new Error("REASON_REQUIRED");
+  if (reason.trim().length < 10) throw domainError("REASON_REQUIRED");
 
   const inv = await prisma().invoice.findUnique({ where: { id: invoiceId } });
-  if (!inv) throw new Error("NOT_FOUND");
-  if (inv.paymentStatus === "Cancelled") throw new Error("ALREADY_CANCELLED");
+  if (!inv) throw domainError("NOT_FOUND");
+  if (inv.paymentStatus === "Cancelled") throw domainError("ALREADY_CANCELLED");
 
   const updated = await prisma().invoice.update({
     where: { id: invoiceId },
@@ -72,10 +73,10 @@ register("invoices:cancel", cancelInvoice);
 register("invoices:applyDiscount", async (input: DiscountInput) => {
   requireAdmin();
   const inv = await prisma().invoice.findUnique({ where: { id: input.invoiceId } });
-  if (!inv) throw new Error("NOT_FOUND");
+  if (!inv) throw domainError("NOT_FOUND");
   const subtotal = Number(inv.subtotal);
   const discount = input.isPercent ? Math.round(subtotal * input.amount) / 100 : input.amount;
-  if (discount < 0 || discount > subtotal) throw new Error("INVALID_INPUT");
+  if (discount < 0 || discount > subtotal) throw domainError("INVALID_INPUT");
   const total = subtotal - discount;
   const updated = await prisma().invoice.update({
     where: { id: input.invoiceId }, data: { discountAmount: discount, total }
@@ -87,7 +88,7 @@ register("invoices:applyDiscount", async (input: DiscountInput) => {
 register("invoices:recordCash", async ({ invoiceId, amount }: { invoiceId: string; amount: number }) => {
   requireSession();
   const inv = await prisma().invoice.findUnique({ where: { id: invoiceId } });
-  if (!inv) throw new Error("NOT_FOUND");
+  if (!inv) throw domainError("NOT_FOUND");
   const newPaid = Number(inv.amountPaid) + amount;
   const total = Number(inv.total);
   let status: "Pending" | "Partial" | "Paid" = "Pending";

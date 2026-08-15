@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/Card";
 import { call } from "@/lib/api";
-import type { BackupHealth } from "@shared/api";
 
 /**
  * The backup alarm, on the screen the owner actually looks at.
@@ -18,7 +17,7 @@ import type { BackupHealth } from "@shared/api";
 export function BackupStatusCard() {
   const { data } = useQuery({
     queryKey: ["backup", "health"],
-    queryFn: () => call<BackupHealth>("backup:getHealth", {}),
+    queryFn: () => call("backup:getHealth"),
     refetchInterval: 5 * 60_000,
   });
 

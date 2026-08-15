@@ -10,10 +10,35 @@ import {
   setUserCanCollectSamples,
 } from "@main/services/users.service";
 import type { Role } from "@lab/types";
+import type { UserRow } from "@shared/api";
+
+/**
+ * Convert a stored user into the wire shape the renderer is promised.
+ *
+ * Both conversions are what the seam already did invisibly: `stripNonCloneable`
+ * JSON round-trips the reply, and `JSON.stringify` renders a `Date` through
+ * `toISOString`. Doing it here changes no value — it just makes the type the
+ * renderer sees match the value it actually receives.
+ */
+function toUserRow(row: {
+  id: string; name: string; username: string; role: string;
+  isActive: boolean; canCollectSamples: boolean; createdAt: Date; updatedAt: Date;
+}): UserRow {
+  return {
+    id: row.id,
+    name: row.name,
+    username: row.username,
+    role: row.role as Role,
+    isActive: row.isActive,
+    canCollectSamples: row.canCollectSamples,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
 
 register("users:list", async () => {
   requireAdmin();
-  return listUsers();
+  return (await listUsers()).map(toUserRow);
 });
 
 register("users:create", async (p: {

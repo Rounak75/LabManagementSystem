@@ -3,6 +3,7 @@ import { prisma } from "@main/db";
 import { decryptSecret } from "@main/services/crypto.service";
 import { createRazorpayClient, type RazorpayClient } from "./razorpay-client";
 import { markPaid } from "./reconcile";
+import { domainError } from "@shared/domain-error";
 
 const TICK_MS = 30_000;
 const MAX_FAILS = 3;
@@ -92,7 +93,7 @@ export async function runPollTick(): Promise<void> {
 
 export async function pollOne(invoiceId: string): Promise<void> {
   const client = await getClient();
-  if (!client) throw new Error("RAZORPAY_DISABLED");
+  if (!client) throw domainError("RAZORPAY_DISABLED");
   const rows = await dueRows([invoiceId]);
   for (const row of rows) {
     await pollRow(client, row);

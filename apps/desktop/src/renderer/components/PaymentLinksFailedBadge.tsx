@@ -13,7 +13,7 @@ import type { PaymentLinksStats } from "@shared/api";
 export function PaymentLinksFailedBadge() {
   const { data } = useQuery({
     queryKey: ["dashboard", "payment-links"],
-    queryFn: () => call<PaymentLinksStats>("dashboard:paymentLinksStats", {}),
+    queryFn: () => call("dashboard:paymentLinksStats"),
     refetchInterval: 30_000,
   });
 

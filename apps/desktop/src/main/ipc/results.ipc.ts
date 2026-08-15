@@ -4,6 +4,7 @@ import { requireSession } from "@main/session";
 import { isAbnormal } from "@main/services/abnormality";
 import { audit } from "@main/services/audit.service";
 import type { ResultUpsertInput } from "@shared/api";
+import { domainError } from "@shared/domain-error";
 
 register("results:listForVisit", async ({ visitId }: { visitId: string }) => {
   requireSession();
@@ -36,8 +37,8 @@ export async function upsertResults(input: ResultUpsertInput) {
     where: { id: input.visitTestId },
     include: { test: { include: { parameters: true } }, visit: { include: { patient: true } } }
   });
-  if (!vt) throw new Error("NOT_FOUND");
-  if (vt.isLocked) throw new Error("FORBIDDEN");
+  if (!vt) throw domainError("NOT_FOUND");
+  if (vt.isLocked) throw domainError("FORBIDDEN");
 
   // Optimistic concurrency check. We compare against the highest version
   // among existing rows for this visitTest. findFirst with orderBy is enough
@@ -48,7 +49,7 @@ export async function upsertResults(input: ResultUpsertInput) {
       orderBy: { version: "desc" }
     });
     if (current && current.version !== input.expectedVersion) {
-      throw new Error("STALE_VERSION");
+      throw domainError("STALE_VERSION");
     }
   }
 

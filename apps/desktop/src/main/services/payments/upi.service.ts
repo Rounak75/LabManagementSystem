@@ -1,10 +1,11 @@
 import { prisma } from "@main/db";
 import { audit } from "@main/services/audit.service";
 import * as triggers from "@main/services/notifications/triggers";
+import { domainError } from "@shared/domain-error";
 
 export async function recordUpiPayment(invoiceId: string) {
   const inv = await prisma().invoice.findUnique({ where: { id: invoiceId } });
-  if (!inv) throw new Error("NOT_FOUND");
+  if (!inv) throw domainError("NOT_FOUND");
 
   if (inv.paymentStatus === "Paid") {
     return inv;

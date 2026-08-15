@@ -40,7 +40,7 @@ export default function LabSettings() {
 
   const uploadLogo = useMutation({
     mutationFn: async () => {
-      const sourcePath = await call<string | null>("app:pickFile", {
+      const sourcePath = await call("app:pickFile", {
         filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg"] }]
       });
       if (!sourcePath) return null;

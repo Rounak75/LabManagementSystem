@@ -2,6 +2,7 @@ import { prisma } from "@main/db";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefRange } from "./ref-range";
+import { domainError } from "@shared/domain-error";
 
 /**
  * Convert a stored logo reference into a base64 `data:` URI.
@@ -77,7 +78,7 @@ export async function buildReportData(visitId: string): Promise<ReportData> {
       visitTests: { include: { test: { include: { parameters: { orderBy: { displayOrder: "asc" } } } }, results: true } }
     }
   });
-  if (!visit) throw new Error("NOT_FOUND");
+  if (!visit) throw domainError("NOT_FOUND");
   const settings = (await prisma().labSettings.findUnique({ where: { id: "singleton" } }))!;
 
   const grouped = new Map<string, ReportData["groups"][number]["tests"]>();

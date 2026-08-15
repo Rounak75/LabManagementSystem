@@ -2,6 +2,7 @@ import { prisma } from "@main/db";
 import type { Role } from "@lab/types";
 import { hashPassword } from "./auth.service";
 import { audit } from "./audit.service";
+import { domainError } from "@shared/domain-error";
 
 export interface UserRow {
   id: string;
@@ -66,10 +67,10 @@ export async function resetUserPassword(p: { id: string; newPassword: string }) 
 export async function setUserActive(p: { id: string; isActive: boolean }) {
   if (!p.isActive) {
     const target = await prisma().user.findUnique({ where: { id: p.id } });
-    if (!target) throw new Error("NOT_FOUND");
+    if (!target) throw domainError("NOT_FOUND");
     if (target.role === "Admin" && target.isActive) {
       const count = await prisma().user.count({ where: { role: "Admin", isActive: true } });
-      if (count <= 1) throw new Error("ADMIN_LOCKOUT_PROTECTED");
+      if (count <= 1) throw domainError("ADMIN_LOCKOUT_PROTECTED");
     }
   }
   await prisma().user.update({ where: { id: p.id }, data: { isActive: p.isActive } });
@@ -79,10 +80,10 @@ export async function setUserActive(p: { id: string; isActive: boolean }) {
 
 export async function updateUserRole(p: { id: string; role: Role }) {
   const target = await prisma().user.findUnique({ where: { id: p.id } });
-  if (!target) throw new Error("NOT_FOUND");
+  if (!target) throw domainError("NOT_FOUND");
   if (target.role === "Admin" && p.role === "Staff" && target.isActive) {
     const count = await prisma().user.count({ where: { role: "Admin", isActive: true } });
-    if (count <= 1) throw new Error("ADMIN_LOCKOUT_PROTECTED");
+    if (count <= 1) throw domainError("ADMIN_LOCKOUT_PROTECTED");
   }
   await prisma().user.update({ where: { id: p.id }, data: { role: p.role } });
   await audit("USER_ROLE_CHANGED", "User", p.id, JSON.stringify({ role: p.role }));
@@ -91,13 +92,13 @@ export async function updateUserRole(p: { id: string; role: Role }) {
 
 export async function deleteUser(p: { id: string }) {
   const target = await prisma().user.findUnique({ where: { id: p.id } });
-  if (!target) throw new Error("NOT_FOUND");
+  if (!target) throw domainError("NOT_FOUND");
   if (target.role === "Admin" && target.isActive) {
     const count = await prisma().user.count({ where: { role: "Admin", isActive: true } });
-    if (count <= 1) throw new Error("ADMIN_LOCKOUT_PROTECTED");
+    if (count <= 1) throw domainError("ADMIN_LOCKOUT_PROTECTED");
   }
   const auditCount = await prisma().auditLog.count({ where: { userId: p.id } });
-  if (auditCount > 0) throw new Error("USER_HAS_HISTORY");
+  if (auditCount > 0) throw domainError("USER_HAS_HISTORY");
   await prisma().user.delete({ where: { id: p.id } });
   await audit("USER_DELETED", "User", p.id);
   return { ok: true as const };

@@ -6,6 +6,7 @@ import { requireAdmin, requireSession } from "@main/session";
 import { audit } from "@main/services/audit.service";
 import { runBackup } from "@main/services/backup.service";
 import { describeBackupHealth } from "@main/services/backup-health";
+import { domainError } from "@shared/domain-error";
 
 function serializeBackupLog(row: {
   id: string;
@@ -80,7 +81,7 @@ register("backup:getHealth", async () => {
 register("backup:restore", async (p: { backupLogId: string }) => {
   requireAdmin();
   const log = await prisma().backupLog.findUnique({ where: { id: p.backupLogId } });
-  if (!log || log.status !== "success") throw new Error("NOT_FOUND");
+  if (!log || log.status !== "success") throw domainError("NOT_FOUND");
   // 1. Pre-restore safety backup
   await runBackup({ kind: "manual", filenamePrefix: "pre-restore" });
   // 2. Audit BEFORE disconnect (Windows file-lock safety)
@@ -88,7 +89,7 @@ register("backup:restore", async (p: { backupLogId: string }) => {
   // 3. Resolve DB path from DATABASE_URL
   const dbUrl = process.env.DATABASE_URL ?? "";
   const dbPath = dbUrl.replace(/^file:/, "");
-  if (!dbPath) throw new Error("INTERNAL_ERROR");
+  if (!dbPath) throw domainError("INTERNAL_ERROR");
   // 4. Disconnect Prisma so the file is releasable on Windows
   await prisma().$disconnect();
   // 5. Copy chosen backup over lab.sqlite

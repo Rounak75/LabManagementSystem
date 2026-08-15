@@ -2,6 +2,7 @@ import { register } from "@main/ipc";
 import { prisma } from "@main/db";
 import { requireAdmin, requireSession } from "@main/session";
 import { audit } from "@main/services/audit.service";
+import { domainError } from "@shared/domain-error";
 
 register("tests:list", async () => {
   requireSession();
@@ -15,7 +16,7 @@ register("tests:list", async () => {
 register("tests:get", async ({ id }: { id: string }) => {
   requireSession();
   const t = await prisma().test.findUnique({ where: { id }, include: { parameters: { orderBy: { displayOrder: "asc" } } } });
-  if (!t) throw new Error("NOT_FOUND");
+  if (!t) throw domainError("NOT_FOUND");
   return t;
 });
 
@@ -28,7 +29,7 @@ const VALID_RESTRICTIONS: ReadonlySet<string> = new Set([
 function normalizeRestriction(v: unknown): CollectionTimeRestriction {
   if (v == null || v === "") return null;
   if (typeof v === "string" && VALID_RESTRICTIONS.has(v)) return v as CollectionTimeRestriction;
-  throw new Error("INVALID_INPUT");
+  throw domainError("INVALID_INPUT");
 }
 
 /**
@@ -60,12 +61,12 @@ async function assertNameFree(name: string, exceptId?: string): Promise<void> {
       AND ("id" != ${exceptId ?? ""})
     LIMIT 1
   `;
-  if (clash.length > 0) throw new Error("DUPLICATE_TEST_NAME");
+  if (clash.length > 0) throw domainError("DUPLICATE_TEST_NAME");
 }
 
 register("tests:create", async (input: { name: string; category: string; price: number; isOutsourced: boolean; collectionTimeRestriction?: string | null }) => {
   requireAdmin();
-  if (!input.name?.trim() || input.price < 0) throw new Error("INVALID_INPUT");
+  if (!input.name?.trim() || input.price < 0) throw domainError("INVALID_INPUT");
   await assertNameFree(input.name);
   const t = await prisma().test.create({
     data: {

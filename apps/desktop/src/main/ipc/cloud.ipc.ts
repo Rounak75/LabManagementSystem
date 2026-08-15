@@ -6,6 +6,7 @@ import { createSupabaseClient } from "@main/services/cloud/supabase-client";
 import { runBackfillOnce } from "@main/services/cloud/backfill.service";
 import { runSyncTick, getLastTickHealth } from "@main/services/cloud/sync-worker";
 import { syncEngine } from "@main/services/cloud/sync-engine";
+import { domainError } from "@shared/domain-error";
 
 register("cloud:getStatus", async () => {
   requireSession();
@@ -61,7 +62,7 @@ register("cloud:testConnection", async () => {
   requireAdmin();
   const s = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
   if (!s?.supabaseUrl || !s.supabaseAnonKey || !s.supabaseServiceKey) {
-    throw new Error("CLOUD_NOT_CONFIGURED");
+    throw domainError("CLOUD_NOT_CONFIGURED");
   }
   const client = createSupabaseClient({
     url: s.supabaseUrl,

@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { printPdfBuffer } from "@main/services/print.service";
 import { prisma } from "@main/db";
 import React from "react";
+import { domainError } from "@shared/domain-error";
 
 register("printerCalibration:list", async () => {
   requireAdmin();
@@ -32,7 +33,7 @@ register("printerCalibration:upsert", async ({
   yOffsetMm: number;
 }) => {
   requireAdmin();
-  if (!printerName?.trim()) throw new Error("INVALID_INPUT");
+  if (!printerName?.trim()) throw domainError("INVALID_INPUT");
   await upsertCalibration(printerName, { xOffsetMm, yOffsetMm });
   return { ok: true };
 });
@@ -47,7 +48,7 @@ register("printerCalibration:listSystemPrinters", async () => {
 
 register("print:alignmentTest", async ({ printerName }: { printerName: string }) => {
   requireAdmin();
-  if (!printerName?.trim()) throw new Error("INVALID_INPUT");
+  if (!printerName?.trim()) throw domainError("INVALID_INPUT");
   const calibration = await getCalibration(printerName);
   const settings = await prisma().labSettings.findUnique({ where: { id: "singleton" } });
   // Render a minimal LabReport in AlignmentTest mode — patient data is dummy

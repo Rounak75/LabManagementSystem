@@ -7,6 +7,7 @@ import { decryptSecret } from "@main/services/crypto.service";
 import * as queue from "@main/services/notifications/queue";
 import { send as testLoggerSend } from "@main/services/notifications/senders/test-logger";
 import { sendViaFast2Sms } from "@main/services/notifications/senders/fast2sms";
+import { domainError } from "@shared/domain-error";
 
 // ─── notifications:list ───────────────────────────────────────────────────
 
@@ -56,8 +57,8 @@ export async function retryNotification({ id }: { id: string }) {
   const u = requireAdmin();
 
   const row = await prisma().notification.findUnique({ where: { id } });
-  if (!row) throw new Error("NOT_FOUND");
-  if (row.status !== "Failed") throw new Error("NOT_FAILED");
+  if (!row) throw domainError("NOT_FOUND");
+  if (row.status !== "Failed") throw domainError("NOT_FAILED");
 
   await prisma().notification.update({
     where: { id },

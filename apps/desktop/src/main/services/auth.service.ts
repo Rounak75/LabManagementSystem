@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@main/db";
 import type { Role, SessionUser } from "@lab/types";
 import { generateRecoveryCode, hashRecoveryCode, verifyRecoveryCode } from "./recovery-code";
+import { domainError } from "@shared/domain-error";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -14,9 +15,9 @@ export async function verifyPassword(plaintext: string, hash: string): Promise<b
 
 export async function authenticate(username: string, password: string): Promise<SessionUser> {
   const user = await prisma().user.findUnique({ where: { username } });
-  if (!user || !user.isActive) throw new Error("INVALID_CREDENTIALS");
+  if (!user || !user.isActive) throw domainError("INVALID_CREDENTIALS");
   const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) throw new Error("INVALID_CREDENTIALS");
+  if (!ok) throw domainError("INVALID_CREDENTIALS");
   return { id: user.id, username: user.username, name: user.name, role: user.role as Role };
 }
 
@@ -31,11 +32,11 @@ export async function recoverPassword(input: {
   newPassword: string;
 }): Promise<{ newRecoveryCode: string }> {
   const user = await prisma().user.findUnique({ where: { username: input.username } });
-  if (!user || !user.recoveryCodeHash) throw new Error("INVALID_RECOVERY_CODE");
+  if (!user || !user.recoveryCodeHash) throw domainError("INVALID_RECOVERY_CODE");
 
   const cleanCode = input.recoveryCode.replace(/-/g, "").toUpperCase();
   const ok = await verifyRecoveryCode(cleanCode, user.recoveryCodeHash);
-  if (!ok) throw new Error("INVALID_RECOVERY_CODE");
+  if (!ok) throw domainError("INVALID_RECOVERY_CODE");
 
   const newCode = generateRecoveryCode();
   const newHash = await hashRecoveryCode(newCode);
@@ -61,7 +62,7 @@ export async function recoverPassword(input: {
 
 export async function createUser(args: { name: string; username: string; password: string; role: Role; }): Promise<SessionUser> {
   const exists = await prisma().user.findUnique({ where: { username: args.username } });
-  if (exists) throw new Error("DUPLICATE_USERNAME");
+  if (exists) throw domainError("DUPLICATE_USERNAME");
   const passwordHash = await hashPassword(args.password);
   const user = await prisma().user.create({
     data: { name: args.name, username: args.username, passwordHash, role: args.role, isActive: true }

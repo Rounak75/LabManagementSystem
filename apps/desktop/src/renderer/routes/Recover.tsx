@@ -57,7 +57,7 @@ export default function Recover() {
       return;
     }
     try {
-      const result = await call<RecoverPasswordResult>("auth:recoverPassword", {
+      const result = await call("auth:recoverPassword", {
         username: v.username,
         recoveryCode: cleanedCode,
         newPassword: v.newPassword
@@ -93,7 +93,7 @@ export default function Recover() {
       `Keep this safe. It is the only way to reset the Admin password.\n` +
       `Generated: ${new Date().toISOString()}\n`;
     try {
-      const res = await call<SaveTextFileResult>("app:saveTextFile", {
+      const res = await call("app:saveTextFile", {
         filename: "lab-recovery-code.txt",
         contents
       });

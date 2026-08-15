@@ -36,7 +36,7 @@ describe("BackupStatusCard", () => {
 
     const { container } = renderCard();
 
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith("backup:getHealth", {}));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("backup:getHealth", undefined));
     expect(container).toBeEmptyDOMElement();
   });
 
