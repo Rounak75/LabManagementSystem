@@ -2,9 +2,10 @@ import { register } from "@main/ipc";
 import { app } from "electron";
 import { copyFileSync } from "fs";
 import { prisma } from "@main/db";
-import { requireAdmin } from "@main/session";
+import { requireAdmin, requireSession } from "@main/session";
 import { audit } from "@main/services/audit.service";
 import { runBackup } from "@main/services/backup.service";
+import { describeBackupHealth } from "@main/services/backup-health";
 
 function serializeBackupLog(row: {
   id: string;
@@ -38,6 +39,42 @@ register("backup:list", async () => {
   requireAdmin();
   const rows = await prisma().backupLog.findMany({ orderBy: { createdAt: "desc" }, take: 10 });
   return rows.map(serializeBackupLog);
+});
+
+/**
+ * The one-line verdict the dashboard card shows.
+ *
+ * `requireSession` rather than `requireAdmin`, matching `cloud:getStatus`: the
+ * card sits on the dashboard, and a staff member who cannot see it is a staff
+ * member who cannot tell the owner the drive has been unplugged for a week.
+ * Reading a verdict is not the same permission as running or restoring one.
+ *
+ * Known limit on `lastOffMachineSuccessAt`: BackupLog does not record whether a
+ * run attempted an off-machine copy, only its combined verdict, so a "success"
+ * written while no backup path was configured counts here as though it had one.
+ * The consequence is bounded — the elapsed time can read younger than the truth,
+ * never older, and the "never configured" case alarms on its own before this
+ * value is consulted. Recording the attempt would need a schema change, which is
+ * not worth it for a number shown beside an alarm that is already firing.
+ */
+register("backup:getHealth", async () => {
+  requireSession();
+
+  const [settings, latest, lastOffMachineSuccess] = await Promise.all([
+    prisma().labSettings.findUnique({ where: { id: "singleton" } }),
+    prisma().backupLog.findFirst({ orderBy: { createdAt: "desc" } }),
+    prisma().backupLog.findFirst({
+      where: { status: "success" },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return describeBackupHealth({
+    latest: latest ? { status: latest.status, createdAt: latest.createdAt } : null,
+    lastOffMachineSuccessAt: lastOffMachineSuccess?.createdAt ?? null,
+    offMachineConfigured: Boolean(settings?.backupPath),
+    now: new Date(),
+  });
 });
 
 register("backup:restore", async (p: { backupLogId: string }) => {
