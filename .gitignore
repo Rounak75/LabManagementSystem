@@ -207,6 +207,22 @@ SHA256SUMS.txt
 **/.claude/settings.local.json
 **/.claude/local/
 
+# Agent skills are installed twice: the real files land in `.agents/skills/<name>/`
+# and `.claude/skills/<name>` is a junction pointing at them so Claude Code can
+# see them. Git follows the junction and would commit all 153 impeccable files a
+# second time, so the bridge is ignored and `.agents/` stays the single copy.
+# Scoped to impeccable rather than `.claude/skills/` as a whole: the other skills
+# here were committed through the bridge before this rule existed, and ignoring a
+# path does not untrack what is already in the index.
+**/.claude/skills/impeccable/
+
+# Impeccable design-system artifacts. `DESIGN.md` and `.impeccable/design.json`
+# ARE committed — they are the design record, and the whole point is that the
+# next session reads the same one. Only the machine-local override and the
+# live-mode runtime state are ignored.
+**/.impeccable/config.local.json
+**/.impeccable/live/
+
 # Agent-runner scaffolding. These are workspace wrappers around the repo, not
 # part of it — an OpenClaw clone in particular is several GB of checkout that
 # has no business in a commit.

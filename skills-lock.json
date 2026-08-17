@@ -113,7 +113,7 @@
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "f7afbfecd8fb02b0b9fa752a7b78ff39984400172dc8979e6c5535387bf14a08"
+      "computedHash": "88ee50d100ae257005992819f12cd350198c150723f24fb8c78e9f87ba415095"
     },
     "implement": {
       "source": "mattpocock/skills",
@@ -125,7 +125,7 @@
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
-      "computedHash": "569299a60c8e93880f3b3c1eca55578f58f7e1a4155876edb4cb814da3d6b3ea"
+      "computedHash": "3929c6892605b67b60503ced451876e9b313d1a909ab7066fbcd9967c56ed226"
     },
     "loop-me": {
       "source": "mattpocock/skills",
