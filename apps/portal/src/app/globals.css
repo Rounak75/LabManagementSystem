@@ -573,8 +573,12 @@ html {
     transform: none;
   }
 
-  /* The waves stay — they are shape, not movement — but they stop drifting. */
-  .wave { animation: none; }
+  /* The waves stay — they are shape, not movement — but they stop drifting.
+     `will-change` is released with the animation: holding it would keep three
+     composited layers alive on the GPU to render shapes that never move
+     again, which is exactly the cost the reduced-motion path exists to avoid
+     on the low-end phones most of this lab's traffic arrives on. */
+  .wave { animation: none; will-change: auto; }
 
   /* Glass keeps its depth; it just stops moving. */
   .glass:hover { transform: none; }

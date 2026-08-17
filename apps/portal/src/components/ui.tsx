@@ -65,19 +65,33 @@ export function Band({
  * carries two periods across the viewBox and slides by half its own width,
  * so the loop is seamless. Fill is white at low alpha, which reads correctly
  * against the deep teal in both day and night mode.
+ *
+ * `preserveAspectRatio="none"` means each layer stretches the same curve to
+ * its own height, so amplitude scales with the layer — the heights below are
+ * the only thing setting how tall the crests read.
+ *
+ * The path is repeated per layer rather than shared through `<defs>` + `<use>`.
+ * Sharing was measured at roughly 400 bytes a page, which does not pay for a
+ * document-global id in a component that renders twice while a skeleton is
+ * still on screen.
  */
 export function BandWaves() {
-  // Tallest and slowest at the back, shortest and quickest at the front.
+  // Tallest and slowest at the back, shortest and quickest at the front. The
+  // ratios (100% / 67% / 44%) are what produce the parallax; changing the
+  // container height alone keeps them intact.
   const layers = [
-    { tone: "text-white/[0.06]", duration: "31s", height: "h-28 sm:h-40" },
-    { tone: "text-white/[0.05]", duration: "23s", height: "h-20 sm:h-28" },
-    { tone: "text-white/[0.09]", duration: "17s", height: "h-12 sm:h-16" },
+    { tone: "text-white/[0.06]", duration: "31s", height: "h-36 sm:h-48" },
+    { tone: "text-white/[0.05]", duration: "23s", height: "h-24 sm:h-32" },
+    { tone: "text-white/[0.09]", duration: "17s", height: "h-16 sm:h-20" },
   ];
 
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-28 overflow-hidden sm:h-40"
+      // `contain: paint` tells the browser nothing inside can paint outside
+      // this box, so the three animating layers cannot dirty the band above.
+      style={{ contain: "paint" }}
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-36 overflow-hidden sm:h-48"
     >
       {layers.map((layer, i) => (
         <svg
