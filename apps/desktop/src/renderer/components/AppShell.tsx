@@ -62,7 +62,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `group flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ease-out-fluid active:scale-[0.98] ${
       isActive
-        ? "bg-brand/10 text-brand shadow-inner-bezel-dark"
+        ? "bg-brand/10 text-brand"
         : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
     }`;
 
@@ -76,11 +76,11 @@ export function AppShell({ children }: { children?: ReactNode }) {
             </div>
             <div>
               <div className="font-display text-[15px] font-bold tracking-tight text-slate-100">Golmuri Janch Ghar</div>
-              <div className="text-[11px] font-medium tracking-wide text-slate-500">{user?.name} · {user?.role}</div>
+              <div className="text-[11px] font-medium tracking-wide text-slate-400">{user?.name} · {user?.role}</div>
             </div>
           </div>
           {settings && (
-            <div className="mb-2 flex items-center justify-between rounded-full border border-slate-800 bg-slate-900 px-3 py-1.5 shadow-inner-bezel-dark">
+            <div className="mb-2 flex items-center justify-between rounded-full border border-slate-800 bg-slate-900 px-3 py-1.5">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${isOpen ? "bg-emerald-400" : "bg-rose-400"}`}></span>
@@ -142,7 +142,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
             <span>Log out</span>
           </button>
           {appInfo?.version && (
-            <div className="mt-3 px-4 text-[10px] text-slate-600 font-mono">v{appInfo.version}</div>
+            <div className="mt-3 px-4 text-[10px] text-slate-400 font-mono">v{appInfo.version}</div>
           )}
         </div>
       </aside>

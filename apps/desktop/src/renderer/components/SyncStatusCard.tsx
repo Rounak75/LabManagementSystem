@@ -49,14 +49,17 @@ export function SyncStatusCard() {
     label = "Cloud sync: slow";
   }
 
-  const toneClass =
-    tone === "green" ? "border-l-4 border-emerald-500" :
-    tone === "yellow" ? "border-l-4 border-amber-500" :
-    "border-l-4 border-rose-500";
+  const toneDot =
+    tone === "green" ? "bg-status-success" :
+    tone === "yellow" ? "bg-status-pending" :
+    "bg-status-error";
 
   return (
-    <Card className={`flex-1 ${toneClass}`}>
-      <div className="text-sm font-medium text-slate-700">{label}</div>
+    <Card className="flex-1">
+      <div className="flex items-center gap-2">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${toneDot}`} />
+        <div className="text-sm font-medium text-slate-700">{label}</div>
+      </div>
       <div className="mt-1 text-xs text-slate-500">Last push: {formatAge(data.lastPushAt)}</div>
       {data.failedCount > 0 && (
         <Link to="/sync?status=Failed" className="mt-1 inline-block text-xs text-rose-600 underline">

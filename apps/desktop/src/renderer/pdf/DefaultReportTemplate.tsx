@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import type { ReportData } from "../../main/services/report.service";
-import type { TemplateConfig } from "@shared/template-config";
+import { resolveLetterhead, mmToPt, type TemplateConfig } from "@shared/template-config";
 
 function mapFont(f: TemplateConfig["fontFamily"]): string {
   if (f === "Times" || f === "Georgia") return "Times-Roman";
@@ -34,8 +34,16 @@ export function DefaultReportTemplate({ data, config }: { data: ReportData; conf
   const showFlag  = config.columns.flag;
   const showComments = config.columns.comments;
 
+  // Pre-printed letterhead: the paper already carries the masthead, so the
+  // drawn one is dropped and its space left blank instead.
+  const lh = resolveLetterhead(config);
+
   const s = StyleSheet.create({
-    page: { paddingTop: 28, paddingBottom: 36, paddingHorizontal: 32, fontSize: size, fontFamily, flexDirection: "column" },
+    page: {
+      paddingTop: lh.contentOnly ? mmToPt(lh.headerReserveMm) : 28,
+      paddingBottom: lh.footerReserveMm > 0 ? mmToPt(lh.footerReserveMm) : 36,
+      paddingHorizontal: 32, fontSize: size, fontFamily, flexDirection: "column"
+    },
     body: { flexGrow: 1 },
 
     header:      { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", borderBottomWidth: 1.5, borderBottomColor: accent, paddingBottom: 6, marginBottom: 8 },
@@ -102,6 +110,7 @@ export function DefaultReportTemplate({ data, config }: { data: ReportData; conf
   return (
     <Document>
       <Page size="A4" style={s.page}>
+        {!lh.skipHeader && (
         <View style={s.header}>
           <View style={s.headerLeft}>
             <Text style={s.labName}>{data.lab.name.toUpperCase()}</Text>
@@ -132,6 +141,7 @@ export function DefaultReportTemplate({ data, config }: { data: ReportData; conf
             )}
           </View>
         </View>
+        )}
 
         <View style={s.patient}>
           <Text style={s.patientCell}><Text style={s.patientLabel}>No. </Text><Text style={s.patientStrong}>{data.visit.visitId}</Text></Text>
@@ -145,7 +155,7 @@ export function DefaultReportTemplate({ data, config }: { data: ReportData; conf
         </View>
 
         <View style={s.body}>
-        {colHeader}
+        {!lh.skipColumnHeaders && colHeader}
 
         {showTable && data.groups.map(g => (
           <View key={g.category} wrap={false}>
@@ -195,22 +205,28 @@ export function DefaultReportTemplate({ data, config }: { data: ReportData; conf
         <View style={s.signRow}>
           <View style={s.signCell}>
             <View style={s.signLine} />
-            <Text style={s.signLabel}>Lab.Technician</Text>
+            {!lh.skipSignatureLabels && <Text style={s.signLabel}>Lab.Technician</Text>}
           </View>
           <View style={s.signCell}>
             <View style={s.signLine} />
-            <Text style={s.signLabel}>{config.signatureLine || "Pathologist"}</Text>
+            {!lh.skipSignatureLabels && (
+              <Text style={s.signLabel}>{config.signatureLine || "Pathologist"}</Text>
+            )}
           </View>
         </View>
 
-        <Text style={s.banner}>SUNDAY EVENING CLOSED</Text>
+        {!lh.skipFooter && (
+          <>
+            <Text style={s.banner}>SUNDAY EVENING CLOSED</Text>
 
-        {config.footerText ? <Text style={s.footerText}>{config.footerText}</Text> : null}
+            {config.footerText ? <Text style={s.footerText}>{config.footerText}</Text> : null}
 
-        {showDisclaimer && (
-          <Text style={s.disclaimer}>
-            Note : Please co-relate the finding. May vary from Lab to Lab due to types of kit used and variation in procedures. Any discrepancy may kindly be brought to notice. Not meant for medico-legal purpose.
-          </Text>
+            {showDisclaimer && (
+              <Text style={s.disclaimer}>
+                Note : Please co-relate the finding. May vary from Lab to Lab due to types of kit used and variation in procedures. Any discrepancy may kindly be brought to notice. Not meant for medico-legal purpose.
+              </Text>
+            )}
+          </>
         )}
       </Page>
     </Document>

@@ -2,8 +2,10 @@ import { useToast } from "@/lib/toast.store";
 
 const SEVERITY_CLASS: Record<string, string> = {
   info:    "bg-slate-800 text-white",
-  success: "bg-emerald-600 text-white",
-  warn:    "bg-amber-500 text-slate-900",
+  success: "bg-emerald-700 text-white",
+  // Ink tinted from the surface's own hue rather than neutral slate, so the
+  // warning toast reads as one amber object. Contrast stays ~7:1.
+  warn:    "bg-amber-500 text-amber-950",
   error:   "bg-rose-600 text-white"
 };
 

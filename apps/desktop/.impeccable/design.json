@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-17T00:00:00.000Z",
+  "title": "Design System: Golmuri Janch Ghar — Desktop",
+  "extensions": {
+    "colorMeta": {
+      "instrument-blue": {
+        "role": "primary",
+        "displayName": "Instrument Blue",
+        "canonical": "#0e6ba8",
+        "tonalRamp": ["oklch(15% 0.09 245)", "oklch(26% 0.11 245)", "oklch(37% 0.13 245)", "oklch(48% 0.13 245)", "oklch(59% 0.12 245)", "oklch(70% 0.09 245)", "oklch(81% 0.06 245)", "oklch(92% 0.03 245)"]
+      },
+      "instrument-blue-deep": {
+        "role": "primary",
+        "displayName": "Instrument Blue Deep",
+        "canonical": "#094471",
+        "tonalRamp": ["oklch(15% 0.09 245)", "oklch(24% 0.11 245)", "oklch(33% 0.12 245)", "oklch(42% 0.12 245)", "oklch(55% 0.11 245)", "oklch(68% 0.08 245)", "oklch(80% 0.05 245)", "oklch(92% 0.02 245)"]
+      },
+      "instrument-blue-wash": {
+        "role": "primary",
+        "displayName": "Instrument Blue Wash",
+        "canonical": "#e8f4fd",
+        "tonalRamp": ["oklch(20% 0.03 240)", "oklch(31% 0.03 240)", "oklch(42% 0.03 240)", "oklch(53% 0.03 240)", "oklch(64% 0.03 240)", "oklch(75% 0.02 240)", "oklch(86% 0.02 240)", "oklch(96% 0.01 240)"]
+      },
+      "rail-graphite": {
+        "role": "neutral",
+        "displayName": "Rail Graphite",
+        "canonical": "#111827",
+        "tonalRamp": ["oklch(15% 0.02 265)", "oklch(26% 0.02 265)", "oklch(37% 0.02 265)", "oklch(48% 0.02 265)", "oklch(59% 0.02 265)", "oklch(70% 0.015 265)", "oklch(81% 0.01 265)", "oklch(92% 0.005 265)"]
+      },
+      "rail-graphite-raised": {
+        "role": "neutral",
+        "displayName": "Rail Graphite Raised",
+        "canonical": "#1f2937",
+        "tonalRamp": ["oklch(15% 0.02 265)", "oklch(26% 0.02 265)", "oklch(37% 0.02 265)", "oklch(48% 0.02 265)", "oklch(59% 0.02 265)", "oklch(70% 0.015 265)", "oklch(81% 0.01 265)", "oklch(92% 0.005 265)"]
+      },
+      "surface-white": {
+        "role": "neutral",
+        "displayName": "Surface White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(37% 0 0)", "oklch(48% 0 0)", "oklch(59% 0 0)", "oklch(70% 0 0)", "oklch(85% 0 0)", "oklch(100% 0 0)"]
+      },
+      "surface-page": {
+        "role": "neutral",
+        "displayName": "Surface Page",
+        "canonical": "#f8fafc",
+        "tonalRamp": ["oklch(20% 0.01 250)", "oklch(31% 0.01 250)", "oklch(42% 0.01 250)", "oklch(53% 0.01 250)", "oklch(64% 0.008 250)", "oklch(75% 0.006 250)", "oklch(87% 0.004 250)", "oklch(98% 0.003 250)"]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Surface Muted",
+        "canonical": "#f1f5f9",
+        "tonalRamp": ["oklch(20% 0.01 250)", "oklch(31% 0.01 250)", "oklch(42% 0.01 250)", "oklch(53% 0.01 250)", "oklch(64% 0.008 250)", "oklch(75% 0.006 250)", "oklch(86% 0.005 250)", "oklch(96% 0.004 250)"]
+      },
+      "status-success": {
+        "role": "tertiary",
+        "displayName": "Status Success",
+        "canonical": "#15803d",
+        "tonalRamp": ["oklch(15% 0.06 150)", "oklch(26% 0.09 150)", "oklch(37% 0.12 150)", "oklch(48% 0.15 150)", "oklch(60% 0.16 150)", "oklch(72% 0.12 150)", "oklch(84% 0.07 150)", "oklch(95% 0.03 150)"]
+      },
+      "status-processing": {
+        "role": "tertiary",
+        "displayName": "Status Processing",
+        "canonical": "#1d4ed8",
+        "tonalRamp": ["oklch(15% 0.09 262)", "oklch(26% 0.13 262)", "oklch(37% 0.17 262)", "oklch(48% 0.20 262)", "oklch(59% 0.19 262)", "oklch(71% 0.14 262)", "oklch(83% 0.08 262)", "oklch(95% 0.03 262)"]
+      },
+      "status-pending": {
+        "role": "tertiary",
+        "displayName": "Status Pending",
+        "canonical": "#b45309",
+        "tonalRamp": ["oklch(15% 0.06 65)", "oklch(26% 0.08 65)", "oklch(37% 0.11 65)", "oklch(48% 0.13 65)", "oklch(60% 0.15 65)", "oklch(72% 0.13 65)", "oklch(84% 0.08 65)", "oklch(95% 0.03 65)"]
+      },
+      "status-error": {
+        "role": "tertiary",
+        "displayName": "Status Error",
+        "canonical": "#b91c1c",
+        "tonalRamp": ["oklch(15% 0.08 27)", "oklch(26% 0.11 27)", "oklch(37% 0.15 27)", "oklch(48% 0.18 27)", "oklch(58% 0.20 27)", "oklch(71% 0.15 27)", "oklch(83% 0.09 27)", "oklch(95% 0.03 27)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The lab's own name in the rail. The only Geist in the app." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles and large stat numerals. The biggest type in the content area." },
+      "title": { "displayName": "Title", "purpose": "Modal titles and empty-state titles." },
+      "body": { "displayName": "Body", "purpose": "The default, at weight 500. This system has no 400-weight text." },
+      "label": { "displayName": "Label", "purpose": "Input labels and section headings — uppercase with wide tracking." },
+      "meta": { "displayName": "Meta", "purpose": "Secondary identity and attribution lines under a label — signed-in user and role in the rail. The smallest non-uppercase text permitted." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "Rail group headings: Operations, Administration." },
+      "mono": { "displayName": "Mono", "purpose": "The version string in the rail footer. Its only appearance." }
+    },
+    "shadows": [
+      { "name": "ambient", "value": "0 8px 30px rgba(0,0,0,0.04)", "purpose": "The two shell panels only. Separates the app's furniture from the ground." },
+      { "name": "card", "value": "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)", "purpose": "Every card at rest. A seam, not a lift." },
+      { "name": "card-hover", "value": "0 4px 12px rgba(0,0,0,0.08)", "purpose": "Interactive cards on hover only. A shadow change promises the surface does something." },
+      { "name": "overlay", "value": "0 24px 60px -12px rgba(15,23,42,0.25)", "purpose": "Dialogs, popovers, and toasts floating above a scrim. Tinted slate-900 so overlay depth stays in the cool palette. The only shadow permitted to be strong." }
+    ],
+    "motion": [
+      { "name": "ease-out-fluid", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "The single easing curve. Navigation and shell transitions at 300ms; component state at 200ms." },
+      { "name": "press", "value": "scale(0.98)", "purpose": "Applied on :active to every interactive surface so a click feels like it landed." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The committing action. Instrument Blue fill; the only accent-filled control on a screen.",
+      "html": "<button class=\"ds-btn-primary\">Verify &amp; lock</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; border:none; border-radius:0.5rem; padding:0.5rem 1rem; font-size:0.875rem; font-weight:500; background:#0e6ba8; color:#ffffff; cursor:pointer; transition:background-color 200ms cubic-bezier(0.23,1,0.32,1), transform 200ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:hover { background:#094471; } .ds-btn-primary:focus-visible { outline:none; box-shadow:0 0 0 2px #ffffff, 0 0 0 4px rgba(14,107,168,0.5); } .ds-btn-primary:active { transform:scale(0.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The default non-committing action. White with a hairline border.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.5rem 1rem; font-size:0.875rem; font-weight:500; background:#ffffff; color:#334155; cursor:pointer; transition:background-color 200ms cubic-bezier(0.23,1,0.32,1), transform 200ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-secondary:hover { background:#f8fafc; } .ds-btn-secondary:focus-visible { outline:none; box-shadow:0 0 0 2px #ffffff, 0 0 0 4px rgba(14,107,168,0.5); } .ds-btn-secondary:active { transform:scale(0.98); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The universal content surface. Hairline border plus a 1px seam shadow — flat by default.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-value\">18</div><div class=\"ds-card-label\">Visits today</div></div>",
+      "css": ".ds-card { border-radius:0.75rem; border:1px solid #e2e8f0; background:#ffffff; box-shadow:0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); padding:1.5rem; } .ds-card-value { font-size:1.5rem; font-weight:600; color:#0f172a; } .ds-card-label { margin-top:0.125rem; font-size:0.875rem; font-weight:500; color:#475569; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labelled input. The border darkens on hover so the field advertises itself before focus.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Patient name</span><input class=\"ds-input\" placeholder=\"Full name\" /></label>",
+      "css": ".ds-field { display:block; width:100%; } .ds-field-label { display:block; margin-bottom:0.375rem; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.025em; color:#334155; } .ds-input { width:100%; border-radius:0.5rem; border:1px solid #e2e8f0; background:#ffffff; padding:0.5rem 0.75rem; font-size:0.875rem; color:#0f172a; transition:border-color 200ms, box-shadow 200ms; } .ds-input::placeholder { color:#94a3b8; } .ds-input:hover { border-color:#cbd5e1; } .ds-input:focus { outline:none; border-color:#0e6ba8; box-shadow:0 0 0 2px rgba(14,107,168,0.2); }"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Pill navigation inside the graphite rail. Active state is Instrument Blue at 10% behind full-strength text.",
+      "html": "<nav class=\"ds-nav\"><div class=\"ds-nav-eyebrow\">Operations</div><a class=\"ds-nav-link ds-nav-link-active\" href=\"#\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\"/></svg><span>Dashboard</span></a><a class=\"ds-nav-link\" href=\"#\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/></svg><span>Patients</span></a></nav>",
+      "css": ".ds-nav { background:#111827; padding:0.75rem; border-radius:1rem; display:flex; flex-direction:column; gap:0.125rem; } .ds-nav-eyebrow { margin:0.5rem 1rem; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#94a3b8; } .ds-nav-link { display:flex; align-items:center; gap:0.75rem; padding:0.625rem 1rem; border-radius:9999px; font-size:0.875rem; font-weight:500; color:#94a3b8; text-decoration:none; transition:all 300ms cubic-bezier(0.23,1,0.32,1); } .ds-nav-icon { height:18px; width:18px; flex-shrink:0; } .ds-nav-link:hover { background:#1e293b; color:#e2e8f0; } .ds-nav-link:active { transform:scale(0.98); } .ds-nav-link-active { background:rgba(14,107,168,0.1); color:#0e6ba8; } .ds-nav-link-active:hover { background:rgba(14,107,168,0.16); color:#0e6ba8; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "status-badge",
+      "description": "The closed status vocabulary. A saturated dot and text on a near-white wash of the same hue.",
+      "html": "<span class=\"ds-status ds-status-success\"><span class=\"ds-status-dot\"></span>Locked</span> <span class=\"ds-status ds-status-pending\"><span class=\"ds-status-dot\"></span>Awaiting verify</span>",
+      "css": ".ds-status { display:inline-flex; align-items:center; gap:0.375rem; border-radius:9999px; padding:0.125rem 0.625rem; font-size:0.75rem; font-weight:500; } .ds-status-dot { height:0.375rem; width:0.375rem; border-radius:9999px; background:currentColor; } .ds-status-success { background:#f0fdf4; color:#16a34a; } .ds-status-pending { background:#fffbeb; color:#d97706; } .ds-status-processing { background:#eff6ff; color:#2563eb; } .ds-status-error { background:#fef2f2; color:#dc2626; }"
+    },
+    {
+      "name": "Quick Action Card",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "A card that is actually a button. The only card permitted to gain a shadow on hover.",
+      "html": "<button class=\"ds-quick\"><span class=\"ds-quick-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" width=\"20\" height=\"20\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 8v8M8 12h8\"/></svg></span><span class=\"ds-quick-body\"><span class=\"ds-quick-title\">New visit</span><span class=\"ds-quick-desc\">Register tests for a patient</span></span><svg class=\"ds-quick-chevron\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m9 18 6-6-6-6\"/></svg></button>",
+      "css": ".ds-quick { display:flex; align-items:center; gap:1rem; width:100%; text-align:left; border-radius:0.75rem; border:1px solid #e2e8f0; background:#ffffff; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); cursor:pointer; transition:box-shadow 200ms, border-color 200ms; } .ds-quick:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); border-color:#cbd5e1; } .ds-quick-icon { display:flex; height:2.5rem; width:2.5rem; flex-shrink:0; align-items:center; justify-content:center; border-radius:0.5rem; background:#e8f4fd; color:#0e6ba8; } .ds-quick-body { display:flex; flex-direction:column; flex:1; min-width:0; } .ds-quick-title { font-size:0.875rem; font-weight:500; color:#0f172a; } .ds-quick-desc { font-size:0.75rem; font-weight:500; color:#475569; } .ds-quick-chevron { height:1rem; width:1rem; color:#94a3b8; transition:transform 200ms; } .ds-quick:hover .ds-quick-chevron { transform:translateX(2px); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Bench",
+    "overview": "The desktop app is where the lab's work gets read, verified, and printed. Its whole spatial idea is a lit bench: a dark instrument rail down the left side holding navigation, status, and identity, and a bright white work surface to its right where patient data is actually read. The two are separate physical objects — each a 2rem-radius panel floating on a cool slate ground with a 0.75rem gutter between them and a wide, near-invisible ambient shadow underneath. Nothing else in the app gets that shadow. Depth here marks the shell, not the content.\n\nThe character is quiet with a physical press. Surfaces are calm and mostly flat, held together by hairline slate-200 borders rather than by shadow. What moves, moves deliberately: a single fluid easing curve (cubic-bezier(0.23, 1, 0.32, 1)) over 200-300ms, and a 0.98 scale on press so a click feels like it landed. The restraint is functional. This is a print station operated by one non-technical person, often late, often tired, working through results that become a medical record the moment they are locked.\n\nInstrument Blue is used sparingly and always means this is the live thing — the active nav pill, the focused field, the primary action. Color that is not blue is status: a four-way vocabulary of success, processing, pending, and error, each a saturated dot and a near-white wash. The palette carries information, never decoration.",
+    "keyCharacteristics": [
+      "Two floating 2rem panels on a slate ground; ambient shadow reserved for those two panels alone",
+      "Dark graphite rail (#111827) against a pure white work surface — the contrast is the layout",
+      "Hairline slate-200 borders do the structural work; shadows stay at 1px except on the shell",
+      "One accent (Instrument Blue) for liveness; a separate four-color status vocabulary for meaning",
+      "Pill-shaped navigation, 0.75rem cards, 0.5rem controls — radius encodes hierarchy",
+      "Every interactive surface presses in by 2% on :active"
+    ],
+    "rules": [
+      { "name": "The One Live Thing Rule", "body": "Instrument Blue marks what is currently live — the route you are on, the field you are in, the action that commits. If two things on a screen are blue, one of them is wrong.", "section": "colors" },
+      { "name": "The Closed Status Rule", "body": "Health, progress, and outcome are expressed only through the four status pairs. Do not introduce a fifth colour, and do not borrow a status colour for a non-status purpose. An abnormal result and a failed sync are allowed to look alike; that is the point.", "section": "colors" },
+      { "name": "The Sister-App Rule", "body": "This app is blue and its sidebar is #111827. The staff portal is deliberately teal with a lighter charcoal rail. The divergence is intentional so staff always know whether they are on the home PC or their phone. Do not reconcile the two palettes.", "section": "colors" },
+      { "name": "The Weight-Not-Size Rule", "body": "The gap between body and label is 500 to 600 plus uppercase and tracking, not a size jump. Sizes cluster tightly (12-14px) so dense tables stay dense; weight and case do the separating.", "section": "typography" },
+      { "name": "The Ambient-Is-Furniture Rule", "body": "The wide ambient shadow belongs to the shell. A card, modal, or popover that reaches for it is claiming to be part of the app's frame, and it isn't.", "section": "elevation" },
+      { "name": "The Hover-Means-Clickable Rule", "body": "A shadow change on hover is a promise that the surface does something. StatCard is static and never lifts; QuickActionCard is a button and does.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do reserve the ambient shadow (0 8px 30px rgba(0,0,0,0.04)) for the two shell panels, and use shadow-card everywhere else.",
+      "Do use radius to signal role: 2rem shell, 0.75rem card, 0.5rem control, full pill for state.",
+      "Do give every interactive surface active:scale-[0.98] and duration-200-300 with ease-out-fluid.",
+      "Do set body copy at weight 500. This system has no 400-weight text.",
+      "Do pair every status colour with its matching wash — a saturated status colour never sits on white as a background.",
+      "Do darken input borders to slate-300 on hover, so fields are discoverable before focus.",
+      "Do keep Geist for the lab's name only."
+    ],
+    "donts": [
+      "Don't reintroduce shadow-inner-bezel or shadow-inner-bezel-dark. They are not defined in tailwind.config.ts and render nothing; they were leftovers from an abandoned direction and have been removed from the codebase.",
+      "Don't reach for raw Tailwind shadows (shadow-lg, shadow-xl, shadow-2xl). The vocabulary is card, card-hover, ambient, and overlay — one of those covers every case.",
+      "Don't put a hover shadow on a non-interactive surface.",
+      "Don't add a second accent colour. Instrument Blue is the only accent; everything else is status or neutral.",
+      "Don't use a 2px border or a decorative divider. Hairline slate-200 (or slate-100 inside a card) does all separation.",
+      "Don't align this app's palette with the staff portal's teal. The divergence is deliberate.",
+      "Don't introduce breakpoints. This is a fixed desktop window; use flex and min-w for reflow."
+    ]
+  }
+}

@@ -14,7 +14,10 @@
   --line-pop: 214 224 230;     /* hairline around a floating menu */
   --text: 18 38 47;            /* primary text */
   --soft: 74 98 109;           /* secondary text */
-  --muted: 125 145 155;        /* tertiary text */
+  /* Darkened from 125 145 155. The old value was 3.28:1 on a card and 3.05:1
+     in a recessed field — below AA for the hints and placeholders it carries.
+     This clears 4.5:1 on all four day surfaces it appears on. */
+  --muted: 93 110 120;         /* tertiary text */
   --ink: 12 27 34;             /* darkest */
 
   --brand: 58 119 136;         /* teal — buttons, links, active chips */
@@ -25,7 +28,8 @@
 
   --ok: 21 122 78;
   --ok-soft: 221 241 232;
-  --notice: 166 108 20;
+  /* 166 108 20 was 3.89:1 on its own wash — the one state tag below AA. */
+  --notice: 138 90 16;
   --notice-soft: 251 240 218;
   --alert: 186 55 55;
   --alert-soft: 252 232 230;

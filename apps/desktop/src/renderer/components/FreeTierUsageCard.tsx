@@ -26,12 +26,15 @@ export function FreeTierUsageCard() {
   if (ratio < 0.6) return null;
 
   const tone = ratio >= 0.95 ? "rose" : "amber";
-  const borderClass = tone === "rose" ? "border-l-4 border-rose-500" : "border-l-4 border-amber-500";
-  const barClass = tone === "rose" ? "bg-rose-500" : "bg-amber-500";
+  const dotClass = tone === "rose" ? "bg-status-error" : "bg-status-pending";
+  const barClass = tone === "rose" ? "bg-status-error" : "bg-status-pending";
 
   return (
-    <Card className={`flex-1 ${borderClass}`}>
-      <div className="text-sm font-medium text-slate-700">Supabase free-tier usage</div>
+    <Card className="flex-1">
+      <div className="flex items-center gap-2">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
+        <div className="text-sm font-medium text-slate-700">Supabase free-tier usage</div>
+      </div>
       <div className="mt-1 text-xs text-slate-500">
         {formatMB(data.freeTierBytes)} / {formatMB(data.freeTierLimit)} ({Math.round(ratio * 100)}%)
       </div>

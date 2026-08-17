@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import type { ReportData } from "../../main/services/report.service";
-import type { TemplateConfig } from "@shared/template-config";
+import { resolveLetterhead, mmToPt, type TemplateConfig } from "@shared/template-config";
 import { Letterhead, Footer } from "./sections/LetterheadFooter";
 import { flattenTests } from "./sections/common";
 import { BiochemistrySection } from "./sections/BiochemistrySection";
@@ -37,10 +37,22 @@ function formatDate(iso: string): string {
 export function GolmuriStandardTemplate({ data, config }: { data: ReportData; config: TemplateConfig }) {
   const tests = flattenTests(data.groups);
   const portalUrl = data.lab.portalUrl?.trim();
+  // Pre-printed letterhead: drop the drawn bands the paper already carries and
+  // leave their space blank instead of sliding the results up into them.
+  const lh = resolveLetterhead(config);
+  const pageStyle = lh.contentOnly
+    ? [
+        s.page,
+        {
+          paddingTop: mmToPt(lh.headerReserveMm),
+          ...(lh.footerReserveMm > 0 ? { paddingBottom: mmToPt(lh.footerReserveMm) } : {}),
+        },
+      ]
+    : s.page;
   return (
     <Document>
-      <Page size="A4" style={s.page}>
-        <Letterhead lab={data.lab} />
+      <Page size="A4" style={pageStyle}>
+        {!lh.skipHeader && <Letterhead lab={data.lab} />}
         <View style={s.patientBar}>
           <Text style={s.patientItem}>Patient: <Text style={{ fontWeight: 700 }}>{data.patient.name}</Text></Text>
           <Text style={s.patientItem}>ID: {data.patient.patientId}</Text>
@@ -69,7 +81,7 @@ export function GolmuriStandardTemplate({ data, config }: { data: ReportData; co
           </View>
         ) : null}
 
-        <Footer lab={data.lab} signatureLine={config.signatureLine} />
+        {!lh.skipFooter && <Footer lab={data.lab} signatureLine={config.signatureLine} />}
       </Page>
     </Document>
   );

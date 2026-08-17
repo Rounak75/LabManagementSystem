@@ -124,8 +124,9 @@ export function QrPaymentModal({
     >
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="QR Payment"
-        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl"
+        className="w-full max-w-sm rounded-card bg-white p-6 shadow-overlay"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

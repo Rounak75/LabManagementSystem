@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DefaultReportTemplate } from "@/pdf/DefaultReportTemplate";
 import { sampleData } from "@/pdf/sampleData";
-import { validate, type TemplateConfig } from "@shared/template-config";
+import {
+  validate,
+  MAX_RESERVE_MM,
+  DEFAULT_HEADER_RESERVE_MM,
+  type TemplateConfig,
+  type LetterheadFootprint,
+} from "@shared/template-config";
 import type { TemplateRow } from "@shared/api";
 
 const DEFAULT_CONFIG: TemplateConfig = {
@@ -136,11 +142,30 @@ export default function TemplateEditor() {
     setDirty(true);
     setSavedFlash(false);
   }
+  function updateFootprint(k: keyof LetterheadFootprint, v: boolean) {
+    setConfig((c) => ({
+      ...c,
+      // The validator requires all four booleans once the object exists, so a
+      // partial footprint is never written.
+      letterheadFootprint: {
+        skipHeader: true,
+        skipFooter: true,
+        skipColumnHeaders: false,
+        skipSignatureLabels: false,
+        ...c.letterheadFootprint,
+        [k]: v,
+      },
+    }));
+    setDirty(true);
+    setSavedFlash(false);
+  }
   function updateName(v: string) {
     setName(v);
     setDirty(true);
     setSavedFlash(false);
   }
+
+  const contentOnly = config.defaultLayout === "ContentOnly";
 
   const save = useMutation({
     mutationFn: async () => {
@@ -373,6 +398,93 @@ export default function TemplateEditor() {
                   </label>
                 ))}
               </div>
+            </fieldset>
+
+            <fieldset className="rounded-md border border-slate-200 p-3">
+              <legend className="px-1 text-sm font-medium text-slate-700">Pre-printed letterhead</legend>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={contentOnly}
+                  onChange={(e) =>
+                    update({ defaultLayout: e.target.checked ? "ContentOnly" : "FullPage" })
+                  }
+                />
+                <span>
+                  <span className="font-medium text-slate-700">
+                    Printing onto paper that already has the letterhead
+                  </span>
+                  <span className="mt-0.5 block text-xs text-slate-600">
+                    The app stops printing the lab name, address and footer, and leaves that
+                    space blank so the pre-printed sheet shows through instead.
+                  </span>
+                </span>
+              </label>
+
+              {contentOnly && (
+                <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Blank at top (mm)"
+                      type="number"
+                      min={0}
+                      max={MAX_RESERVE_MM}
+                      step="1"
+                      value={config.letterheadReserveMm ?? DEFAULT_HEADER_RESERVE_MM}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        update({
+                          letterheadReserveMm: Number.isFinite(n)
+                            ? Math.max(0, Math.min(MAX_RESERVE_MM, n))
+                            : DEFAULT_HEADER_RESERVE_MM,
+                        });
+                      }}
+                    />
+                    <Input
+                      label="Blank at bottom (mm)"
+                      type="number"
+                      min={0}
+                      max={MAX_RESERVE_MM}
+                      step="1"
+                      value={config.letterheadFooterReserveMm ?? 0}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        update({
+                          letterheadFooterReserveMm: Number.isFinite(n)
+                            ? Math.max(0, Math.min(MAX_RESERVE_MM, n))
+                            : 0,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <p className="text-xs text-slate-600">
+                    Measure a real sheet with a ruler: from the top edge down to where the
+                    printed heading ends. The preview on the right updates as you type. To nudge
+                    the final position on a specific printer, use Settings &rarr; Letterhead.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {(
+                      [
+                        ["skipColumnHeaders", "Paper has the column headings"],
+                        ["skipSignatureLabels", "Paper has the signature labels"],
+                      ] as Array<[keyof LetterheadFootprint, string]>
+                    ).map(([k, label]) => (
+                      <label key={k} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={config.letterheadFootprint?.[k] ?? false}
+                          onChange={(e) => updateFootprint(k, e.target.checked)}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </fieldset>
           </div>
         </div>

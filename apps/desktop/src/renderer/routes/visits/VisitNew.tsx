@@ -160,7 +160,7 @@ export default function VisitNew() {
                   <select 
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value as any)}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-[14px] font-medium text-slate-700 shadow-inner-bezel transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
+                    className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-[14px] font-medium text-slate-700 transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
                   >
                     <option value="all">All Dates</option>
                     <option value="today">Today</option>

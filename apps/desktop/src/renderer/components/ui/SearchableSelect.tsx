@@ -48,7 +48,7 @@ export function SearchableSelect({ label, options, value, onChange, error, class
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 origin-top">
+        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-card border border-slate-200 bg-white py-1 shadow-overlay animate-in fade-in zoom-in-95 duration-200 origin-top">
           <div className="sticky top-0 bg-white px-2 pb-2 pt-1 z-10">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />

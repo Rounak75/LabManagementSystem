@@ -61,8 +61,8 @@ export function NavLinks({ isAdmin }: { isAdmin: boolean }) {
             aria-current={active ? "page" : undefined}
             className={`flex items-center justify-between px-6 py-3.5 text-[15px] font-medium transition-colors ${
               active
-                ? "bg-white text-[#2f3542] border-l-4 border-brand font-semibold shadow-sm"
-                : "text-slate-300 hover:bg-[#3a4150] hover:text-white border-l-4 border-transparent"
+                ? "bg-white text-[#2f3542] font-semibold shadow-sm"
+                : "text-slate-300 hover:bg-[#3a4150] hover:text-white"
             }`}
           >
             <div className="flex items-center gap-3">

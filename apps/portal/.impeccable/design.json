@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T00:00:00.000Z",
+  "title": "Design System: Golmuri Janch Ghar — Patient Portal",
+  "extensions": {
+    "colorMeta": {
+      "brand": {
+        "role": "primary",
+        "displayName": "Teal",
+        "canonical": "#3a7788",
+        "tonalRamp": ["oklch(15% 0.04 215)", "oklch(26% 0.05 215)", "oklch(37% 0.06 215)", "oklch(48% 0.06 215)", "oklch(60% 0.06 215)", "oklch(72% 0.05 215)", "oklch(84% 0.03 215)", "oklch(95% 0.015 215)"]
+      },
+      "brand-deep": {
+        "role": "primary",
+        "displayName": "Deep Teal",
+        "canonical": "#2a5f6f",
+        "tonalRamp": ["oklch(15% 0.04 215)", "oklch(24% 0.05 215)", "oklch(34% 0.055 215)", "oklch(44% 0.055 215)", "oklch(56% 0.05 215)", "oklch(69% 0.04 215)", "oklch(82% 0.025 215)", "oklch(95% 0.012 215)"]
+      },
+      "brand-soft": {
+        "role": "primary",
+        "displayName": "Soft Teal",
+        "canonical": "#e6f0f3",
+        "tonalRamp": ["oklch(20% 0.02 215)", "oklch(31% 0.02 215)", "oklch(42% 0.02 215)", "oklch(53% 0.02 215)", "oklch(64% 0.018 215)", "oklch(76% 0.014 215)", "oklch(87% 0.01 215)", "oklch(97% 0.006 215)"]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#edf1f4",
+        "tonalRamp": ["oklch(20% 0.008 230)", "oklch(31% 0.008 230)", "oklch(42% 0.008 230)", "oklch(53% 0.007 230)", "oklch(64% 0.006 230)", "oklch(76% 0.005 230)", "oklch(87% 0.004 230)", "oklch(96% 0.003 230)"]
+      },
+      "elev": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(37% 0 0)", "oklch(48% 0 0)", "oklch(59% 0 0)", "oklch(70% 0 0)", "oklch(85% 0 0)", "oklch(100% 0 0)"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Recessed",
+        "canonical": "#f4f7f9",
+        "tonalRamp": ["oklch(20% 0.006 230)", "oklch(31% 0.006 230)", "oklch(42% 0.006 230)", "oklch(53% 0.005 230)", "oklch(64% 0.005 230)", "oklch(76% 0.004 230)", "oklch(88% 0.003 230)", "oklch(98% 0.002 230)"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e2e9ed",
+        "tonalRamp": ["oklch(20% 0.008 220)", "oklch(31% 0.008 220)", "oklch(42% 0.008 220)", "oklch(53% 0.007 220)", "oklch(64% 0.006 220)", "oklch(76% 0.005 220)", "oklch(87% 0.004 220)", "oklch(96% 0.003 220)"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "canonical": "#12262f",
+        "tonalRamp": ["oklch(15% 0.02 220)", "oklch(26% 0.025 220)", "oklch(37% 0.025 220)", "oklch(48% 0.025 220)", "oklch(59% 0.02 220)", "oklch(71% 0.015 220)", "oklch(83% 0.01 220)", "oklch(95% 0.005 220)"]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "Soft Text",
+        "canonical": "#4a626d",
+        "tonalRamp": ["oklch(15% 0.02 220)", "oklch(26% 0.025 220)", "oklch(37% 0.025 220)", "oklch(48% 0.025 220)", "oklch(60% 0.02 220)", "oklch(72% 0.015 220)", "oklch(84% 0.01 220)", "oklch(95% 0.005 220)"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Text",
+        "canonical": "#5d6e78",
+        "tonalRamp": ["oklch(20% 0.015 220)", "oklch(31% 0.018 220)", "oklch(42% 0.018 220)", "oklch(53% 0.018 220)", "oklch(64% 0.016 220)", "oklch(75% 0.012 220)", "oklch(86% 0.008 220)", "oklch(96% 0.004 220)"]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "OK Green",
+        "canonical": "#157a4e",
+        "tonalRamp": ["oklch(15% 0.05 155)", "oklch(26% 0.07 155)", "oklch(37% 0.09 155)", "oklch(48% 0.10 155)", "oklch(60% 0.11 155)", "oklch(72% 0.09 155)", "oklch(84% 0.05 155)", "oklch(95% 0.02 155)"]
+      },
+      "notice": {
+        "role": "tertiary",
+        "displayName": "Notice Amber",
+        "canonical": "#8a5a10",
+        "tonalRamp": ["oklch(15% 0.05 70)", "oklch(26% 0.07 70)", "oklch(37% 0.09 70)", "oklch(48% 0.11 70)", "oklch(60% 0.12 70)", "oklch(72% 0.10 70)", "oklch(84% 0.06 70)", "oklch(95% 0.025 70)"]
+      },
+      "alert": {
+        "role": "tertiary",
+        "displayName": "Alert Red",
+        "canonical": "#ba3737",
+        "tonalRamp": ["oklch(15% 0.07 25)", "oklch(26% 0.10 25)", "oklch(37% 0.13 25)", "oklch(48% 0.15 25)", "oklch(59% 0.16 25)", "oklch(71% 0.12 25)", "oklch(83% 0.07 25)", "oklch(95% 0.03 25)"]
+      }
+    },
+    "typographyMeta": {
+      "page-title": { "displayName": "Page Title", "purpose": "The centred title in BandBar; 16.5px rising to 18px at sm." },
+      "section": { "displayName": "Section", "purpose": "SectionHead, above a group of cards." },
+      "field": { "displayName": "Field", "purpose": "Every input. 16px is the iOS zoom threshold, not a preference." },
+      "action": { "displayName": "Action", "purpose": "Button labels." },
+      "value": { "displayName": "Value", "purpose": "The answer half of a Fact pair." },
+      "label": { "displayName": "Label", "purpose": "Form labels above a field." },
+      "body": { "displayName": "Body", "purpose": "Notes and explanatory copy, relaxed leading." },
+      "caption": { "displayName": "Caption", "purpose": "Hints under a field, tag text." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "The uppercase label half of a Fact pair." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 1px 2px rgb(16 40 50 / 0.04), 0 10px 26px -14px rgb(16 40 50 / 0.16)", "purpose": "Every card, day mode. Tinted with the canvas hue. Night mode redefines it in black at far higher alpha." },
+      { "name": "lift", "value": "0 2px 6px rgb(16 40 50 / 0.05), 0 22px 44px -20px rgb(16 40 50 / 0.28)", "purpose": "Popovers and menus. Nearly useless alone in night mode, which is why --elev-pop also steps lighter." },
+      { "name": "band", "value": "0 16px 34px -22px rgb(0 0 0 / 0.5)", "purpose": "Under the teal band. Black rather than slate: a slate tint was lighter than the night canvas and read as a halo." },
+      { "name": "bezel", "value": "inset 0 1px 0 rgb(255 255 255 / 0.22)", "purpose": "A top highlight on glass tiles, not a drop shadow." }
+    ],
+    "motion": [
+      { "name": "out-fluid", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "The single curve across press, entry, popover and page transition." },
+      { "name": "drawer", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Sheet and drawer travel." },
+      { "name": "tap", "value": "scale(0.975) over 160ms", "purpose": "Press feedback on every tappable surface. 160ms is under the threshold where a press feels reported rather than felt." },
+      { "name": "rise", "value": "520ms, staggered 55ms by --i", "purpose": "Page entry choreography; nothing blocks interaction while it plays." },
+      { "name": "page-in", "value": "220ms opacity only", "purpose": "Declared in template.tsx so it replays on every navigation. Opacity only because .rise already owns the travel." },
+      { "name": "skeleton", "value": "1.5s opacity pulse, staggered 90ms", "purpose": "A breath rather than a sweeping shimmer — a sweep repaints every frame for every block on screen." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Teal fill, generous 20px radius, sized for a thumb. Presses to 0.975.",
+      "html": "<button class=\"ds-btn-primary\">Pay now</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; border:none; border-radius:20px; padding:0.875rem 1.25rem; font-size:14.5px; font-weight:600; background:#3a7788; color:#ffffff; cursor:pointer; box-shadow:0 1px 2px rgb(16 40 50 / 0.04), 0 10px 26px -14px rgb(16 40 50 / 0.16); user-select:none; transition:background-color 160ms cubic-bezier(0.23,1,0.32,1), transform 160ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:hover { background:#2a5f6f; } .ds-btn-primary:focus-visible { outline:2px solid #3a7788; outline-offset:2px; border-radius:8px; } .ds-btn-primary:active { transform:scale(0.975); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The content surface. 26px radius, hairline, canvas-tinted shadow. Padding belongs to the caller.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-pad\"><h2 class=\"ds-section\">Your reports</h2><p class=\"ds-body\">Two reports are ready to view.</p></div></div>",
+      "css": ".ds-card { background:#ffffff; border:1px solid #e2e9ed; border-radius:26px; box-shadow:0 1px 2px rgb(16 40 50 / 0.04), 0 10px 26px -14px rgb(16 40 50 / 0.16); } .ds-card-pad { padding:1rem 1.25rem 1.25rem; } .ds-section { margin:0 0 0.5rem; font-size:17px; font-weight:700; letter-spacing:-0.012em; color:#12262f; } .ds-body { margin:0; font-size:13px; line-height:1.625; color:#4a626d; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Recessed fill that lifts to card white on focus. 16px text is a functional threshold — below it iOS Safari zooms the page and does not zoom back.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Phone number</span><input class=\"ds-input\" placeholder=\"10-digit mobile\" /><span class=\"ds-hint\">The number you gave at the lab.</span></label>",
+      "css": ".ds-field { display:block; width:100%; } .ds-field-label { display:block; margin-bottom:0.5rem; font-size:13px; font-weight:600; color:#4a626d; } .ds-input { display:block; width:100%; border-radius:20px; border:1px solid #e2e9ed; background:#f4f7f9; padding:0.875rem 1rem; font-size:16px; color:#12262f; transition:border-color 160ms cubic-bezier(0.23,1,0.32,1), background-color 160ms cubic-bezier(0.23,1,0.32,1), box-shadow 200ms cubic-bezier(0.23,1,0.32,1); } .ds-input::placeholder { color:#5d6e78; } .ds-input:focus { outline:none; border-color:#3a7788; background:#ffffff; box-shadow:0 0 0 4px rgb(58 119 136 / 0.1); } .ds-hint { display:block; margin-top:0.5rem; font-size:12px; line-height:1.625; color:#5d6e78; }"
+    },
+    {
+      "name": "Icon Chip",
+      "kind": "chip",
+      "refersTo": "chip-icon",
+      "description": "Circular pale plate behind a hairline icon. Four tones: brand, ok, notice, alert.",
+      "html": "<span class=\"ds-chip ds-chip-brand\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" width=\"20\" height=\"20\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M9 15h6M9 11h3\"/></svg></span> <span class=\"ds-chip ds-chip-ok\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" width=\"20\" height=\"20\"><path d=\"M20 6 9 17l-5-5\"/></svg></span>",
+      "css": ".ds-chip { display:inline-flex; align-items:center; justify-content:center; height:2.75rem; width:2.75rem; border-radius:9999px; flex-shrink:0; } .ds-chip-brand { background:#e6f0f3; color:#3a7788; } .ds-chip-ok { background:#ddf1e8; color:#157a4e; } .ds-chip-notice { background:#fbf0da; color:#8a5a10; } .ds-chip-alert { background:#fce8e6; color:#ba3737; }"
+    },
+    {
+      "name": "Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Small state capsule. Same four tones plus neutral.",
+      "html": "<span class=\"ds-tag ds-tag-ok\">Paid</span> <span class=\"ds-tag ds-tag-notice\">Awaiting approval</span> <span class=\"ds-tag ds-tag-neutral\">Fasting</span>",
+      "css": ".ds-tag { display:inline-flex; align-items:center; gap:0.375rem; border-radius:9999px; padding:0.25rem 0.75rem; font-size:12px; font-weight:500; } .ds-tag-neutral { background:#f4f7f9; color:#4a626d; } .ds-tag-ok { background:#ddf1e8; color:#157a4e; } .ds-tag-notice { background:#fbf0da; color:#8a5a10; } .ds-tag-alert { background:#fce8e6; color:#ba3737; }"
+    },
+    {
+      "name": "Note",
+      "kind": "custom",
+      "refersTo": "note",
+      "description": "A low-stakes explanation. The tint carries the tone; the text stays soft so the panel never shouts.",
+      "html": "<div class=\"ds-note\"><span class=\"ds-note-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" width=\"17\" height=\"17\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4M12 8h.01\"/></svg></span><div class=\"ds-note-body\">Scan this code with any UPI app. Tap “Already paid?” once the payment goes through.</div></div>",
+      "css": ".ds-note { display:flex; gap:0.75rem; border-radius:20px; padding:0.875rem 1rem; background:#e6f0f3; color:#4a626d; } .ds-note-icon { margin-top:1px; flex-shrink:0; color:#3a7788; } .ds-note-body { font-size:13px; line-height:1.625; }"
+    },
+    {
+      "name": "Fact",
+      "kind": "custom",
+      "refersTo": "value",
+      "description": "The portal's standard label/value pair — uppercase eyebrow over a semibold value.",
+      "html": "<div class=\"ds-facts\"><div><p class=\"ds-fact-label\">Patient</p><p class=\"ds-fact-value\">Anjali Kumari</p></div><div><p class=\"ds-fact-label\">Visit date</p><p class=\"ds-fact-value num\">18-08-2026</p></div></div>",
+      "css": ".ds-facts { display:flex; gap:2rem; } .ds-fact-label { margin:0; font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:0.08em; color:#5d6e78; } .ds-fact-value { margin:0.25rem 0 0; font-size:14.5px; font-weight:600; color:#12262f; } .num { font-feature-settings:\"tnum\" 1, \"lnum\" 1; }"
+    },
+    {
+      "name": "Band",
+      "kind": "nav",
+      "refersTo": "button-on-band",
+      "description": "The deep-teal header every page opens with — two radial gradients, a 32px bottom curve, and the white pill that is the only fully-round button.",
+      "html": "<div class=\"ds-band\"><div class=\"ds-band-bar\"><h1 class=\"ds-band-title\">Your reports</h1><a class=\"ds-btn-on-band\" href=\"#\">Sign out</a></div></div>",
+      "css": ".ds-band { background-color:#2a5f6f; background-image:radial-gradient(120% 90% at 88% -10%, rgb(255 255 255 / 0.14), transparent 58%), radial-gradient(90% 70% at 4% 108%, rgb(0 0 0 / 0.16), transparent 60%); color:#ffffff; border-radius:0 0 32px 32px; padding:1.25rem 1.25rem 2rem; box-shadow:0 16px 34px -22px rgb(0 0 0 / 0.5); } .ds-band-bar { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; } .ds-band-title { margin:0; font-size:18px; font-weight:600; letter-spacing:-0.012em; color:#ffffff; } .ds-btn-on-band { display:inline-flex; align-items:center; border-radius:9999px; background:#ffffff; padding:0.5rem 1rem; font-size:13.5px; font-weight:600; color:#2a5f6f; text-decoration:none; } .ds-btn-on-band:hover { background:rgb(255 255 255 / 0.9); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Waiting Room",
+    "overview": "Almost everyone who opens this portal is waiting to find out something about their own body. That single fact sets the temperature of the whole surface. The deep-teal band a page opens with, the three wave layers drifting along its foot at seventeen to thirty-one seconds a cycle, the slow opacity breath of a skeleton instead of a glinting shimmer — none of it is decoration for its own sake. It is a room that refuses to feel urgent while someone waits in it.\n\nThe portal is built from four surfaces and nothing else: the full-bleed teal band every page opens with, the white card that carries content, the recessed surface strip inside a card, and the pale-teal chip. Keeping that vocabulary this short is what makes twelve screens read as one product rather than twelve pages. Depth is a genuine ramp — canvas, surface, card, popover — and a floating menu separates from the card beneath it by taking its own step, never by borrowing the card's fill.\n\nIt is also the only surface in this system with a real night mode, and the two themes are not a colour inversion. They disagree about what \"darker\" means, so shadows, hover directions and the brand's foreground all get redefined rather than flipped: in day mode a button hover goes deeper, in night mode it goes lighter, because night mode's button ink is near-black. Every one of those inversions is a separate deliberate decision, and the reasoning is written into globals.css beside the tokens.",
+    "keyCharacteristics": [
+      "Four surfaces only — band, card, recessed strip, chip — across every screen",
+      "Full day/night theming through rgb() triplet tokens with <alpha-value> support, not a filter",
+      "A generous radius scale topping out at a 32px band curve; nothing here is sharp",
+      "One easing curve (cubic-bezier(0.23, 1, 0.32, 1)) across press, entry, popover and page transition",
+      "Touch-first by construction: 44px minimum hit areas, 16px fields, dvh heights",
+      "Motion is choreographed then fully surrendered under prefers-reduced-motion"
+    ],
+    "rules": [
+      { "name": "The Four Surfaces Rule", "body": "Band, card, recessed strip, chip. A new screen composes from those four; it does not invent a fifth. This is the single reason the portal reads as one product across twelve screens.", "section": "colors" },
+      { "name": "The Elevation-Step Rule", "body": "A floating panel takes its own step on the ramp (--elev-pop, --line-pop, .popover). A popover drawn with the card recipe is made of exactly the fill and hairline of the card it covers, and the two merge into one slab.", "section": "colors" },
+      { "name": "The Two-Themes-Disagree Rule", "body": "Never derive night mode by inverting day mode. Shadows go black rather than slate because the night canvas is darker than the day shadow's tint; hover moves lighter rather than deeper because the button's ink is near-black. Each pair is defined independently in globals.css.", "section": "colors" },
+      { "name": "The 16px Field Rule", "body": "Any input, select or textarea computes to at least 16px. Below that, Safari on iOS zooms the whole page in on focus and does not zoom back out — the patient is left pinching their way back to a legible layout, once per field, and the booking form has nine of them.", "section": "typography" },
+      { "name": "The Tabular Numeral Rule", "body": "Anything numeric that sits in a column — amounts, results, dates in a list — carries .num (tnum, lnum). Proportional digits make a column of prices jitter.", "section": "typography" },
+      { "name": "The Darker-Than-What-It-Falls-On Rule", "body": "Any new shadow must be darker than the surface beneath it in both themes, or it will read as a halo in one of them. Black is the safe answer; slate is not.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do compose from the four surfaces — band, card, recessed strip, chip.",
+      "Do give any floating panel its own elevation step (--elev-pop, --line-pop, .popover), never the card recipe.",
+      "Do put every input through inputCls, or give it a size of at least 16px of its own.",
+      "Do wrap small controls in .hit so a finger gets 44px even where the eye sees less.",
+      "Do define day and night values independently, with the reason in a comment beside them.",
+      "Do add .num to numerals that sit in a column.",
+      "Do give every new animation a prefers-reduced-motion answer that keeps the fade and drops the travel.",
+      "Do use overscroll-behavior on anything that scrolls inside the page."
+    ],
+    "donts": [
+      "Don't use backdrop-filter for the glass tiles. They sit on a flat canvas, so blurring returns the same flat colour — and thirteen live blurs in a scroll container is the one thing that reliably wrecks the mid-range Android that is most of this lab's traffic.",
+      "Don't tint a shadow with slate. It is lighter than the night canvas and becomes a halo.",
+      "Don't invert a day token to get its night value.",
+      "Don't let a field compute below 16px.",
+      "Don't put a hover-only affordance on a touch target without a (hover: hover) guard — a tap fires :hover and leaves the card stuck raised.",
+      "Don't add a fifth surface or a sharp corner."
+    ]
+  }
+}

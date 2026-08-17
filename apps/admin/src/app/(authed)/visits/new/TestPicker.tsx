@@ -45,12 +45,12 @@ export function TestPicker({
           placeholder="Search tests..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-slate-200/80 bg-slate-50 py-2.5 pl-10 pr-4 text-[14px] text-slate-900 shadow-inner-bezel transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
+          className="w-full rounded-xl border border-slate-200/80 bg-slate-50 py-2.5 pl-10 pr-4 text-[14px] text-slate-900 transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
         />
       </div>
 
       {filteredTests.length === 0 ? (
-        <p className="rounded-xl border border-slate-100 bg-slate-50 p-6 text-center text-sm font-medium text-slate-500 shadow-inner-bezel-dark">
+        <p className="rounded-xl border border-slate-100 bg-slate-50 p-6 text-center text-sm font-medium text-slate-500">
           {search ? "No tests match your search." : "No active tests in the catalog."}
         </p>
       ) : (

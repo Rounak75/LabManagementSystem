@@ -27,13 +27,18 @@ export function BackupStatusCard() {
 
   return (
     <Card
-      className={`mb-4 border-l-4 ${alarm ? "border-rose-500" : "border-amber-500"}`}
+      className="mb-4"
       // Announced rather than merely coloured: the lab runs this on one screen
       // that is often read at a glance from across the room.
       role={alarm ? "alert" : "status"}
     >
-      <div className={`text-sm font-medium ${alarm ? "text-rose-700" : "text-amber-700"}`}>
-        {data.headline}
+      <div className="flex items-center gap-2">
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${alarm ? "bg-status-error" : "bg-status-pending"}`}
+        />
+        <div className={`text-sm font-medium ${alarm ? "text-rose-700" : "text-amber-700"}`}>
+          {data.headline}
+        </div>
       </div>
       {data.detail ? <div className="mt-1 text-xs text-slate-600">{data.detail}</div> : null}
     </Card>

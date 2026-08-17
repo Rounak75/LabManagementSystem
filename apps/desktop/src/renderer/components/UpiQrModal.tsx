@@ -25,8 +25,13 @@ export function UpiQrModal({ invoiceId, amount, vpa, payeeName, onMarkReceived, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold text-slate-900">UPI payment</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upi-qr-title"
+        className="w-full max-w-md rounded-card bg-white p-6 shadow-overlay"
+      >
+        <h2 id="upi-qr-title" className="text-lg font-semibold text-slate-900">UPI payment</h2>
 
         <div className="mt-4 text-center">
           <div className="text-3xl font-bold text-slate-900">₹{amount.toFixed(2)}</div>

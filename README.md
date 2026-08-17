@@ -490,6 +490,25 @@ The default template is what's used unless you pick another at print time. **Set
 
 When you preview a report, there's a **Template** dropdown at the top of the preview. Pick a different template and the preview updates instantly. Click **Print**.
 
+### Printing on paper that already has the letterhead
+
+If you buy pre-printed sheets — paper that already carries the lab's name, address and phone at the top — you don't want the app printing all that again on top of it.
+
+Open the template (**Settings → Templates →** open one) and tick **"Printing onto paper that already has the letterhead"** under **Pre-printed letterhead**. Two things then change: the app stops drawing the lab name, address and the footer band, and it leaves that space at the top blank so your pre-printed heading shows through.
+
+You then tell it **how much** space to leave:
+
+1. Take one of your pre-printed sheets and a ruler.
+2. Measure from the **top edge of the paper** down to just below where the printed heading ends. That number, in millimetres, goes in **Blank at top (mm)**. The default is 45 mm.
+3. If the paper also has something printed at the bottom, measure that and put it in **Blank at bottom (mm)**.
+4. The preview on the right updates as you type — check the results start below the heading.
+
+Two extra tick-boxes are there for paper that carries more than just the heading: tick **"Paper has the column headings"** or **"Paper has the signature labels"** only if your sheets already print those. Leave them off otherwise — a report without "Normal Range" is harder to read, not tidier.
+
+**Then check it on the real printer.** Print one report onto a pre-printed sheet. If everything sits a few millimetres too high, too low, or off to one side, don't change the template — go to **Settings → Letterhead** and nudge the **X/Y offsets** for that printer. Those offsets are per-printer fine-tuning (up to ±20 mm); the millimetres above describe the paper itself.
+
+> Leave the tick-box **off** if you print on plain paper. Everything then works exactly as before, with the app drawing the full letterhead itself.
+
 ---
 
 ## User management

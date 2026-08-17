@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-17T00:00:00.000Z",
+  "title": "Design System: Golmuri Janch Ghar — Staff Portal",
+  "extensions": {
+    "colorMeta": {
+      "counter-teal": {
+        "role": "primary",
+        "displayName": "Counter Teal",
+        "canonical": "#0f766e",
+        "tonalRamp": ["oklch(15% 0.05 180)", "oklch(26% 0.07 180)", "oklch(37% 0.09 180)", "oklch(48% 0.10 180)", "oklch(60% 0.10 180)", "oklch(72% 0.08 180)", "oklch(84% 0.05 180)", "oklch(95% 0.02 180)"]
+      },
+      "counter-teal-deep": {
+        "role": "primary",
+        "displayName": "Counter Teal Deep",
+        "canonical": "#115e59",
+        "tonalRamp": ["oklch(15% 0.05 180)", "oklch(25% 0.07 180)", "oklch(35% 0.08 180)", "oklch(45% 0.09 180)", "oklch(57% 0.09 180)", "oklch(70% 0.07 180)", "oklch(83% 0.04 180)", "oklch(95% 0.02 180)"]
+      },
+      "counter-teal-darkest": {
+        "role": "primary",
+        "displayName": "Counter Teal Darkest",
+        "canonical": "#115e59",
+        "tonalRamp": ["oklch(15% 0.04 180)", "oklch(24% 0.06 180)", "oklch(33% 0.07 180)", "oklch(43% 0.08 180)", "oklch(55% 0.08 180)", "oklch(69% 0.06 180)", "oklch(82% 0.04 180)", "oklch(95% 0.02 180)"]
+      },
+      "counter-teal-wash": {
+        "role": "primary",
+        "displayName": "Counter Teal Wash",
+        "canonical": "#f0fdfa",
+        "tonalRamp": ["oklch(20% 0.02 178)", "oklch(31% 0.02 178)", "oklch(42% 0.02 178)", "oklch(53% 0.02 178)", "oklch(64% 0.02 178)", "oklch(76% 0.015 178)", "oklch(87% 0.01 178)", "oklch(98% 0.008 178)"]
+      },
+      "counter-teal-tint": {
+        "role": "primary",
+        "displayName": "Counter Teal Tint",
+        "canonical": "#ccfbf1",
+        "tonalRamp": ["oklch(20% 0.03 178)", "oklch(31% 0.04 178)", "oklch(42% 0.05 178)", "oklch(53% 0.05 178)", "oklch(65% 0.05 178)", "oklch(77% 0.04 178)", "oklch(88% 0.03 178)", "oklch(97% 0.015 178)"]
+      },
+      "rail-slate": {
+        "role": "neutral",
+        "displayName": "Rail Slate",
+        "canonical": "#2f3542",
+        "tonalRamp": ["oklch(15% 0.015 265)", "oklch(26% 0.015 265)", "oklch(37% 0.015 265)", "oklch(48% 0.015 265)", "oklch(59% 0.012 265)", "oklch(70% 0.01 265)", "oklch(81% 0.008 265)", "oklch(92% 0.005 265)"]
+      },
+      "rail-slate-deep": {
+        "role": "neutral",
+        "displayName": "Rail Slate Deep",
+        "canonical": "#282d38",
+        "tonalRamp": ["oklch(15% 0.015 265)", "oklch(26% 0.015 265)", "oklch(37% 0.015 265)", "oklch(48% 0.015 265)", "oklch(59% 0.012 265)", "oklch(70% 0.01 265)", "oklch(81% 0.008 265)", "oklch(92% 0.005 265)"]
+      },
+      "rail-slate-edge": {
+        "role": "neutral",
+        "displayName": "Rail Slate Edge",
+        "canonical": "#1e232c",
+        "tonalRamp": ["oklch(15% 0.015 265)", "oklch(26% 0.015 265)", "oklch(37% 0.015 265)", "oklch(48% 0.015 265)", "oklch(59% 0.012 265)", "oklch(70% 0.01 265)", "oklch(81% 0.008 265)", "oklch(92% 0.005 265)"]
+      },
+      "surface-white": {
+        "role": "neutral",
+        "displayName": "Surface White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(37% 0 0)", "oklch(48% 0 0)", "oklch(59% 0 0)", "oklch(70% 0 0)", "oklch(85% 0 0)", "oklch(100% 0 0)"]
+      },
+      "surface-page": {
+        "role": "neutral",
+        "displayName": "Surface Page",
+        "canonical": "#f1f5f9",
+        "tonalRamp": ["oklch(20% 0.01 250)", "oklch(31% 0.01 250)", "oklch(42% 0.01 250)", "oklch(53% 0.01 250)", "oklch(64% 0.008 250)", "oklch(75% 0.006 250)", "oklch(86% 0.005 250)", "oklch(96% 0.004 250)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0f172a",
+        "tonalRamp": ["oklch(15% 0.02 265)", "oklch(26% 0.02 265)", "oklch(37% 0.02 265)", "oklch(48% 0.02 265)", "oklch(59% 0.02 265)", "oklch(70% 0.015 265)", "oklch(81% 0.01 265)", "oklch(92% 0.005 265)"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success",
+        "canonical": "#047857",
+        "tonalRamp": ["oklch(15% 0.06 160)", "oklch(26% 0.08 160)", "oklch(37% 0.11 160)", "oklch(48% 0.13 160)", "oklch(60% 0.13 160)", "oklch(72% 0.10 160)", "oklch(84% 0.06 160)", "oklch(95% 0.03 160)"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger",
+        "canonical": "#e11d48",
+        "tonalRamp": ["oklch(15% 0.08 15)", "oklch(26% 0.11 15)", "oklch(37% 0.15 15)", "oklch(48% 0.18 15)", "oklch(59% 0.20 15)", "oklch(72% 0.15 15)", "oklch(84% 0.09 15)", "oklch(95% 0.03 15)"]
+      }
+    },
+    "typographyMeta": {
+      "page-title": { "displayName": "Page Title", "purpose": "The .page-title utility. One per screen." },
+      "brand": { "displayName": "Brand", "purpose": "'Lab Admin' in the rail. The only weight-800 text in the app." },
+      "input": { "displayName": "Input", "purpose": "Field values at 15px — deliberately larger than body, because typing is the job." },
+      "label": { "displayName": "Label", "purpose": "The .field-label utility, 0.375rem above its field." },
+      "action": { "displayName": "Action", "purpose": "All button text." },
+      "body": { "displayName": "Body", "purpose": "Everything else." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Tailwind default, used on cards, inputs, and filled buttons. This app declares no custom shadows." },
+      { "name": "shadow-xl", "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)", "purpose": "The slide-over rail when it is above the scrim. The only large shadow in the app." }
+    ],
+    "motion": [
+      { "name": "rail-slide", "value": "transform 200ms ease-in-out", "purpose": "The mobile sidebar sliding in and out over the scrim." },
+      { "name": "ease-out-fluid", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "The 300ms curve on selectable rows and pickers. Declared by all three apps in the monorepo; the shared motion signature." },
+      { "name": "press", "value": "scale(0.99)", "purpose": "Applied on :active to buttons. Lighter than the desktop's 0.98 because a finger already covers the control." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The committing action. Counter Teal fill, sized for a thumb.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Save patient</button>",
+      "css": ".ds-btn { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; border:none; border-radius:0.5rem; padding:0.625rem 1rem; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background-color 150ms, transform 150ms; } .ds-btn:active { transform:scale(0.99); } .ds-btn:focus-visible { outline:2px solid #0f766e; outline-offset:2px; border-radius:4px; } .ds-btn-primary { background:#0f766e; color:#ffffff; box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-btn-primary:hover { background:#115e59; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The non-committing action. White with a slate-300 border, a step darker than card borders.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { background:#ffffff; color:#334155; border:1px solid #cbd5e1; } .ds-btn-ghost:hover { background:#f8fafc; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Surface only — padding is the consumer's job, so list containers can run rows edge to edge.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-pad\"><div class=\"ds-page-title\">Today</div></div></div>",
+      "css": ".ds-card { background:#ffffff; border:1px solid #e2e8f0; border-radius:0.75rem; box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-card-pad { padding:1rem; } .ds-page-title { font-size:1.5rem; font-weight:700; letter-spacing:-0.025em; color:#0f172a; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "The workhorse. 15px value text — larger than the body around it, because data entry is the whole point of this surface.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Phone number</span><input class=\"ds-input\" placeholder=\"10-digit mobile\" /></label>",
+      "css": ".ds-field { display:block; width:100%; } .ds-field-label { display:block; margin-bottom:0.375rem; font-size:0.875rem; font-weight:500; color:#334155; } .ds-input { width:100%; border-radius:0.5rem; border:1px solid #cbd5e1; background:#ffffff; padding:0.625rem 0.875rem; font-size:15px; color:#0f172a; box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05); transition:border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color:#94a3b8; } .ds-input:focus { outline:none; border-color:#0d9488; box-shadow:0 0 0 2px rgba(13,148,136,0.2); }"
+    },
+    {
+      "name": "Row Link",
+      "kind": "custom",
+      "refersTo": "row-link",
+      "description": "The list primitive. Every scannable list of patients, visits, or payments is built from this.",
+      "html": "<div class=\"ds-card\"><a class=\"ds-row\" href=\"#\"><span><span class=\"ds-row-title\">Anjali Kumari</span><span class=\"ds-row-sub\">LAB-2026-00042</span></span><svg class=\"ds-row-chevron\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m9 18 6-6-6-6\"/></svg></a><a class=\"ds-row\" href=\"#\"><span><span class=\"ds-row-title\">Ravi Mahato</span><span class=\"ds-row-sub\">LAB-2026-00043</span></span><svg class=\"ds-row-chevron\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m9 18 6-6-6-6\"/></svg></a></div>",
+      "css": ".ds-row { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; padding:0.875rem 1rem; text-decoration:none; transition:background-color 150ms; } .ds-row:hover { background:#f8fafc; } .ds-row:active { background:#f1f5f9; } .ds-row-title { display:block; font-size:0.875rem; color:#0f172a; } .ds-row-sub { display:block; font-size:0.75rem; color:#64748b; } .ds-row-chevron { height:1rem; width:1rem; color:#94a3b8; flex-shrink:0; }"
+    },
+    {
+      "name": "Brand Mark",
+      "kind": "nav",
+      "refersTo": "brand-mark",
+      "description": "The app's only identity element — a teal flask tile beside weight-800 wordmark. Note the lab's real logo asset is not used here.",
+      "html": "<div class=\"ds-brand\"><span class=\"ds-brand-tile\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" width=\"16\" height=\"16\"><path d=\"M9 3v6.5L4.5 18a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 9.5V3\"/><path d=\"M8 3h8M8 13h8\"/></svg></span><span class=\"ds-brand-word\">Lab Admin</span></div>",
+      "css": ".ds-brand { display:flex; align-items:center; gap:0.75rem; background:#282d38; padding:1rem 1.5rem; border-bottom:1px solid #1e232c; } .ds-brand-tile { display:flex; height:2rem; width:2rem; align-items:center; justify-content:center; border-radius:0.5rem; background:#0f766e; color:#ffffff; box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-brand-word { font-size:16px; font-weight:800; letter-spacing:-0.025em; color:#ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Bench",
+    "overview": "The staff portal is the same bench as the desktop app, rebuilt for a phone held in one hand at the lab counter. The dark rail and bright work surface survive the translation — but on a phone the rail collapses into a 3.5rem sticky top bar and slides in over a scrim when summoned, and the work surface becomes the whole screen. The rail is a slightly warmer, lighter charcoal here (#2f3542) than the desktop's near-black, because on a small bright screen the desktop's #111827 reads as a hole rather than a frame.\n\nEverything about this surface is sized for the real scene: standing, one-handed, with a patient in front of you. Inputs are 15px — larger than the 14px body around them, which is backwards from most design systems and correct here, because typing is the job. Controls are 0.625rem tall in the vertical axis and rows are 0.875rem, giving comfortable thumb targets without turning a list of patients into a scroll marathon. The press feedback is 0.99 rather than the desktop's 0.98: a lighter touch, because on a phone the finger already covers the control.\n\nCounter Teal is the liveness signal, and it is also the global focus ring — a 2px teal outline at 2px offset appears on any keyboard-focused element, defined once in globals.css rather than per-component. That single rule is the accessibility backbone of the app.",
+    "keyCharacteristics": [
+      "Phone-first with one real breakpoint (md): top bar plus slide-over rail below it, static sidebar above",
+      "Counter Teal accent, deliberately not the desktop's blue, so staff always know which surface they are on",
+      "A small utility-class layer (.card, .btn, .input, .row-link) rather than React primitives — style lives in globals.css",
+      "Inputs are larger than body text, because data entry is the whole point of this surface",
+      "Content capped at 72rem and centred, so a tablet or laptop never stretches a form to the full width",
+      "One globally defined focus ring, teal, on everything"
+    ],
+    "rules": [
+      { "name": "The Teal-Is-Ours Rule", "body": "Counter Teal identifies this surface. It is the accent, the brand mark, and the focus ring, and it must never be swapped for the desktop app's Instrument Blue. A staff member glancing down should know from colour alone whether they are on their phone or the home PC.", "section": "colors" },
+      { "name": "The Two-Property Rule", "body": "--bg and --ink are the only CSS custom properties in this app. Page background and primary text read from them; everything else comes from Tailwind tokens. Do not grow this list into a shadow token system that competes with tailwind.config.ts.", "section": "colors" },
+      { "name": "The Input-Is-Biggest Rule", "body": "Field text (15px) is larger than body text (14px). This inversion is intentional: staff are typing patient data at arm's length on a phone, and the value being entered is the most important thing on screen.", "section": "typography" },
+      { "name": "The Flat-Content Rule", "body": "Content surfaces are flat. The only meaningful elevation in this app is the mobile rail sliding over the scrim; if a new component wants a large shadow, it almost certainly wants a border instead.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do build lists from .row-link and surfaces from .card rather than re-deriving them inline.",
+      "Do keep field text at 15px, larger than the 14px body around it.",
+      "Do rely on the global :focus-visible rule in globals.css for keyboard affordance; it is defined once and applies everywhere.",
+      "Do use slate-300 borders on inputs and ghost buttons, a step darker than card borders, so controls stay findable on a bright screen.",
+      "Do use active:scale-[.99] for press feedback — lighter than the desktop's 0.98.",
+      "Do use ease-out-fluid (cubic-bezier(0.23, 1, 0.32, 1)) for the 300ms transitions on selectable rows and pickers. All three apps in the monorepo declare this curve; it is the shared motion signature.",
+      "Do cap content at max-w-6xl and centre it.",
+      "Do keep the offline and sync-health banners above content, never inside a scroll region."
+    ],
+    "donts": [
+      "Don't reintroduce shadow-inner-bezel or shadow-inner-bezel-dark. Neither is defined in any config in this repo; both have been removed.",
+      "Don't introduce pills or fully-rounded shapes. This app's form language stops at 0.75rem; pills belong to the desktop.",
+      "Don't adopt the desktop's Instrument Blue or its #111827 rail. The divergence is deliberate.",
+      "Don't add custom shadows to tailwind.config.ts to make content float. Content is flat; use a border.",
+      "Don't add CSS custom properties beyond --bg and --ink."
+    ]
+  }
+}

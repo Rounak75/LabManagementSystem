@@ -129,7 +129,9 @@ export function CloudSyncTab() {
           <h2 className="text-lg font-medium">Status</h2>
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              status?.enabled ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+              status?.enabled
+                ? "bg-status-success-light text-status-success"
+                : "bg-slate-100 text-slate-600"
             }`}
           >
             {status?.enabled ? "Enabled" : "Disabled"}

@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T00:00:00.000Z",
+  "title": "Design System: Golmuri Janch Ghar — Printed Report",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#000000",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(26% 0 0)", "oklch(37% 0 0)", "oklch(48% 0 0)", "oklch(59% 0 0)", "oklch(70% 0 0)", "oklch(83% 0 0)", "oklch(95% 0 0)"]
+      },
+      "section-bar": {
+        "role": "primary",
+        "displayName": "Section Bar",
+        "canonical": "#1e293b",
+        "tonalRamp": ["oklch(15% 0.02 260)", "oklch(26% 0.025 260)", "oklch(37% 0.028 260)", "oklch(48% 0.028 260)", "oklch(59% 0.025 260)", "oklch(71% 0.018 260)", "oklch(83% 0.012 260)", "oklch(95% 0.006 260)"]
+      },
+      "abnormal": {
+        "role": "secondary",
+        "displayName": "Abnormal Red",
+        "canonical": "#b91c1c",
+        "tonalRamp": ["oklch(15% 0.07 27)", "oklch(26% 0.10 27)", "oklch(37% 0.13 27)", "oklch(47% 0.16 27)", "oklch(58% 0.18 27)", "oklch(71% 0.13 27)", "oklch(83% 0.08 27)", "oklch(95% 0.03 27)"]
+      },
+      "accent-default": {
+        "role": "secondary",
+        "displayName": "Template Accent",
+        "canonical": "#0f766e",
+        "tonalRamp": ["oklch(15% 0.05 180)", "oklch(25% 0.07 180)", "oklch(35% 0.08 180)", "oklch(45% 0.09 180)", "oklch(57% 0.09 180)", "oklch(70% 0.07 180)", "oklch(83% 0.04 180)", "oklch(95% 0.02 180)"]
+      },
+      "body-ink": {
+        "role": "neutral",
+        "displayName": "Body Ink",
+        "canonical": "#1f2937",
+        "tonalRamp": ["oklch(15% 0.015 260)", "oklch(26% 0.02 260)", "oklch(37% 0.02 260)", "oklch(48% 0.02 260)", "oklch(59% 0.018 260)", "oklch(71% 0.014 260)", "oklch(83% 0.01 260)", "oklch(95% 0.005 260)"]
+      },
+      "secondary-ink": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "canonical": "#475569",
+        "tonalRamp": ["oklch(15% 0.015 255)", "oklch(26% 0.02 255)", "oklch(37% 0.022 255)", "oklch(48% 0.022 255)", "oklch(60% 0.02 255)", "oklch(72% 0.015 255)", "oklch(84% 0.01 255)", "oklch(95% 0.005 255)"]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline Rule",
+        "canonical": "#cbd5e1",
+        "tonalRamp": ["oklch(20% 0.012 250)", "oklch(31% 0.014 250)", "oklch(42% 0.016 250)", "oklch(53% 0.016 250)", "oklch(64% 0.014 250)", "oklch(76% 0.011 250)", "oklch(87% 0.007 250)", "oklch(96% 0.004 250)"]
+      },
+      "grid-head": {
+        "role": "neutral",
+        "displayName": "Grid Header Fill",
+        "canonical": "#f1f5f9",
+        "tonalRamp": ["oklch(20% 0.008 250)", "oklch(31% 0.008 250)", "oklch(42% 0.008 250)", "oklch(53% 0.007 250)", "oklch(64% 0.006 250)", "oklch(76% 0.005 250)", "oklch(87% 0.004 250)", "oklch(97% 0.003 250)"]
+      }
+    },
+    "typographyMeta": {
+      "lab-name": { "displayName": "Lab Name", "purpose": "The letterhead. Largest element on the page by a wide margin." },
+      "pathologist": { "displayName": "Pathologist", "purpose": "The signing doctor, top right, in red." },
+      "section-title": { "displayName": "Section Title", "purpose": "The reversed department bar — the only navigation a dense page offers." },
+      "body": { "displayName": "Body", "purpose": "Every result, label, value and range. The workhorse." },
+      "subhead": { "displayName": "Subhead", "purpose": "A test name above its parameters, and abnormal values." },
+      "fine": { "displayName": "Fine", "purpose": "Address lines, grid cells, footers, the portal sign-in strip." },
+      "legend": { "displayName": "Legend", "purpose": "The italic note under a culture table. The smallest type permitted." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Section Bar",
+      "kind": "custom",
+      "refersTo": "section-bar",
+      "description": "The reversed department heading. The only heavy element on the sheet, and what makes a dense page scannable.",
+      "html": "<div class=\"ds-section-bar\">CLINICAL BIOCHEMISTRY</div>",
+      "css": ".ds-section-bar { background:#1e293b; color:#ffffff; padding:3pt; font-family:Helvetica, Arial, sans-serif; font-size:10pt; font-weight:700; text-align:center; }"
+    },
+    {
+      "name": "Result Row",
+      "kind": "custom",
+      "refersTo": "result-row",
+      "description": "Name, value, reference range under a 0.5pt hairline. An abnormal value goes red AND bold AND gains its letter — the letter is what survives a black-and-white printer.",
+      "html": "<div class=\"ds-rows\"><div class=\"ds-row\"><span class=\"ds-cell-name\">Blood Sugar Fasting</span><span class=\"ds-cell-value ds-abn\">182 <span class=\"ds-flag\">H</span></span><span class=\"ds-cell-range\">70 - 100 mg/dL</span></div><div class=\"ds-row\"><span class=\"ds-cell-name\">Serum Creatinine</span><span class=\"ds-cell-value\">0.9</span><span class=\"ds-cell-range\">0.6 - 1.2 mg/dL</span></div></div>",
+      "css": ".ds-rows { font-family:Helvetica, Arial, sans-serif; font-size:9pt; color:#000000; } .ds-row { display:flex; border-bottom:0.5pt solid #cbd5e1; padding:2pt 0; } .ds-cell-name { flex:2; } .ds-cell-value { flex:1; text-align:right; } .ds-cell-range { flex:2; text-align:right; color:#1f2937; } .ds-abn { color:#b91c1c; font-weight:700; } .ds-flag { font-weight:700; }"
+    },
+    {
+      "name": "Letterhead",
+      "kind": "custom",
+      "refersTo": "letterhead",
+      "description": "Lab name, address and pathologist above a 1pt rule. Suppressed entirely when printing onto pre-printed paper.",
+      "html": "<div class=\"ds-letterhead\"><div class=\"ds-lh-brand\"><div class=\"ds-lh-name\">Golmuri Janch Ghar</div><div class=\"ds-lh-addr\">Main Road, Golmuri Chowk, Jamshedpur</div><div class=\"ds-lh-addr\">Phone: 6202924306</div></div><div class=\"ds-lh-right\"><div class=\"ds-lh-patho\">Dr. P. C. Du</div><div class=\"ds-lh-quals\">MD (Pathology)</div></div></div>",
+      "css": ".ds-letterhead { display:flex; border-bottom:1pt solid #000000; padding-bottom:6pt; margin-bottom:8pt; font-family:Helvetica, Arial, sans-serif; } .ds-lh-brand { flex:1; } .ds-lh-name { font-size:16pt; font-weight:700; color:#000000; } .ds-lh-addr { font-size:8pt; color:#475569; } .ds-lh-right { text-align:right; } .ds-lh-patho { font-size:11pt; font-weight:700; color:#b91c1c; } .ds-lh-quals { font-size:8pt; color:#b91c1c; }"
+    },
+    {
+      "name": "Grid Table",
+      "kind": "custom",
+      "refersTo": "grid-header",
+      "description": "Culture and sensitivity results. Pale header fill light enough to survive a toner-saving printer.",
+      "html": "<div class=\"ds-grid\"><div class=\"ds-grid-head\"><span class=\"ds-grid-label\">Antibiotic</span><span class=\"ds-grid-cell\">S</span><span class=\"ds-grid-cell\">I</span><span class=\"ds-grid-cell\">R</span></div><div class=\"ds-grid-row\"><span class=\"ds-grid-label\">Amoxicillin</span><span class=\"ds-grid-cell\">—</span><span class=\"ds-grid-cell\">—</span><span class=\"ds-grid-cell\">R</span></div><div class=\"ds-legend\">S = Sensitive · I = Intermediate · R = Resistant</div></div>",
+      "css": ".ds-grid { font-family:Helvetica, Arial, sans-serif; margin-top:2pt; } .ds-grid-head { display:flex; background:#f1f5f9; border-bottom:0.5pt solid #cbd5e1; } .ds-grid-row { display:flex; border-bottom:0.5pt solid #cbd5e1; } .ds-grid-cell { padding:2pt; font-size:8pt; flex:1; text-align:center; } .ds-grid-label { padding:2pt; font-size:8pt; flex:2; text-align:left; font-weight:700; } .ds-legend { margin-top:4pt; font-size:7pt; color:#475569; font-style:italic; }"
+    },
+    {
+      "name": "Page Footer",
+      "kind": "custom",
+      "refersTo": "page-footer",
+      "description": "Fixed to every page. The signature resolves template line, then Settings, then blank — a blank the lab notices beats the previous doctor's name under a diagnosis.",
+      "html": "<div class=\"ds-footer\"><span>Lab Technician</span><span>Page 1 of 2</span><span>Dr. P. C. Du, MD (Pathology)</span></div>",
+      "css": ".ds-footer { display:flex; justify-content:space-between; font-family:Helvetica, Arial, sans-serif; font-size:8pt; color:#475569; padding-top:6pt; }"
+    },
+    {
+      "name": "Alignment Crosshair",
+      "kind": "custom",
+      "refersTo": "result-row",
+      "description": "Calibration-only. Drawn from the same coordinate constants the content uses, so holding the sheet under real letterhead turns alignment into a measurement.",
+      "html": "<div class=\"ds-cross\"><span class=\"ds-cross-h\"></span><span class=\"ds-cross-v\"></span><span class=\"ds-cross-label\">Value column</span></div>",
+      "css": ".ds-cross { position:relative; width:120px; height:40px; font-family:Helvetica, Arial, sans-serif; } .ds-cross-h { position:absolute; left:0; top:20px; width:40px; height:0.5pt; background:#000000; } .ds-cross-v { position:absolute; left:20px; top:0; width:0.5pt; height:40px; background:#000000; } .ds-cross-label { position:absolute; left:46px; top:13px; font-size:7pt; color:#475569; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Black-and-White Record",
+    "overview": "This is the only artifact in the system that leaves the building. A patient carries it home in a bag; a referring doctor reads it in a different clinic; it may be photocopied, faxed, or filed for years. It is also, almost always, printed on a black-and-white laser printer. Every rule here follows from that one fact.\n\nThe governing consequence is that colour cannot be the only carrier of meaning. An out-of-range result used to be distinguished by red text alone — which meant that on the paper a patient was actually handed, a dangerously high value looked exactly like a normal one. So every abnormal result now prints a letter beside it: H above range, L below, * when the result is qualitative and no numeric range applies. The red stays for the rare colour print; the letter is what actually does the work.\n\nThe second governing fact is that this page has to land accurately on paper the lab may have pre-printed. Positions are therefore not a consequence of flow — they are measured absolute millimetres on A4, declared in one coordinate file, with a printable crosshair sheet that mirrors those exact coordinates so a printer can be calibrated against a real sheet. The invariant that makes the whole scheme work: content coordinates are identical whether the letterhead is drawn or the paper already carries it. Only the decorations toggle.",
+    "keyCharacteristics": [
+      "Meaning never depends on colour — every abnormal value carries a letter",
+      "Absolute millimetre coordinates on A4, not flowed layout",
+      "Content positions identical in FullPage and ContentOnly; only decorations toggle",
+      "One typeface, a 7-16pt scale, no radius and no shadow",
+      "A reversed dark bar is the only heavy element on the page",
+      "Every page carries \"Page N of M\", so a missing sheet is detectable"
+    ],
+    "rules": [
+      { "name": "The Ink-First Rule", "body": "Colour may reinforce a signal but must never be the only one carrying it. Anything printed in red also prints a letter, a word, or a mark that survives a monochrome printer, a photocopier and a fax. abnormalFlag() is the implementation; the rule is broader than that function.", "section": "colors" },
+      { "name": "The Two-Colour Ceiling", "body": "The sheet uses one reversed dark bar and one alert red. A third colour is a request to justify itself against a printer that will render it as grey.", "section": "colors" },
+      { "name": "The Nothing-Below-7pt Rule", "body": "7pt italic is the floor, and only for a legend. A patient reading their own report is frequently older than the person who designed it.", "section": "typography" },
+      { "name": "The Ships-With-The-Renderer Rule", "body": "Report typefaces come from react-pdf's built-ins. Do not embed a webfont: a report must render identically on the lab PC and in a patient's browser download.", "section": "typography" },
+      { "name": "The Identical-Coordinates Rule", "body": "FullPage and ContentOnly place every piece of content at exactly the same millimetre. Only the four decorations — header band, column headers, signature labels, footer band — toggle. This is what lets one calibration serve both, and what makes the alignment-test crosshairs meaningful.", "section": "layout" },
+      { "name": "The Reserve-Don't-Reflow Rule", "body": "When the paper carries its own letterhead, the space it occupies is left blank rather than reclaimed. Dropping the header and letting results flow upward is the failure mode this design exists to prevent — the results would print on top of the lab's pre-printed masthead.", "section": "layout" }
+    ],
+    "dos": [
+      "Do pair every colour signal with a mark that survives monochrome printing.",
+      "Do take positions from layout-coords.ts rather than measuring by eye or relying on flow.",
+      "Do keep content coordinates identical across FullPage and ContentOnly.",
+      "Do use wrap={false} on a department section so it is never split mid-table.",
+      "Do leave pre-printed space blank rather than reflowing into it.",
+      "Do let the signature go blank when no pathologist is set.",
+      "Do keep every typeface to react-pdf's built-ins."
+    ],
+    "donts": [
+      "Don't signal anything by colour alone — the lab prints in black and white.",
+      "Don't add a shadow, a gradient, or a rounded corner. Paper has no z-axis.",
+      "Don't go below 7pt, and only a legend goes that small.",
+      "Don't introduce a third meaningful colour beyond the section bar and abnormal red.",
+      "Don't embed a webfont.",
+      "Don't hard-code a doctor's name, a lab address, or opening hours — they come from Settings so one edit updates every future report.",
+      "Don't let a report grow to two pages for want of tightening; a second sheet is a real cost to a lab printing hundreds."
+    ]
+  }
+}

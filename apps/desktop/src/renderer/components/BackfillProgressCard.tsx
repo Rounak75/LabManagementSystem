@@ -20,8 +20,11 @@ export function BackfillProgressCard() {
   if (data.pendingCount === 0) return null;
 
   return (
-    <Card className="flex-1 border-l-4 border-blue-500">
-      <div className="text-sm font-medium text-slate-700">Backfilling cloud sync</div>
+    <Card className="flex-1">
+      <div className="flex items-center gap-2">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-status-processing" />
+        <div className="text-sm font-medium text-slate-700">Backfilling cloud sync</div>
+      </div>
       <div className="mt-1 text-xs text-slate-500">
         {data.pendingCount} events pending — pushed in the background.
       </div>
