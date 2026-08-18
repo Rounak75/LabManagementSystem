@@ -21,6 +21,51 @@
     outline-offset: 2px;
     border-radius: 4px;
   }
+
+  /* The browser's own surfaces still belong to the design. Selection was the
+     OS blue on a teal-and-slate app; the caret matches the brand; and lab
+     values and rupee amounts get tabular figures so a column of numbers lines
+     up instead of jittering by digit width. The patient portal already does
+     the last of these via `.num`. */
+  ::selection {
+    background: rgb(15 118 110 / 0.22);
+    color: var(--ink);
+  }
+  input,
+  textarea,
+  select {
+    caret-color: #0f766e;
+  }
+  .num,
+  input[inputmode="decimal"],
+  input[inputmode="numeric"] {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}
+
+/* The staff portal had no reduced-motion handling at all, while the patient
+   portal's is thorough. Same principle as there: keep the colour transitions
+   that explain what happened, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Press feedback stops travelling. The colour change stays, so a tap is
+     still reported — this is feedback, not decoration. */
+  .btn:active,
+  .row-link:active {
+    transform: none;
+  }
+
+  /* The nav rail arrives without the 200ms slide. Deliberately NOT a blanket
+     `animation: none` on everything: the route spinner in loading.tsx is the
+     only running animation in this app and it is a progress indicator, so
+     freezing it would replace "still loading" with a static icon that looks
+     like a stuck page. */
+  aside.transition-transform {
+    transition: none;
+  }
 }
 
 @layer components {
@@ -56,10 +101,17 @@
   .field-label {
     @apply block text-sm font-medium text-slate-700 mb-1.5;
   }
+  /* `focus:outline-none` used to live here. As a utility it outranks the
+     `:focus-visible` rule in the base layer, so the teal outline — the one
+     documented as this app's accessibility backbone — never rendered on any
+     field in the app. The remaining ring is teal at 20% alpha, far below the
+     3:1 WCAG asks of a focus indicator and invisible on a phone in daylight.
+     The border and ring stay as the mouse-focus treatment; the outline is
+     allowed back for keyboard users. */
   .input {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[15px]
            text-slate-900 placeholder:text-slate-500 shadow-sm
-           focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none;
+           focus:border-brand focus:ring-2 focus:ring-brand/20;
   }
 
   /* List rows that link somewhere */

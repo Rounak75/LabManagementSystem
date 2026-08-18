@@ -1,10 +1,16 @@
 const STYLES: Record<string, string> = {
-  // Visit statuses
+  // Visit statuses. InProgress and PendingVerify were the same amber tint, and
+  // they are the two that appear side by side in the visits list — so the one
+  // state that needs an Admin looked exactly like the one that needs nothing.
+  // PendingVerify is now the only *filled* chip in the app, which is what makes
+  // it findable while scrolling a shift's worth of rows.
   Open: "bg-sky-50 text-sky-700 ring-sky-200",
-  InProgress: "bg-amber-50 text-amber-700 ring-amber-200",
-  PendingVerify: "bg-amber-50 text-amber-800 ring-amber-300",
+  InProgress: "bg-amber-50 text-amber-800 ring-amber-200",
+  PendingVerify: "bg-amber-700 text-white ring-amber-800",
   Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  Cancelled: "bg-slate-100 text-slate-500 ring-slate-200",
+  // slate-500 on slate-100 is 4.34:1 — just under AA, on the one status that
+  // means a visit was abandoned.
+  Cancelled: "bg-slate-100 text-slate-600 ring-slate-300",
   // Booking statuses
   Pending: "bg-amber-50 text-amber-800 ring-amber-300",
   Approved: "bg-sky-50 text-sky-700 ring-sky-200",

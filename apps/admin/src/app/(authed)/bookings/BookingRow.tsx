@@ -25,7 +25,7 @@ export function BookingRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold text-slate-900">
-            {b.patient_name} <span className="text-xs font-normal text-slate-400">({b.booking_id})</span>
+            {b.patient_name} <span className="text-xs font-normal text-slate-600">({b.booking_id})</span>
           </div>
           <div className="mt-0.5 text-xs text-slate-500">
             {formatPhone(b.patient_phone ?? "")} · {formatDateShort(b.preferred_date ?? "")} · {b.preferred_slot}

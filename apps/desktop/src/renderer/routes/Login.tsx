@@ -35,7 +35,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowPw(s => !s)}
-              className="absolute right-2 top-7 rounded px-2 py-1 text-xs font-medium text-slate-500 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+              className="absolute right-2 top-7 rounded px-2 py-1 text-xs font-medium text-slate-500 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               aria-label={showPw ? "Hide password" : "Show password"}
               tabIndex={-1}
             >

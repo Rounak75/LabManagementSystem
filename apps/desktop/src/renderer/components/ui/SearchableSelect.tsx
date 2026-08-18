@@ -41,7 +41,7 @@ export function SearchableSelect({ label, options, value, onChange, error, class
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 transition-colors hover:border-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 ${error ? "border-danger" : "border-slate-200"} ${!selectedOption ? "text-slate-500" : ""}`}
+        className={`flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 transition-colors hover:border-slate-300 focus:border-brand focus:ring-2 focus:ring-brand/20 ${error ? "border-danger" : "border-slate-200"} ${!selectedOption ? "text-slate-500" : ""}`}
       >
         <span className="truncate">{selectedOption ? selectedOption.label : "Select..."}</span>
         <ChevronDown className="h-4 w-4 text-slate-400" />
@@ -55,7 +55,7 @@ export function SearchableSelect({ label, options, value, onChange, error, class
               <input
                 type="text"
                 autoFocus
-                className="w-full rounded-md border border-slate-200 py-1.5 pl-9 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="w-full rounded-md border border-slate-200 py-1.5 pl-9 pr-3 text-sm focus:border-brand focus:ring-1 focus:ring-brand"
                 placeholder="Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

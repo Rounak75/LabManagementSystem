@@ -1,4 +1,5 @@
 export { LabReport } from "./LabReport";
+export { abnormalFlag } from "./abnormal-flag";
 export type {
   LabReportProps,
   Layout,

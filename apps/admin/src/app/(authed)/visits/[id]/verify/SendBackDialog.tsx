@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { Dialog } from "@/components/Dialog";
 
 const REASONS = ["Value seems wrong", "Sample needs rerun", "Patient info incorrect", "Other"];
 
@@ -18,9 +19,7 @@ export function SendBackDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-sm p-5 shadow-xl">
-        <h3 className="mb-3 text-base font-bold text-slate-900">Send back to staff</h3>
+    <Dialog title="Send back to staff" onClose={onClose}>
         <label className="mb-2 block">
           <span className="field-label">Reason</span>
           <select
@@ -67,7 +66,6 @@ export function SendBackDialog({
             {pending ? "Sending…" : "Send back"}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

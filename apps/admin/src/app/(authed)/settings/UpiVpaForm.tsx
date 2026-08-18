@@ -52,7 +52,7 @@ export function UpiVpaForm({
           className="input mt-1.5"
           value={vpa}
           onChange={(e) => setVpa(e.target.value)}
-          placeholder="father@upi"
+          placeholder="labname@bank"
         />
       </label>
       <label className="block text-sm">

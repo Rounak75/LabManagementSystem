@@ -65,8 +65,8 @@ export function ResultsForm({
         </section>
       ))}
 
-      <div className="sticky bottom-0 -mx-4 mt-6 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        {error ? <p className="mb-2 text-sm font-medium text-rose-600">{error}</p> : null}
+      <div className="sticky bottom-0 -mx-4 sm:-mx-6 md:-mx-8 mt-6 border-t border-slate-200 bg-white/95 px-4 sm:px-6 md:px-8 py-3 backdrop-blur">
+        {error ? <p role="alert" className="mb-2 text-sm font-medium text-rose-700">{error}</p> : null}
         <button
           disabled={pending}
           onClick={() => {
@@ -77,7 +77,7 @@ export function ResultsForm({
                 setError("Could not finalize. Try again.");
                 return;
               }
-              router.push(`/visits/${visitId}`);
+              router.push(`/visits/${visitId}?sent=1`);
               router.refresh();
             });
           }}

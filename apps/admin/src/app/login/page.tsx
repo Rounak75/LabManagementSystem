@@ -35,7 +35,7 @@ export default function LoginPage() {
         <div className="card p-6 shadow-md">
           <LoginForm />
         </div>
-        <p className="mt-4 text-center text-xs text-slate-400">Use your lab username and password.</p>
+        <p className="mt-4 text-center text-xs text-slate-600">Use your lab username and password.</p>
       </div>
     </main>
   );

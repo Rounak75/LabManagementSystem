@@ -242,7 +242,7 @@ export default function TemplateEditor() {
             value={name}
             onChange={(e) => updateName(e.target.value)}
             placeholder="Template name"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand"
             style={{ minWidth: 240 }}
           />
           {existing?.isDefault && (
@@ -302,7 +302,7 @@ export default function TemplateEditor() {
                 rows={2}
                 value={config.headerText}
                 onChange={(e) => update({ headerText: e.target.value })}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand"
               />
             </label>
 
@@ -312,7 +312,7 @@ export default function TemplateEditor() {
                 rows={2}
                 value={config.footerText}
                 onChange={(e) => update({ footerText: e.target.value })}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand"
               />
             </label>
 
@@ -363,7 +363,7 @@ export default function TemplateEditor() {
                   value={config.accentColor}
                   onChange={(e) => update({ accentColor: e.target.value })}
                   placeholder="#0f766e"
-                  className="w-32 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand focus:outline-none"
+                  className="w-32 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm focus:border-brand"
                 />
               </div>
             </div>

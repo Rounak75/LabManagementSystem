@@ -39,6 +39,7 @@ The architectural commitment that makes this honest: **the desktop app is the of
 - **Staleness is a real state, not an edge case.** When the desktop stops syncing, the staff and patient portals are both showing an old picture. The staff portal already carries a banner for this.
 - **The desktop is Windows-only and the installer is unsigned**, so first install shows a SmartScreen warning and updates are download-on-click only, never silent.
 - **Backups** run nightly at 02:00 to `%APPDATA%`, are verified by re-opening and integrity-checking each copy, and a failed copy does not advance the "last backed up" date.
+- **Both web apps answer `/api/health`** for an external uptime monitor, and they answer different questions. The patient portal's makes a real query against `cloud_heartbeat` — that is what keeps the free Supabase project from pausing after seven idle days, so it must never become a static 200. The staff portal's reports whether it is configured and whether the database host answers; it deliberately holds no service-role key, because every database call there travels on a staff member's own JWT so RLS applies.
 - **Fixed domain vocabulary** (see `CONTEXT.md`, which is authoritative): Visit, Booking, Test, Test Catalogue, Slot; and the modules VisitOrchestrator, SyncEngine, BookingState. Interface copy should use these words in this sense.
 
 ## Capabilities and Constraints
@@ -59,6 +60,13 @@ The architectural commitment that makes this honest: **the desktop app is the of
 - The name **Golmuri Janch Ghar**.
 - The lab's identity details — address, phone, opening hours, and the pathologist's name, qualifications, and registration number. These are real facts, not placeholders, and reports read them from **Settings → Lab Info** at print time rather than hard-coding them.
 - The lab logo at `apps/desktop/src/renderer/assets/logo.png`. Use it as-is.
+  **Note the file is misnamed:** it is a 1024×1024 **JPEG** (`ffd8ff…JFIF`), not a
+  PNG. Browsers sniff content so it has always rendered, but it means the logo has
+  **no transparency** and carries its own background — so it cannot sit on the dark
+  rail or the teal band without showing a box, and it is not safe to declare as a
+  `maskable` app icon. It is copied to `apps/{admin,portal}/public/icon.jpg` with a
+  truthful extension. A transparent PNG or an SVG master would fix all three limits
+  at once and is worth requesting from whoever produced the original.
 
 **Explicitly not binding:**
 
@@ -103,8 +111,60 @@ Already implemented and not to be regressed:
 - Full `prefers-reduced-motion` handling in the portal: fades that aid comprehension are kept, travel is dropped.
 - Abnormal results marked by letter as well as colour, on screen and on paper.
 
-Known gaps to close against the standard:
+Known gaps to close against the standard.
 
-- Contrast has not been systematically audited against 4.5:1 for body text; the desktop toast severities in particular pair white on mid-saturation fills and are likely below it.
-- No keyboard-only or screen-reader pass has been run on any surface.
-- The desktop `Modal` closes on Escape and has `role="dialog"`, but does not trap focus.
+**Corrected 2026-08-18 against measured values.** The three entries previously
+listed here were largely wrong: two named desktop problems that had already been
+fixed, and the contrast entry pointed at the wrong app. Ratios below are computed,
+not estimated.
+
+Closed, and not to be re-opened by a future pass:
+
+- **Desktop toast severities pass.** info 14.63:1, success 5.48:1, warn 6.97:1,
+  error 4.70:1. The earlier suspicion that they paired white on mid-saturation
+  fills was incorrect; `Toast.tsx` already tints the warn ink from the surface hue.
+- **The desktop `Modal` does trap focus.** It cycles Tab and Shift+Tab, focuses
+  the first control on open, restores focus to the opener on close, and sets
+  `aria-modal`. It is the best dialog implementation in the repo.
+- **The staff portal's six dialogs** (Approve, Decline, BatchVerify, MarkPaid,
+  EditValue, SendBack) had none of that and now share
+  `apps/admin/src/components/Dialog.tsx`, which reuses the desktop's behaviour.
+- **The staff portal's global focus ring was dead on every field** — `.input`
+  carried `focus:outline-none`, which as a utility outranked the `:focus-visible`
+  rule in the base layer. Removed there and at the two inline uses.
+- **The desktop app had no global focus rule at all**, despite this document
+  claiming one existed in each app. It now defines one in
+  `src/renderer/styles/tailwind.css`, at 5.70:1 on white.
+- **"Send back" was white on `amber-500` at 2.15:1**, a 1.4.3 failure on a
+  workflow-critical control. Now `amber-700` at 5.02:1.
+- **`text-slate-400` on white is 2.56:1** and was carrying real content across
+  twelve places in the staff portal. Raised to `slate-600`. It remains in use for
+  decorative icons and on the dark rail, where it is not measured against white.
+
+Also closed in the same pass:
+
+- **Live regions.** The result-save status, and both the offline and sync-health
+  banners, now announce. The banners are always mounted with only their contents
+  conditional — a region that mounts together with its message is frequently
+  missed by screen readers.
+- **`prefers-reduced-motion` in the staff portal**, following the patient portal's
+  principle: press travel and the rail slide stop, the route spinner keeps
+  spinning because it is a progress indicator rather than decoration.
+- **Both web apps have an icon, a manifest and a `theme-color`.** Staff can add
+  the staff portal to a phone home screen and it opens without browser chrome.
+- **Status badges.** `InProgress` and `PendingVerify` were the same amber tint and
+  are the two that appear side by side in the visits list. `PendingVerify` is now
+  the only filled chip in the app. `Cancelled` was 4.34:1 and is now compliant.
+- **Raw server errors no longer reach the counter.** `lib/api-error-message.ts`
+  translates a failed response; anything unrecognised becomes status-based copy
+  and the original goes to the console. Previously the forms rendered whatever the
+  route returned, including raw Postgres constraint violations and Zod objects.
+
+Still open:
+
+- No keyboard-only or screen-reader pass has been run on any surface. Every fix
+  above was reasoned from source, not observed in a screen reader.
+- Contrast on the **patient portal** has not been audited to the same standard,
+  though its `globals.css` documents several deliberate corrections already.
+- The **desktop app** has had no design review at this depth; only its focus
+  handling and toast/badge contrast were examined.

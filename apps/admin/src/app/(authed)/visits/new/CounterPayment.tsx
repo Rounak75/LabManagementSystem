@@ -40,7 +40,7 @@ export function CounterPayment({
   return (
     <div className="space-y-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-bold uppercase tracking-widest text-slate-400">Paid now</span>
+        <span className="text-[13px] font-bold uppercase tracking-widest text-slate-600">Paid now</span>
         {amountPaid > 0 && (
           <button
             type="button"
@@ -115,7 +115,7 @@ export function CounterPayment({
       )}
 
       <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Balance</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-600">Balance</span>
         <strong
           className={`font-mono text-lg font-bold tracking-tight ${
             balance > 0 ? "text-amber-600" : "text-emerald-600"

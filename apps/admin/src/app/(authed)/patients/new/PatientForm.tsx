@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { enqueue } from "@/lib/offline-queue";
+import { messageForFailure } from "@/lib/api-error-message";
 
 export function PatientForm() {
   const router = useRouter();
@@ -30,25 +31,40 @@ export function PatientForm() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(body),
             });
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) {
+              setError(await messageForFailure(r, "Could not save this patient. Try again."));
+              return;
+            }
             const j = await r.json();
             router.push(`/patients/${j.id}`);
-          } catch (e: unknown) {
-            if (typeof navigator !== "undefined" && !navigator.onLine) {
-              await enqueue({ kind: "patient.create", body });
-              setQueued(true);
-            } else {
-              setError(e instanceof Error ? e.message : "Failed to save");
-            }
+          } catch {
+            // The request never reached the server, so this is a transport
+            // failure whatever `navigator.onLine` claims — it reports true on
+            // lab wi-fi that has associated but has no route out.
+            await enqueue({ kind: "patient.create", body });
+            setQueued(true);
           }
         });
       }}
       className="space-y-4"
     >
       <Input name="name" label="Full name" required />
-      <Input name="phone" label="Phone (10 digits)" required pattern="\d{10}" />
-      <Input name="email" label="Email (optional)" type="email" />
-      <Input name="age" label="Age (years)" type="number" required />
+      {/* `pattern` alone still opens a QWERTY keyboard on a phone, which is the
+          only device this form is filled in on. `type="tel"` + numeric inputMode
+          brings up the keypad, and autoComplete lets the browser offer a number
+          the staff member has typed before. */}
+      <Input
+        name="phone"
+        label="Phone (10 digits)"
+        required
+        pattern="\d{10}"
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel-national"
+        maxLength={10}
+      />
+      <Input name="email" label="Email (optional)" type="email" inputMode="email" autoComplete="email" />
+      <Input name="age" label="Age (years)" type="number" inputMode="numeric" required min={0} max={130} />
       <Select name="sex" label="Sex" options={["Male", "Female", "Other"]} required />
       <Input name="address" label="Address (optional)" />
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}

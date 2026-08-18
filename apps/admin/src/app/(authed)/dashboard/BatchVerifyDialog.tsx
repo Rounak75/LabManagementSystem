@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Dialog } from "@/components/Dialog";
 
 export interface BatchCandidate {
   id: string;
@@ -21,9 +22,7 @@ export function BatchVerifyDialog({
   const router = useRouter();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-md p-5 shadow-xl">
-        <h3 className="mb-2 text-base font-bold text-slate-900">Verify multiple visits</h3>
+    <Dialog title="Verify multiple visits" onClose={onClose} maxWidth="max-w-md">
         <p className="mb-3 text-sm text-slate-600">Only visits with no abnormal values are shown.</p>
         {candidates.length === 0 ? (
           <p className="text-sm text-slate-500">No low-risk visits to verify in bulk.</p>
@@ -73,7 +72,6 @@ export function BatchVerifyDialog({
             Verify {selected.length}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

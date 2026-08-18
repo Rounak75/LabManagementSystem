@@ -1,9 +1,11 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { TestPicker } from "./TestPicker";
 import { CounterPayment } from "./CounterPayment";
 import type { CounterPaymentMethod } from "@lab/types";
+import { messageForFailure } from "@/lib/api-error-message";
 
 interface Patient {
   id: string;
@@ -27,10 +29,26 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
   const total = tests.filter((t) => selected.includes(t.id)).reduce((a, t) => a + Number(t.price), 0);
 
   if (!patient) {
+    // This used to be a red line of text and nothing else. Reached from the
+    // dashboard's own "New visit" button, it stranded a staff member with a
+    // patient in front of them and no way forward but the browser's back
+    // gesture — while holding the patient's name in their head.
     return (
-      <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-        No patient selected. Open a patient and tap &ldquo;New visit&rdquo;.
-      </p>
+      <div className="card p-6 text-center">
+        <h2 className="text-base font-semibold text-slate-900">Which patient is this visit for?</h2>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm text-slate-600">
+          A visit belongs to a patient, so pick them first. Search an existing patient, or register
+          someone who has not been to the lab before.
+        </p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Link href="/patients" className="btn-primary">
+            Find a patient
+          </Link>
+          <Link href="/patients/new" className="btn-ghost">
+            Register a new patient
+          </Link>
+        </div>
+      </div>
     );
   }
 
@@ -55,7 +73,10 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
           }
           try {
             const rid = await fetch("/api/visits/reserve-id", { method: "POST" });
-            if (!rid.ok) throw new Error("Could not reserve a visit ID. Try again.");
+            if (!rid.ok) {
+              setError(await messageForFailure(rid, "Could not reserve a visit ID. Try again."));
+              return;
+            }
             const { allocatedId } = await rid.json();
 
             const r = await fetch("/api/visits/create", {
@@ -63,11 +84,14 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ ...body, allocatedVisitId: allocatedId }),
             });
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) {
+              setError(await messageForFailure(r, "Could not create this visit. Try again."));
+              return;
+            }
             const j = await r.json();
             router.push(`/visits/${j.id}`);
-          } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : "Failed");
+          } catch {
+            setError("Could not reach the lab server. Check the connection and try again.");
           }
         });
       }}
@@ -97,14 +121,28 @@ export function NewVisitForm({ patient, tests }: { patient: Patient | null; test
         <span className="field-label">Notes (optional)</span>
         <textarea name="notes" rows={2} className="input" />
       </label>
-      {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={pending || selected.length === 0}
-        className="btn-primary w-full sm:w-auto"
-      >
-        {pending ? "Creating…" : "Create visit"}
-      </button>
+      {/* Sticky, like the results form's finishing action. This one sat at the
+          natural end of the page, so after tests, payment and notes it was
+          below the fold — the two flows a staff member uses most had opposite
+          finishing gestures. The negative margins step with the shell's own
+          `sm:px-6 md:px-8` inset; a flat `-mx-4` under-bleeds above 640px. */}
+      <div className="sticky bottom-0 -mx-4 space-y-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+        {error ? (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+            {error}
+          </p>
+        ) : null}
+        {selected.length === 0 && (
+          <p className="text-xs font-medium text-slate-600">Pick at least one test to create the visit.</p>
+        )}
+        <button
+          type="submit"
+          disabled={pending || selected.length === 0}
+          className="btn-primary w-full py-3"
+        >
+          {pending ? "Creating…" : "Create visit"}
+        </button>
+      </div>
     </form>
   );
 }

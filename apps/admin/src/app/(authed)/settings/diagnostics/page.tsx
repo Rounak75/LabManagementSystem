@@ -41,7 +41,7 @@ export default async function DiagnosticsPage() {
             <li key={e.id} className="card p-3.5 text-sm">
               <div className="flex justify-between gap-2">
                 <span className="font-semibold text-rose-700">{e.message}</span>
-                <span className="shrink-0 text-xs text-slate-400">{formatDateTime(e.logged_at)}</span>
+                <span className="shrink-0 text-xs text-slate-600">{formatDateTime(e.logged_at)}</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">
                 {(e.user_id && names.get(e.user_id)) || "anon"} · {e.url}

@@ -82,7 +82,7 @@ export function DeclineBookingModal({
           onChange={(e) => setOther(e.target.value)}
           placeholder="Tell the patient why (at least 10 characters)"
           rows={3}
-          className="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+          className="mt-2 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand"
         />
       )}
 

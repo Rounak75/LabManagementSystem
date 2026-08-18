@@ -5,6 +5,7 @@ import { flagValue, FlagSeverity } from "@lab/types";
 import type { ResultParameter, ResultRow } from "@/lib/data-results";
 import { EditValueDialog } from "./EditValueDialog";
 import { SendBackDialog } from "./SendBackDialog";
+import { Dialog } from "@/components/Dialog";
 import { formatDateShort, formatPhone } from "@/lib/format";
 
 interface Patient {
@@ -55,7 +56,22 @@ export function VerifyView({
   const [criticalAck, setCriticalAck] = useState(false);
   const [editing, setEditing] = useState<VerifyRow | null>(null);
   const [sendBack, setSendBack] = useState(false);
+  const [confirmVerify, setConfirmVerify] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const runVerify = () => {
+    setConfirmVerify(false);
+    setError(null);
+    startTransition(async () => {
+      const r = await fetch(`/api/visits/${visitId}/verify`, { method: "POST" });
+      if (!r.ok) {
+        setError("Verify failed. Try again.");
+        return;
+      }
+      router.push("/dashboard");
+      router.refresh();
+    });
+  };
 
   const rows = useMemo<VerifyRow[]>(() => {
     const flat: VerifyRow[] = [];
@@ -133,7 +149,7 @@ export function VerifyView({
             return (
               <tr key={`${r.visitTestId}:${r.parameter.id}:${i}`} className="border-t border-slate-100">
                 <td className="px-3 py-2.5">
-                  <span className="text-xs text-slate-400">{r.visitTestName}</span>
+                  <span className="text-xs text-slate-600">{r.visitTestName}</span>
                   <br />
                   <span className="font-medium text-slate-800">{r.parameter.name}</span>
                 </td>
@@ -171,30 +187,52 @@ export function VerifyView({
         />
       )}
 
-      <div className="sticky bottom-0 -mx-4 mt-6 flex gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        <button onClick={() => setSendBack(true)} className="btn flex-1 bg-amber-500 py-3 text-white hover:bg-amber-600">
-          Send back
-        </button>
+      {confirmVerify && (
+        <Dialog title="Lock this report?" onClose={() => setConfirmVerify(false)}>
+          <p className="mb-2 text-sm text-slate-700">
+            You are about to verify and lock {rows.length} result{rows.length === 1 ? "" : "s"} for{" "}
+            <span className="font-semibold text-slate-900">{patient.name}</span>.
+          </p>
+          <p className="mb-4 text-sm text-slate-700">
+            Locked results cannot be changed afterwards, and every reprint of this report will be
+            identical. To correct a value later, an Admin has to unlock the test first.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmVerify(false)} className="btn-ghost flex-1">
+              Cancel
+            </button>
+            <button onClick={runVerify} disabled={pending} className="btn-success flex-1">
+              {pending ? "Locking…" : "Verify & lock"}
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {/* These two were side by side in one thumb arc, separated only by colour
+          and width — and Verify makes a medical record permanently immutable
+          with no confirmation. Verify is now the full-width primary with a
+          confirm step behind it, and Send back is a quiet outlined control, so
+          a mis-tap on either is recoverable. */}
+      <div className="sticky bottom-0 -mx-4 sm:-mx-6 md:-mx-8 mt-6 space-y-2 border-t border-slate-200 bg-white/95 px-4 sm:px-6 md:px-8 py-3 backdrop-blur">
+        {error && (
+          <p role="alert" className="text-sm font-medium text-rose-700">
+            {error}
+          </p>
+        )}
         <button
           disabled={verifyDisabled}
-          onClick={() => {
-            setError(null);
-            startTransition(async () => {
-              const r = await fetch(`/api/visits/${visitId}/verify`, { method: "POST" });
-              if (!r.ok) {
-                setError("Verify failed. Try again.");
-                return;
-              }
-              router.push("/dashboard");
-              router.refresh();
-            });
-          }}
-          className="btn-success flex-[2] py-3"
+          onClick={() => setConfirmVerify(true)}
+          className="btn-success w-full py-3"
         >
-          {pending ? "Verifying…" : "Verify"}
+          {pending ? "Verifying…" : "Verify & lock…"}
+        </button>
+        <button
+          onClick={() => setSendBack(true)}
+          className="btn-ghost w-full border-amber-300 py-2.5 text-amber-900 hover:bg-amber-50"
+        >
+          Send back to staff
         </button>
       </div>
-      {error && <p className="mt-2 text-sm font-medium text-rose-600">{error}</p>}
     </div>
   );
 }

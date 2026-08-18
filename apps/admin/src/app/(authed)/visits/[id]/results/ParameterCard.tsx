@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { flagValue, FlagSeverity } from "@lab/types";
 import type { ResultParameter } from "@/lib/data-results";
 import { enqueue } from "@/lib/offline-queue";
@@ -40,6 +40,9 @@ export function ParameterCard({
   const [value, setValue] = useState(initialValue);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [savingError, setSavingError] = useState<string | null>(null);
+  // Whether the failure that produced `savingError` is worth trying again.
+  // A locked row or a stale version is not — those need a human decision.
+  const [canRetry, setCanRetry] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track the persisted id/version so subsequent edits update the same row
   // rather than inserting duplicates.
@@ -81,55 +84,86 @@ export function ParameterCard({
     };
   }, []);
 
+  // Extracted from the debounce effect so the Retry control can re-run exactly
+  // the same write. Recovery used to depend on `value` changing, which meant the
+  // only way back from a failed save was to retype the number — the double entry
+  // this whole product exists to remove, at the one moment a patient is waiting.
+  const save = useCallback(async () => {
+    // `base_version` is the version this edit was based on. The server assigns
+    // the stored version and rejects the write if the row moved on meanwhile,
+    // so two people editing the same value can no longer overwrite each other.
+    const body = {
+      id: resultId.current,
+      visit_test_id: visitTestId,
+      parameter_id: parameter.id,
+      value,
+      is_abnormal: flag.isAbnormal,
+      base_version: version.current,
+    };
+
+    // A base_version captured now would almost certainly be stale by the time
+    // the queue drains, so the replay is deliberately unconditional. The server
+    // still assigns the version — the client never dictates it.
+    const queueOffline = async () => {
+      const { base_version: _unused, ...offlineBody } = body;
+      await enqueue({ kind: "result.upsert", body: offlineBody });
+      setSavedAt(Date.now());
+      setSavingError("Saved on this phone. Will sync when the connection returns.");
+      setCanRetry(false);
+    };
+
+    let r: Response;
+    try {
+      r = await fetch("/api/results/upsert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      // The request never reached the server. `navigator.onLine` is not consulted
+      // here on purpose: it reports true on lab wi-fi that has associated but has
+      // no route out, which is the common failure at the counter, not the edge.
+      await queueOffline();
+      return;
+    }
+
+    if (r.status === 409) {
+      const j = (await r.json().catch(() => ({}))) as { code?: string };
+      setSavingError(
+        j.code === "result_locked"
+          ? "This test is verified and locked — ask an Admin to unlock it."
+          : "Someone else changed this value. Reload the page to see it.",
+      );
+      // Neither case is retryable by repeating the same write.
+      setCanRetry(false);
+      return;
+    }
+
+    if (r.status >= 500) {
+      // The server is reachable but broken. Holding the value locally is always
+      // better than asking someone to remember and retype it.
+      await queueOffline();
+      return;
+    }
+
+    if (!r.ok) {
+      setSavingError("Not saved. Tap Retry.");
+      setCanRetry(true);
+      return;
+    }
+
+    const j = (await r.json()) as { id: string; version: number };
+    resultId.current = j.id;
+    version.current = j.version;
+    setSavedAt(Date.now());
+    setSavingError(null);
+    setCanRetry(false);
+  }, [value, flag.isAbnormal, visitTestId, parameter.id]);
+
   useEffect(() => {
     if (value === initialValue && resultId.current === initialResultId) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      // `base_version` is the version this edit was based on. The server assigns
-      // the stored version and rejects the write if the row moved on meanwhile,
-      // so two people editing the same value can no longer overwrite each other.
-      const body = {
-        id: resultId.current,
-        visit_test_id: visitTestId,
-        parameter_id: parameter.id,
-        value,
-        is_abnormal: flag.isAbnormal,
-        base_version: version.current,
-      };
-      try {
-        const r = await fetch("/api/results/upsert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (r.status === 409) {
-          const j = (await r.json()) as { code?: string; error?: string };
-          setSavingError(
-            j.code === "result_locked"
-              ? "This test is verified and locked — ask an Admin to unlock it."
-              : "Someone else changed this value. Reload the page to see it.",
-          );
-          return;
-        }
-        if (!r.ok) throw new Error(await r.text());
-        const j = (await r.json()) as { id: string; version: number };
-        resultId.current = j.id;
-        version.current = j.version;
-        setSavedAt(Date.now());
-        setSavingError(null);
-      } catch (e: unknown) {
-        if (typeof navigator !== "undefined" && !navigator.onLine) {
-          // A base_version captured now would almost certainly be stale by the
-          // time the queue drains, so the replay is deliberately unconditional.
-          // The server still assigns the version — the client never dictates it.
-          const { base_version: _unused, ...offlineBody } = body;
-          await enqueue({ kind: "result.upsert", body: offlineBody });
-          setSavingError("Saved offline. Will sync when online.");
-        } else {
-          setSavingError("Save failed — retype to retry.");
-        }
-      }
-    }, DEBOUNCE_MS);
+    timer.current = setTimeout(save, DEBOUNCE_MS);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
@@ -143,20 +177,29 @@ export function ParameterCard({
 
   const isQualitative = (parameter.result_type ?? "Numeric") === "Qualitative";
   const abnormal = flag.severity !== FlagSeverity.Normal;
+  const fieldId = `param-${parameter.id}`;
+  const rangeId = `param-${parameter.id}-range`;
 
   return (
     <div className={`rounded-xl border p-3.5 transition-colors ${severityColor}`}>
+      {/* The label was inert — no htmlFor, not wrapping the field — so the
+          accessible name fell to aria-label and the reference range beside it
+          was never announced. A screen-reader user got the parameter name and
+          nothing else: no range, no unit. Both are now bound to the field. */}
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <label className="font-semibold text-slate-900">{parameter.name}</label>
-        <span className="shrink-0 text-xs text-slate-500">
+        <label htmlFor={fieldId} className="font-semibold text-slate-900">
+          {parameter.name}
+        </label>
+        <span id={rangeId} className="shrink-0 text-xs text-slate-600">
           Normal: {rangeOf(parameter, patient)} {parameter.unit ?? ""}
         </span>
       </div>
       {isQualitative ? (
         <select
+          id={fieldId}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          aria-label={parameter.name}
+          aria-describedby={rangeId}
           className="input"
         >
           <option value="">—</option>
@@ -166,10 +209,11 @@ export function ParameterCard({
         </select>
       ) : (
         <input
+          id={fieldId}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           inputMode="decimal"
-          aria-label={parameter.name}
+          aria-describedby={rangeId}
           className={`input text-lg font-semibold ${abnormal ? "border-rose-300" : ""}`}
         />
       )}
@@ -180,11 +224,30 @@ export function ParameterCard({
               {flag.severity} {parameter.unit ?? ""}
             </span>
           ) : (
-            <span className="text-slate-400">{parameter.unit ?? ""}</span>
+            <span className="text-slate-600">{parameter.unit ?? ""}</span>
           )}
         </span>
-        <span className={savingError ? "text-amber-700" : "text-emerald-600"}>
+        {/* Whether a medical value actually persisted is the single most
+            important status on this screen, and it was announced to nobody. */}
+        <span
+          role="status"
+          aria-live="polite"
+          className={`flex items-center gap-2 ${savingError ? "text-amber-800" : "text-emerald-700"}`}
+        >
           {savingError ?? (savedAt ? "✓ Saved" : "")}
+          {canRetry && (
+            <button
+              type="button"
+              onClick={() => {
+                setSavingError(null);
+                setCanRetry(false);
+                void save();
+              }}
+              className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-900 hover:bg-amber-50"
+            >
+              Retry
+            </button>
+          )}
         </span>
       </div>
     </div>

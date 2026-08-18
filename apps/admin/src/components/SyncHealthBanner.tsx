@@ -25,14 +25,20 @@ export async function SyncHealthBanner({ token }: { token: string }) {
   }
 
   const message = describeStaleness(syncStaleness(lastPushedAt, new Date()));
-  if (!message) return null;
 
+  // Always-mounted live region, and `max-w-6xl` to sit on the same left edge as
+  // the content it warns about — the shell caps at 6xl, so a 5xl banner started
+  // one step inboard of everything beneath it.
   return (
-    <div className="bg-rose-100 text-rose-900">
-      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-2 text-sm font-medium">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
-        <span>{message}</span>
-      </div>
+    <div role="status" aria-live="polite">
+      {message && (
+        <div className="bg-rose-100 text-rose-900">
+          <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 text-sm font-medium">
+            <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
+            <span>{message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

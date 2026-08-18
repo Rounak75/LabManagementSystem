@@ -160,7 +160,7 @@ export default function VisitNew() {
                   <select 
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value as any)}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-[14px] font-medium text-slate-700 transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
+                    className="rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-[14px] font-medium text-slate-700 transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:ring-4 focus:ring-brand/10"
                   >
                     <option value="all">All Dates</option>
                     <option value="today">Today</option>
@@ -211,7 +211,7 @@ export default function VisitNew() {
                     </div>
                     <div className="flex-1">
                       <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-700">Sex</label>
-                      <select value={newSex} onChange={e => setNewSex(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition-colors duration-200 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                      <select value={newSex} onChange={e => setNewSex(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition-colors duration-200 focus:border-brand focus:ring-2 focus:ring-brand/20">
                         <option>Male</option><option>Female</option><option>Other</option>
                       </select>
                     </div>

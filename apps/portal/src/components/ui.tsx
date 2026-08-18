@@ -77,12 +77,17 @@ export function Band({
  */
 export function BandWaves() {
   // Tallest and slowest at the back, shortest and quickest at the front. The
-  // ratios (100% / 67% / 44%) are what produce the parallax; changing the
-  // container height alone keeps them intact.
+  // ratios (roughly 100% / 64% / 44%) are what produce the parallax; changing
+  // the container height alone keeps them intact.
+  //
+  // Raised one step from 36/24/16 (sm 48/32/20) so the crests read at a glance
+  // on a phone rather than as a hairline along the band's foot. The layers stay
+  // white at 5–9% alpha and the content above them is opaque, so a taller wave
+  // adds presence without putting texture behind any label.
   const layers = [
-    { tone: "text-white/[0.06]", duration: "31s", height: "h-36 sm:h-48" },
-    { tone: "text-white/[0.05]", duration: "23s", height: "h-24 sm:h-32" },
-    { tone: "text-white/[0.09]", duration: "17s", height: "h-16 sm:h-20" },
+    { tone: "text-white/[0.06]", duration: "31s", height: "h-44 sm:h-56" },
+    { tone: "text-white/[0.05]", duration: "23s", height: "h-28 sm:h-36" },
+    { tone: "text-white/[0.09]", duration: "17s", height: "h-20 sm:h-24" },
   ];
 
   return (
@@ -91,7 +96,7 @@ export function BandWaves() {
       // `contain: paint` tells the browser nothing inside can paint outside
       // this box, so the three animating layers cannot dirty the band above.
       style={{ contain: "paint" }}
-      className="pointer-events-none absolute inset-x-0 bottom-0 h-36 overflow-hidden sm:h-48"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-44 overflow-hidden sm:h-56"
     >
       {layers.map((layer, i) => (
         <svg

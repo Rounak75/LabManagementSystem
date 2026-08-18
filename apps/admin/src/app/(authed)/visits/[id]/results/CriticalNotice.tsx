@@ -39,7 +39,7 @@ export function CriticalNotice() {
         <path d="M12 9v4M12 17h.01" />
       </svg>
       <span>
-        {count} critical value{count > 1 ? "s" : ""} entered. Father will be required to acknowledge before verifying.
+        {count} critical value{count > 1 ? "s" : ""} entered. An Admin must acknowledge these before verifying.
       </span>
     </div>
   );

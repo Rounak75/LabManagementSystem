@@ -28,7 +28,7 @@ export function TestPicker({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-bold uppercase tracking-widest text-slate-400">Tests {count > 0 && <span className="text-slate-400">· {count} selected</span>}</span>
+        <span className="text-[13px] font-bold uppercase tracking-widest text-slate-600">Tests {count > 0 && <span className="text-slate-600">· {count} selected</span>}</span>
         {count > 0 && (
           <button type="button" onClick={() => setSelected([])} className="text-xs font-semibold text-brand hover:text-brand-dark transition-colors">
             Clear all
@@ -45,7 +45,7 @@ export function TestPicker({
           placeholder="Search tests..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-slate-200/80 bg-slate-50 py-2.5 pl-10 pr-4 text-[14px] text-slate-900 transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10"
+          className="w-full rounded-xl border border-slate-200/80 bg-slate-50 py-2.5 pl-10 pr-4 text-[14px] text-slate-900 transition-all duration-300 ease-out-fluid hover:border-slate-300 hover:bg-white focus:border-brand/40 focus:bg-white focus:ring-4 focus:ring-brand/10"
         />
       </div>
 
@@ -69,7 +69,7 @@ export function TestPicker({
                     type="checkbox"
                     checked={chk}
                     onChange={() => setSelected(chk ? selected.filter((i) => i !== t.id) : [...selected, t.id])}
-                    className="h-4 w-4 rounded text-brand focus:ring-brand/50"
+                    className="h-4 w-4 rounded accent-brand"
                   />
                   <span className={`text-[14px] font-medium ${chk ? "text-brand-dark" : "text-slate-800"}`}>{t.name}</span>
                 </div>
@@ -81,8 +81,8 @@ export function TestPicker({
       )}
       
       <div className="mt-4 flex items-center justify-between border-t border-slate-200/60 pt-4">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Total</span>
-        <strong className="font-display text-2xl font-bold tracking-tight text-slate-900">{formatINR(total)}</strong>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-600">Total</span>
+        <strong className="text-2xl font-bold tracking-tight text-slate-900">{formatINR(total)}</strong>
       </div>
     </div>
   );

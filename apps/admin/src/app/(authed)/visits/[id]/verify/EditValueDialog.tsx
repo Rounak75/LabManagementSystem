@@ -1,7 +1,8 @@
 "use client";
 import { useState, useTransition } from "react";
 import { flagValue } from "@lab/types";
-import type { VerifyRow } from "./VerifyView";
+import type { VerifyRow } from "./VerifyView";
+import { Dialog } from "@/components/Dialog";
 
 export function EditValueDialog({
   row,
@@ -19,9 +20,7 @@ export function EditValueDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-sm p-5 shadow-xl">
-        <h3 className="mb-3 text-base font-bold text-slate-900">Edit {row.parameter.name}</h3>
+    <Dialog title={`Edit ${row.parameter.name}`} onClose={onClose}>
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -87,7 +86,6 @@ export function EditValueDialog({
             {pending ? "Saving…" : "Save"}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

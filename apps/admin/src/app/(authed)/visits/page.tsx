@@ -87,7 +87,7 @@ export default async function VisitsPage({ searchParams: searchParamsPromise }: 
               name="q"
               defaultValue={searchParams.q || ""}
               placeholder="Search patients or IDs..." 
-              className="w-full rounded-full border border-slate-300 py-1.5 pl-9 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand shadow-sm bg-white"
+              className="w-full rounded-full border border-slate-300 py-1.5 pl-9 pr-3 text-sm focus:border-brand focus:ring-1 focus:ring-brand shadow-sm bg-white"
             />
           </form>
         </div>
@@ -98,7 +98,45 @@ export default async function VisitsPage({ searchParams: searchParamsPromise }: 
           No visits{status ? " in this view" : " yet"}.
         </div>
       ) : (
-        <div className="card overflow-x-auto">
+        <>
+        {/* Phone gets a scannable list, not a sideways table. The table below is
+            `overflow-x-auto whitespace-nowrap` across six columns, so on a 360px
+            screen Source and Status — the two things a staff member scans a
+            visit list *for* — sat off the right edge behind a two-handed
+            horizontal swipe nested inside a vertical one. `.row-link` is the
+            list primitive this app already uses on Patients. */}
+        <div className="card divide-y divide-slate-100 md:hidden">
+          {visits.map((v) => (
+            <Link key={v.id} href={`/visits/${v.id}`} className="row-link">
+              <span className="min-w-0">
+                <span className="block truncate font-semibold text-slate-900">
+                  {patientName(v.patients)}
+                </span>
+                <span className="mt-0.5 flex items-center gap-2 text-xs text-slate-600">
+                  <span className="truncate font-mono">{v.visit_id ?? v.id}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="shrink-0">{formatDateShort(v.visit_date)}</span>
+                  <SourceBadge source={v.source} />
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <StatusBadge status={v.status} />
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-4 w-4 text-slate-400"
+                  aria-hidden="true"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </span>
+            </Link>
+          ))}
+        </div>
+
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
               <tr>
@@ -107,7 +145,6 @@ export default async function VisitsPage({ searchParams: searchParamsPromise }: 
                 <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Patient Name</th>
                 <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Source</th>
                 <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[11px]">Status</th>
-                <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -128,18 +165,12 @@ export default async function VisitsPage({ searchParams: searchParamsPromise }: 
                   <td className="px-4 py-3.5">
                     <StatusBadge status={v.status} />
                   </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <Link href={`/visits/${v.id}`} className="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-brand hover:bg-brand-50 rounded-md transition-colors opacity-0 group-hover:opacity-100">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                        <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
-                      </svg>
-                    </Link>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

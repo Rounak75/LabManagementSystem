@@ -5,6 +5,20 @@
 @layer base {
   html, body, #root { height: 100%; }
   body { font-family: theme('fontFamily.sans'); }
+
+  /* The staff and patient portals each define a global focus ring; this app,
+     which is the one that locks medical records, had none — and seventeen
+     `outline-none` utilities in the renderer besides. A keyboard user had no
+     reliable indication of where they were. Defined once here rather than per
+     component, matching how the other two apps do it.
+
+     `:focus-visible` rather than `:focus`, so a mouse click on a button does
+     not draw a ring the owner never asked for. */
+  :focus-visible {
+    outline: 2px solid theme('colors.brand.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 @layer utilities {

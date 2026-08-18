@@ -21,11 +21,17 @@ export function NavBar({ user }: { user: SessionUser }) {
           </span>
           <span className="text-[15px] font-extrabold tracking-tight text-white">Lab Admin</span>
         </div>
-        <button 
+        {/* Every navigation in the app starts here, and it was a bare 24x24 SVG
+            with no padding in the far corner — under the 44px minimum, and the
+            hardest point on the screen for the thumb of the hand holding the
+            phone. The icon still draws at 24px; the target around it is 44. */}
+        <button
           onClick={() => setIsOpen(!isOpen)}
-          className="text-slate-300 hover:text-white"
+          aria-expanded={isOpen}
+          aria-label={isOpen ? "Close menu" : "Open menu"}
+          className="-mr-2.5 inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:text-white active:bg-white/10"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>

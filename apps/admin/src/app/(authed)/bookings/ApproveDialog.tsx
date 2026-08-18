@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Phlebotomist } from "./BookingRow";
+import { Dialog } from "@/components/Dialog";
 
 export function ApproveDialog({
   bookingId,
@@ -25,9 +26,7 @@ export function ApproveDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-sm p-5 shadow-xl">
-        <h3 className="mb-3 text-base font-bold text-slate-900">Approve {bookingLabel}</h3>
+    <Dialog title={`Approve ${bookingLabel}`} onClose={onClose}>
 
         <fieldset className="mb-4">
           <legend className="field-label">
@@ -107,7 +106,6 @@ export function ApproveDialog({
             {pending ? "Approving…" : "Approve"}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

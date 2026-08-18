@@ -24,7 +24,7 @@ export function PaymentRow({ invoice }: { invoice: Record<string, unknown> }) {
     <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
       <div className="min-w-0">
         <div className="truncate font-semibold text-slate-900">
-          {patient?.name ?? <span className="italic text-slate-400">Unknown patient</span>}
+          {patient?.name ?? <span className="italic text-slate-600">Unknown patient</span>}
         </div>
         <div className="mt-0.5 text-xs text-slate-500">
           {visit?.visit_id ?? "—"}
@@ -32,7 +32,7 @@ export function PaymentRow({ invoice }: { invoice: Record<string, unknown> }) {
         </div>
         <div className="mt-1.5 flex items-baseline gap-1.5">
           <span className="text-lg font-bold text-rose-600">{formatINR(outstanding)}</span>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-600">
             {partial ? `outstanding of ${formatINR(Number(inv.total))}` : "due"}
           </span>
         </div>

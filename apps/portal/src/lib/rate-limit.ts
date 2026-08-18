@@ -121,11 +121,26 @@ export async function checkRateLimit(
  * drops `x-forwarded-for` takes the whole portal down rather than degrading it,
  * and the routes behind this all have their own authentication or captcha.
  */
+/**
+ * The key IP addresses are hashed with before they are stored.
+ *
+ * This was `process.env.SUPABASE_JWT_SECRET ?? ""`. An empty key does not fail
+ * — it produces an *unkeyed* digest, so the stored IP hashes become a plain
+ * function of the address and the pseudonymisation this exists to provide is
+ * silently gone. The secret is already mandatory (`lib/jwt` throws without it),
+ * so the fallback only ever masked a misconfiguration.
+ */
+function ipHashSecret(): string {
+  const s = process.env.SUPABASE_JWT_SECRET;
+  if (!s) throw new Error("SUPABASE_JWT_SECRET missing — see apps/portal/.env.example.");
+  return s;
+}
+
 export async function enforceRateLimit(
   bucket: Bucket,
   req: NextRequest,
 ): Promise<NextResponse | null> {
-  const ipKey = clientIpKey(req.headers, process.env.SUPABASE_JWT_SECRET ?? "");
+  const ipKey = clientIpKey(req.headers, ipHashSecret());
   if (!ipKey) return null;
 
   const { allowed, retryAfterSeconds } = await checkRateLimit(bucket, ipKey);
@@ -226,7 +241,7 @@ export function enforceMemoryRateLimit(
   bucket: MemoryBucket,
   headers: Headers,
 ): NextResponse | null {
-  const ipKey = clientIpKey(headers, process.env.SUPABASE_JWT_SECRET ?? "");
+  const ipKey = clientIpKey(headers, ipHashSecret());
   if (!ipKey) return null;
 
   const { allowed, retryAfterSeconds } = memoryRateLimit(bucket, ipKey, MEMORY_LIMITS[bucket]);

@@ -33,7 +33,7 @@ export default function PatientSearch() {
           </svg>
           <input 
             type="text"
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 transition-colors duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" 
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 transition-colors duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-brand focus:ring-2 focus:ring-brand/20" 
             placeholder="Search by name, phone, or LAB-YYYY-NNNNN…" 
             value={q} 
             onChange={e => setQ(e.target.value)} 
@@ -42,7 +42,7 @@ export default function PatientSearch() {
         <select 
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value as any)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors duration-200 hover:border-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors duration-200 hover:border-slate-300 focus:border-brand focus:ring-2 focus:ring-brand/20"
         >
           <option value="all">All Dates</option>
           <option value="today">Today</option>

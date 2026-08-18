@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatINR } from "@/lib/format";
+import { Dialog } from "@/components/Dialog";
 
 export function MarkPaidDialog({
   invoiceId,
@@ -22,9 +23,7 @@ export function MarkPaidDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-sm p-5 shadow-xl">
-        <h3 className="mb-1 text-base font-bold text-slate-900">Mark UPI received</h3>
+    <Dialog title="Mark UPI received" onClose={onClose}>
         <p className="mb-3 text-sm text-slate-600">
           Outstanding: <strong className="text-slate-900">{formatINR(outstanding)}</strong>
         </p>
@@ -76,7 +75,6 @@ export function MarkPaidDialog({
             {pending ? "Saving…" : "Mark received"}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

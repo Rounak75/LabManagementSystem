@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Dialog } from "@/components/Dialog";
 
 const REASONS = ["Outside service area", "Slot unavailable", "Patient declined", "Other"];
 
@@ -19,9 +20,7 @@ export function DeclineDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="card w-full max-w-sm p-5 shadow-xl">
-        <h3 className="mb-3 text-base font-bold text-slate-900">Decline {bookingLabel}</h3>
+    <Dialog title={`Decline ${bookingLabel}`} onClose={onClose}>
         <label className="mb-3 block">
           <span className="field-label">Reason</span>
           <select
@@ -60,7 +59,6 @@ export function DeclineDialog({
             {pending ? "Declining…" : "Decline"}
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

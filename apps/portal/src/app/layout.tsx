@@ -49,6 +49,11 @@ export const metadata: Metadata = {
   // genuinely callable is already an explicit `tel:` link, which this does not
   // affect; all the detector can add is false positives.
   formatDetection: { telephone: false, date: false, address: false, email: false },
+  // The portal shipped no image of any kind, so a patient met the lab through a
+  // blank browser tab — the concrete form of the brand gap in PRODUCT.md.
+  icons: { icon: "/icon.jpg", apple: "/icon.jpg" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Janch Ghar" },
 };
 
 // The band runs to the top of the page, so the phone's status bar and browser

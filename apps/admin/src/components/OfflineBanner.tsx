@@ -72,14 +72,25 @@ export function OfflineBanner() {
     }
   }
 
-  if (online && pending === 0) return null;
+  // The live region is always mounted and only its *contents* change. Returning
+  // null and then mounting the whole banner is the common way an aria-live
+  // region goes unannounced: several screen readers only watch regions that
+  // were already in the document when the text arrived. Going offline mid-entry
+  // is exactly the thing a staff member must not miss.
   return (
-    <div className={online ? "bg-amber-100 text-amber-900" : "bg-rose-100 text-rose-900"}>
-      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-2 text-sm font-medium">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${online ? "bg-amber-500" : "bg-rose-500"}`} />
-        {!online && <span>You are offline — changes are saved on this device.</span>}
-        {pending > 0 && <span>{pending} item{pending > 1 ? "s" : ""} waiting to sync.</span>}
-      </div>
+    <div role="status" aria-live="polite">
+      {!(online && pending === 0) && (
+        <div className={online ? "bg-amber-100 text-amber-900" : "bg-rose-100 text-rose-900"}>
+          <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 text-sm font-medium">
+            <span
+              aria-hidden="true"
+              className={`h-2 w-2 shrink-0 rounded-full ${online ? "bg-amber-500" : "bg-rose-500"}`}
+            />
+            {!online && <span>You are offline — changes are saved on this device.</span>}
+            {pending > 0 && <span>{pending} item{pending > 1 ? "s" : ""} waiting to sync.</span>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

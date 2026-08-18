@@ -14,7 +14,7 @@ export function AuditList({ logs }: { logs: AuditEntry[] }) {
             <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-700">
               {l.action}
             </span>
-            <span className="shrink-0 text-xs text-slate-400">{formatDateTime(l.timestamp)}</span>
+            <span className="shrink-0 text-xs text-slate-600">{formatDateTime(l.timestamp)}</span>
           </div>
           <div className="mt-1.5 text-xs text-slate-500">
             <span className="font-medium text-slate-700">{l.userName ?? "—"}</span> · {l.target_entity}/{l.target_id}
