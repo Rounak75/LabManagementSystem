@@ -117,8 +117,18 @@ export function ResolveBookingModal({
       {candidates ? (
         <div className="mt-3">
           <p className="text-sm">
-            More than one patient uses this phone number, so the system would not guess which of
-            them this booking is for. Which one is it?
+            {candidates.length === 1 ? (
+              <>
+                This phone number is already registered to{" "}
+                <strong>{candidates[0]!.name}</strong>, but the booking was made in a
+                different name. Who is it for?
+              </>
+            ) : (
+              <>
+                More than one patient uses this phone number, so the system would not guess
+                which of them this booking is for. Which one is it?
+              </>
+            )}
           </p>
           <div className="mt-2 space-y-1">
             {candidates.map((c) => (

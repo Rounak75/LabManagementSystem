@@ -169,12 +169,17 @@ export async function pullBookings(client: CloudClient): Promise<PullStats> {
     // `not_approved` are ordinary states that settle on their own, and logging
     // them every few seconds would bury the entries that need acting on.
     for (const s of swept.skippedItems) {
-      if (s.reason !== "ambiguous_patient") continue;
+      if (s.reason !== "ambiguous_patient" && s.reason !== "name_mismatch") continue;
+      const why =
+        s.reason === "ambiguous_patient"
+          ? "more than one patient shares this phone"
+          : "the one patient on this phone is recorded under a different name, so " +
+            "this booking may belong to someone else in the same household";
       logError(
         "cloud:booking-convert",
-        `booking ${s.bookingId} needs a human: ${s.reason} — more than one patient ` +
-          `shares this phone, and an approved booking cannot be resolved from the ` +
-          `desktop's Approve button. Nothing will convert it automatically.`,
+        `booking ${s.bookingId} needs a human: ${s.reason} — ${why}, and an ` +
+          `approved booking cannot be resolved from the desktop's Approve button. ` +
+          `Nothing will convert it automatically — resolve it from the Bookings screen.`,
       );
     }
 

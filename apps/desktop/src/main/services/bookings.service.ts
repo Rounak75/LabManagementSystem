@@ -3,12 +3,14 @@
 // HomeVisit + Invoice all written in a single Prisma transaction. If anything
 // throws, the booking stays Pending and nothing leaks.
 //
-// Patient resolution rules:
-//   0 matches by phone → create a new Patient (createdNewPatient: true).
-//   1 match            → reuse it.
-//   ≥2 matches         → return { kind: "chooser" } so the staff can decide
-//                        whether this booking belongs to an existing family
-//                        member or to a brand-new "extra" patient on the line.
+// Patient resolution rules — the phone alone never decides:
+//   0 matches by phone   → create a new Patient (createdNewPatient: true).
+//   1 match, same name   → reuse it.
+//   1 match, other name  → { kind: "chooser" }. A household shares one number,
+//                          and the second person to book on it is not the first.
+//   ≥2 matches           → { kind: "chooser" } so the staff can decide whether
+//                          this booking belongs to an existing family member or
+//                          to a brand-new "extra" patient on the line.
 //
 // Optimistic concurrency: callers may pass `expectedVersion`; if the booking's
 // `version` no longer matches, the transaction throws STALE_VERSION.
@@ -53,6 +55,15 @@ export type ApproveResult =
       visitId: string;
       patientId: string;
       createdNewPatient: boolean;
+      /**
+       * The record this booking ended up on, for the screen to read back.
+       *
+       * The approve dialog used to name only the booking, so a reuse and a fresh
+       * patient looked identical from there — which is how BKG-2026-00004 landed
+       * on another household member's record with nobody noticing.
+       */
+      patientDisplayId: string;
+      patientName: string;
     }
   | { kind: "chooser"; candidates: PatientChoice[] };
 
@@ -60,6 +71,26 @@ export interface DeclineInput {
   bookingId: string;
   reason: string;
   expectedVersion?: number;
+}
+
+/**
+ * Whether a booking's name and an existing record's name are the same person.
+ *
+ * Deliberately strict: case and spacing are noise from a web form, and anything
+ * beyond that is a different name and therefore a question for a human. Fuzzy
+ * matching would decide on its own that "Sujata" and "Sujata Mahato" are one
+ * person and that "Rohan" and "Rounak" are two, and it will be wrong about one
+ * of those in some household. Being wrong here writes one patient's results onto
+ * another's record, so the cost of asking is the cheaper side of the trade.
+ */
+function normaliseName(name: string | null | undefined): string {
+  return String(name ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function namesMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  const left = normaliseName(a);
+  // Two blanks are not a match. A record with no name is not evidence of anything.
+  return left.length > 0 && left === normaliseName(b);
 }
 
 export async function listPatientCandidatesByPhone(phone: string): Promise<PatientChoice[]> {
@@ -86,21 +117,24 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
   const wantsNew = input.chosenPatientId === "__new__";
 
   // Decide which patient this booking is for.
-  let targetPatientId: string | null = null;
+  let target: PatientChoice | null = null;
   let createdNewPatient = false;
 
   if (input.chosenPatientId && input.chosenPatientId !== "__new__") {
     // Caller explicitly chose an existing patient. Validate they're still a candidate.
-    const ok = candidates.some((c) => c.id === input.chosenPatientId);
-    if (!ok) throw domainError("INVALID_INPUT");
-    targetPatientId = input.chosenPatientId;
+    const chosen = candidates.find((c) => c.id === input.chosenPatientId);
+    if (!chosen) throw domainError("INVALID_INPUT");
+    target = chosen;
   } else if (candidates.length === 0 || wantsNew) {
-    targetPatientId = null; // we'll create one inside the txn
+    target = null; // we'll create one inside the txn
     createdNewPatient = true;
-  } else if (candidates.length === 1) {
-    targetPatientId = candidates[0]!.id;
+  } else if (candidates.length === 1 && namesMatch(candidates[0]!.name, booking.patientName)) {
+    // The same person booking again. Anything else about them may have changed;
+    // the name is the only thing saying it is still them.
+    target = candidates[0]!;
   } else {
-    // Multiple matches and no choice provided — surface the chooser.
+    // One match under another name, or several — either way the phone has stopped
+    // being an answer and become a question. Surface the chooser.
     return { kind: "chooser", candidates };
   }
 
@@ -109,17 +143,12 @@ export async function approveBooking(input: ApproveInput): Promise<ApproveResult
     staffUserId: input.staffUserId,
     assignedToUserId: input.assignedToUserId,
     phoneConfirmOutcome: input.phoneConfirmOutcome,
-    targetPatientId,
+    target,
     expectedVersion: input.expectedVersion,
     requireStatus: "Pending",
   });
 
-  return {
-    kind: "approved",
-    visitId: result.visitId,
-    patientId: result.patientId,
-    createdNewPatient,
-  };
+  return { kind: "approved", ...result, createdNewPatient };
 }
 
 /** The booking row as this service reads it. */
@@ -147,14 +176,20 @@ async function writeConversion(opts: {
   assignedToUserId: string | null;
   /** Null when the approval came from the staff portal, which does not ask. */
   phoneConfirmOutcome: PhoneConfirmOutcome | null;
-  targetPatientId: string | null;
+  /** The existing record this booking belongs to, or null to create one. */
+  target: PatientChoice | null;
   expectedVersion?: number;
   requireStatus: "Pending" | "Approved";
-}): Promise<{ visitId: string; patientId: string }> {
-  const { booking, targetPatientId } = opts;
+}): Promise<{
+  visitId: string;
+  patientId: string;
+  patientDisplayId: string;
+  patientName: string;
+}> {
+  const { booking, target } = opts;
 
   const visitDisplayId = await nextVisitId();
-  const newPatientDisplayId = targetPatientId ? null : await nextPatientId();
+  const newPatientDisplayId = target ? null : await nextPatientId();
   const testIds: string[] = safeParseTestIds(booking.testIds);
 
   const result = await prisma().$transaction(async (tx) => {
@@ -171,8 +206,8 @@ async function writeConversion(opts: {
     }
 
     let patientId: string;
-    if (targetPatientId) {
-      patientId = targetPatientId;
+    if (target) {
+      patientId = target.id;
     } else {
       const created = await tx.patient.create({
         data: {
@@ -268,14 +303,23 @@ async function writeConversion(opts: {
       },
     });
 
-    return { visitId: visit.id, patientId };
+    return {
+      visitId: visit.id,
+      patientId,
+      patientDisplayId: target?.patientId ?? newPatientDisplayId!,
+      patientName: target?.name ?? booking.patientName,
+    };
   });
 
   return result;
 }
 
 /** Why a synced booking could not be turned into a visit without a human. */
-export type ConversionSkip = "not_approved" | "already_converted" | "ambiguous_patient";
+export type ConversionSkip =
+  | "not_approved"
+  | "already_converted"
+  | "ambiguous_patient"
+  | "name_mismatch";
 
 export type ConvertResult =
   | { kind: "converted"; visitId: string; patientId: string }
@@ -344,6 +388,14 @@ export async function convertApprovedBooking(bookingId: string): Promise<Convert
   // see resolveApprovedBooking, which is how that human answers it.
   if (candidates.length > 1) return { kind: "skipped", reason: "ambiguous_patient" };
 
+  // One match, but the booking names somebody else. This sweep runs unattended,
+  // so there is nobody to ask — and taking the record anyway is exactly what put
+  // one household member's home visit onto another's history and handed out her
+  // portal account with it. Same answer as the shared phone: wait for a human.
+  if (candidates.length === 1 && !namesMatch(candidates[0]!.name, booking.patientName)) {
+    return { kind: "skipped", reason: "name_mismatch" };
+  }
+
   const result = await writeConversion({
     booking,
     staffUserId: await resolveConversionStaffId(booking.approvedByUserId ?? null),
@@ -352,11 +404,11 @@ export async function convertApprovedBooking(bookingId: string): Promise<Convert
     // outcome to record. Null here means "not asked", which is the truth, and
     // is deliberately distinct from "asked, nobody answered".
     phoneConfirmOutcome: null,
-    targetPatientId: candidates[0]?.id ?? null,
+    target: candidates[0] ?? null,
     requireStatus: "Approved",
   });
 
-  return { kind: "converted", ...result };
+  return { kind: "converted", visitId: result.visitId, patientId: result.patientId };
 }
 
 export interface ResolveApprovedInput {
@@ -397,11 +449,12 @@ export async function resolveApprovedBooking(
   const candidates = await listPatientCandidatesByPhone(booking.patientPhone);
   const wantsNew = input.chosenPatientId === "__new__";
 
-  let targetPatientId: string | null = null;
+  let target: PatientChoice | null = null;
   if (input.chosenPatientId && !wantsNew) {
     // A patient id that is not on this phone is someone else's record.
-    if (!candidates.some((c) => c.id === input.chosenPatientId)) throw domainError("INVALID_INPUT");
-    targetPatientId = input.chosenPatientId;
+    const chosen = candidates.find((c) => c.id === input.chosenPatientId);
+    if (!chosen) throw domainError("INVALID_INPUT");
+    target = chosen;
   } else if (!wantsNew) {
     // Nothing chosen yet — hand back the candidates so the staff can pick.
     return { kind: "chooser", candidates };
@@ -415,11 +468,11 @@ export async function resolveApprovedBooking(
     // happened in the portal. Recording an outcome now would claim a call this
     // screen never prompted anyone to make.
     phoneConfirmOutcome: null,
-    targetPatientId,
+    target,
     requireStatus: "Approved",
   });
 
-  return { kind: "converted", ...result };
+  return { kind: "converted", visitId: result.visitId, patientId: result.patientId };
 }
 
 /** How many approvals one sweep will convert, so a backlog cannot stall a tick. */
@@ -449,10 +502,10 @@ export interface SweepStats {
   /**
    * Bookings the sweep deliberately declined to convert, and why.
    *
-   * `ambiguous_patient` in particular is a dead end rather than a wait: the
-   * desktop's own Approve button refuses anything that is no longer Pending, so
-   * nothing in the system can finish these. Naming them is what makes them
-   * findable by a human.
+   * `ambiguous_patient` and `name_mismatch` in particular are dead ends rather
+   * than waits: the desktop's own Approve button refuses anything that is no
+   * longer Pending, so nothing in the system can finish these. Naming them is
+   * what makes them findable by a human.
    */
   skippedItems: Array<{ bookingId: string; reason: ConversionSkip }>;
 }

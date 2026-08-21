@@ -143,13 +143,68 @@ describe("approveBooking", () => {
       });
     });
 
-    it("reuses the patient when the phone matches exactly one", async () => {
-      mocks.patientFindMany.mockResolvedValue([{ id: "p-existing", patientId: "LAB-2026-00001" }]);
+    it("reuses the patient when the phone matches exactly one of the same name", async () => {
+      mocks.patientFindMany.mockResolvedValue([
+        { id: "p-existing", patientId: "LAB-2026-00001", name: "Sujata Mahato" },
+      ]);
 
       const res = await approveBooking(input);
 
       expect(res).toMatchObject({ createdNewPatient: false, patientId: "p-existing" });
       expect(mocks.txPatientCreate).not.toHaveBeenCalled();
+    });
+
+    // A household shares one number, and the second person to book on it is not
+    // the first. Matching on the phone alone filed BKG-2026-00004 — booked by
+    // Rounak Kumar Mahato — onto Sujata Mahato's record: no patient was created
+    // for him, his home visit went onto her history, and signing in with the
+    // booking id handed him her portal account to set a password on.
+    it("asks which patient when the only match on this phone has another name", async () => {
+      mocks.bookingFindUnique.mockResolvedValue(booking({ patientName: "Rounak Kumar Mahato" }));
+      mocks.patientFindMany.mockResolvedValue([
+        { id: "p-existing", patientId: "LAB-2026-00002", name: "Sujata Mahato" },
+      ]);
+
+      const res = await approveBooking(input);
+
+      expect(res).toEqual({
+        kind: "chooser",
+        candidates: [{ id: "p-existing", patientId: "LAB-2026-00002", name: "Sujata Mahato" }],
+      });
+      expect(mocks.transaction).not.toHaveBeenCalled();
+    });
+
+    // The same person, typed differently into the booking form. Asking here
+    // would be a question with one sensible answer, on every repeat booking.
+    it("still reuses when the name differs only in case and spacing", async () => {
+      mocks.bookingFindUnique.mockResolvedValue(booking({ patientName: "  sujata   MAHATO " }));
+      mocks.patientFindMany.mockResolvedValue([
+        { id: "p-existing", patientId: "LAB-2026-00001", name: "Sujata Mahato" },
+      ]);
+
+      expect(await approveBooking(input)).toMatchObject({ patientId: "p-existing" });
+    });
+
+    // The approve screen said "Booking approved" and named the booking, never
+    // the record. A reuse and a fresh patient looked identical from there, which
+    // is why nobody noticed the booking had landed on someone else.
+    it("names the record it filed the booking under", async () => {
+      mocks.patientFindMany.mockResolvedValue([
+        { id: "p-existing", patientId: "LAB-2026-00001", name: "Sujata Mahato" },
+      ]);
+
+      expect(await approveBooking(input)).toMatchObject({
+        patientDisplayId: "LAB-2026-00001",
+        patientName: "Sujata Mahato",
+      });
+    });
+
+    it("names the record it created", async () => {
+      expect(await approveBooking(input)).toMatchObject({
+        createdNewPatient: true,
+        patientDisplayId: "LAB-2026-00042",
+        patientName: "Sujata Mahato",
+      });
     });
 
     // Households share a phone. Guessing would attach one person's results to
@@ -274,13 +329,29 @@ describe("convertApprovedBooking", () => {
     expect(mocks.txBookingUpdate.mock.calls[0]![0].data.approvedByUserId).toBe("admin-1");
   });
 
-  it("reuses the patient when the phone matches exactly one", async () => {
-    mocks.patientFindMany.mockResolvedValue([{ id: "p-existing" }]);
+  it("reuses the patient when the phone matches exactly one of the same name", async () => {
+    mocks.patientFindMany.mockResolvedValue([{ id: "p-existing", name: "Sujata Mahato" }]);
 
     const res = await convertApprovedBooking("b1");
 
     expect(res).toMatchObject({ patientId: "p-existing" });
     expect(mocks.txPatientCreate).not.toHaveBeenCalled();
+  });
+
+  // Nobody is at the desktop when the portal approves, so there is no one to
+  // ask. Matching on the phone alone is what put one patient's visit onto
+  // another's record, so this waits for a human rather than guessing.
+  it("leaves a single match under a different name for a human", async () => {
+    mocks.bookingFindUnique.mockResolvedValue(
+      portalApproved({ patientName: "Rounak Kumar Mahato" }),
+    );
+    mocks.patientFindMany.mockResolvedValue([{ id: "p-existing", name: "Sujata Mahato" }]);
+
+    expect(await convertApprovedBooking("b1")).toEqual({
+      kind: "skipped",
+      reason: "name_mismatch",
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   // Guessing would file one household member's results under another's record.

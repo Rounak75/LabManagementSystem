@@ -218,6 +218,70 @@ describe("the failures that were previously silent", () => {
   });
 });
 
+describe("a booking on a phone one other patient already holds", () => {
+  beforeEach(async () => {
+    await db.patient.create({
+      data: {
+        patientId: "LAB-2026-00002",
+        name: "Sujata Mahato",
+        age: 45,
+        sex: "Female",
+        phone: "9876543210",
+        createdById: "admin-1",
+        referredById: "doctor-self",
+      },
+    });
+  });
+
+  // BKG-2026-00004, 2026-08-21. The phone had exactly one patient on it, so the
+  // conversion took her record without asking — the chooser only ever appeared
+  // at two matches or more. The booking was for a different member of that
+  // household: no record was created for him, his home visit was written onto
+  // her history, and the booking id signed him into her portal account.
+  it("is left for a human when the booking names someone else", async () => {
+    await approvedBooking({ patientName: "Rounak Kumar Mahato" });
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.skippedItems).toEqual([
+      { bookingId: expect.any(String), reason: "name_mismatch" },
+    ]);
+    expect(await db.visit.count()).toBe(0);
+    expect(await db.patient.count()).toBe(1);
+  });
+
+  // The ordinary case this must not disturb: the same patient booking again.
+  it("converts without asking when the booking names the patient already there", async () => {
+    await approvedBooking();
+
+    const swept = await convertPendingApprovedBookings();
+
+    expect(swept.converted).toBe(1);
+    const sujata = await db.patient.findFirstOrThrow({ where: { patientId: "LAB-2026-00002" } });
+    expect((await db.visit.findFirstOrThrow()).patientId).toBe(sujata.id);
+    expect(await db.patient.count()).toBe(1);
+  });
+
+  it("can be finished as a second patient on the same phone", async () => {
+    const b = await approvedBooking({ patientName: "Rounak Kumar Mahato" });
+    await convertPendingApprovedBookings();
+
+    const offered = await resolveApprovedBooking({ bookingId: b.id, staffUserId: "admin-1" });
+    expect(offered.kind).toBe("chooser");
+
+    const result = await resolveApprovedBooking({
+      bookingId: b.id,
+      staffUserId: "admin-1",
+      chosenPatientId: "__new__",
+    });
+
+    expect(result.kind).toBe("converted");
+    expect(await db.patient.count()).toBe(2);
+    const rounak = await db.patient.findFirstOrThrow({ where: { name: "Rounak Kumar Mahato" } });
+    expect((await db.visit.findFirstOrThrow()).patientId).toBe(rounak.id);
+  });
+});
+
 describe("a booking on a phone two patients share", () => {
   beforeEach(async () => {
     await db.patient.create({

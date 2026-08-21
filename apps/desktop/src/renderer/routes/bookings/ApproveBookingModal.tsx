@@ -34,7 +34,14 @@ interface PatientChoice {
 }
 
 type ApproveResult =
-  | { kind: "approved"; visitId: string; patientId: string; createdNewPatient: boolean }
+  | {
+      kind: "approved";
+      visitId: string;
+      patientId: string;
+      createdNewPatient: boolean;
+      patientDisplayId: string;
+      patientName: string;
+    }
   | { kind: "chooser"; candidates: PatientChoice[] };
 
 export function ApproveBookingModal({
@@ -100,9 +107,18 @@ export function ApproveBookingModal({
             confirmation email, then choose a password.
           </p>
         </div>
-        {approved.createdNewPatient && (
+        {/* Which record this landed on, always — not only when a new one was
+            made. Saying nothing on the reuse path is what let BKG-2026-00004 be
+            filed onto another member of the same household without anyone
+            seeing it happen. */}
+        {approved.createdNewPatient ? (
           <p className="mt-2 text-xs text-amber-700">
-            New patient record created (age/sex unknown — update when the phlebotomist returns).
+            New patient record created — {approved.patientName} ({approved.patientDisplayId}).
+            Age and sex are unknown; update them when the phlebotomist returns.
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-slate-600">
+            Added to the existing record for {approved.patientName} ({approved.patientDisplayId}).
           </p>
         )}
         <div className="mt-4 flex justify-end">
@@ -121,7 +137,15 @@ export function ApproveBookingModal({
       {chooser ? (
         <div className="mt-3">
           <p className="text-sm">
-            Multiple patients share this phone number. Which one is this booking for?
+            {chooser.length === 1 ? (
+              <>
+                This phone number is already registered to{" "}
+                <strong>{chooser[0]!.name}</strong>, but the booking was made in a different
+                name. Who is it for?
+              </>
+            ) : (
+              <>Multiple patients share this phone number. Which one is this booking for?</>
+            )}
           </p>
           <div className="mt-2 space-y-1">
             {chooser.map((c) => (
